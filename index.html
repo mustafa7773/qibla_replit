@@ -805,8 +805,10 @@
         // First, save CENTEROID value separately then strip its line so it doesn't
         // get picked up as a corner point during Steps 2 & 4.
         let centroidFallback = null;
+        // FIXED: Use more permissive regex that handles OCR typos like CENTERIOD, CENTROD, etc.
+        // Also fixed: use \d\. instead of [.,] to avoid matching comma separator as decimal
         text = text.replace(
-          /^.*CENT(?:ER|RO)?I?D[^0-9]*([3-8]\d{5}[.,]\d{1,3})[,\s]+(\d{7}[.,]\d{1,3}).*$/gim,
+          /^.*CENT\w*D[^0-9]*([3-8]\d{5}[.,]\d{1,3})[,\s]+(\d{7}[.,]\d{1,3}).*$/gim,
           (_, e, n) => {
             const ef = parseFloat(e.replace(",", ".")),
               nf = parseFloat(n.replace(",", "."));
@@ -918,7 +920,44 @@
           }
         }
 
-        // ── Step 5: Auto-correct 0↔9 confusion in outlier points ─────────────
+        // ── Step 5: Handle reversed coordinates (Northing,Easting) ──────────────────
+        // Some OCR outputs have coordinates in reversed order
+        if (pairs.length < 3) {
+          const revPairs = [];
+          const revSeen = [];
+          const addRevPair = (n, e) => {
+            if (e > 300000 && e < 900000 && n > 1500000 && n < 3500000) {
+              const dup = revSeen.some(
+                (p) => Math.abs(p.e - e) < DEDUP_M && Math.abs(p.n - n) < DEDUP_M,
+              );
+              if (!dup) {
+                revSeen.push({ e, n });
+                revPairs.push(e.toFixed(2) + ", " + n.toFixed(2));
+              }
+            }
+          };
+          for (const row of normalized.split("\n")) {
+            const nms = [...row.matchAll(/\b(2\d{6}\.\d{1,3})\b/g)]
+              .map((m) => parseFloat(m[1]))
+              .filter((v) => v > 1500000 && v < 3500000);
+            const ems = [...row.matchAll(/\b([3-8]\d{5}\.\d{1,3})\b/g)]
+              .map((m) => parseFloat(m[1]))
+              .filter((v) => v > 300000 && v < 900000);
+            if (!ems.length || !nms.length) continue;
+            const count = Math.min(ems.length, nms.length);
+            for (let i = 0; i < count; i++) addRevPair(nms[i], ems[i]);
+          }
+          if (revPairs.length > pairs.length) {
+            pairs.length = 0;
+            seenCoords.length = 0;
+            revPairs.forEach(p => {
+              const [e, n] = p.split(',').map(s => parseFloat(s.trim()));
+              addPair(e, n);
+            });
+          }
+        }
+
+        // ── Step 6: Auto-correct 0↔9 confusion in outlier points ─────────────
         if(pairs.length >= 2){
           const coords = pairs.map(p=>{const [e,n]=p.split(',').map(s=>parseFloat(s.trim()));return{e,n};});
           const sortedE=[...coords.map(c=>c.e)].sort((a,b)=>a-b);
@@ -961,7 +1000,6 @@
         }
       }
 
-      // Plain 3× greyscale — no binarisation, preserves ink shades Tesseract reads better
       function scaleGrey(dataUrl) {
         return new Promise((resolve) => {
           const img = new Image();
@@ -992,11 +1030,12 @@
         });
       }
 
-      function preprocessImage(dataUrl) {
+      
+
+      function preprocessImage(dataUrl, mode = "auto") {
         return new Promise((resolve) => {
           const img = new Image();
           img.onload = () => {
-            // ── 1. Scale up 3× for more detail ──────────────────────────────────────
             const scale = 3;
             const canvas = document.createElement("canvas");
             canvas.width = img.width * scale;
@@ -1006,24 +1045,55 @@
             ctx.imageSmoothingQuality = "high";
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            const W = canvas.width,
-              H = canvas.height;
+            const W = canvas.width, H = canvas.height;
             const raw = ctx.getImageData(0, 0, W, H).data;
 
-            // ── 2. Luminance-weighted grayscale ─────────────────────────────────────
+            // ── Grayscale ───────────────────────────────────────────────────────
             const gray = new Float32Array(W * H);
-            for (let i = 0; i < W * H; i++)
-              gray[i] =
-                0.299 * raw[i * 4] +
-                0.587 * raw[i * 4 + 1] +
-                0.114 * raw[i * 4 + 2];
+            for (let i = 0; i < W * H; i++) {
+              gray[i] = 0.299 * raw[i * 4] + 0.587 * raw[i * 4 + 1] + 0.114 * raw[i * 4 + 2];
+            }
 
-            // ── 3. Unsharp mask (sharpens edges before thresholding) ────────────────
-            // Gaussian blur ~radius 1 via two 1-D passes
+            if (mode === "grayscale") {
+              // Just grayscale, no thresholding - best for clean scanned docs
+              const out = new Uint8ClampedArray(W * H * 4);
+              for (let i = 0; i < W * H; i++) {
+                const g = Math.round(gray[i]);
+                out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = g;
+                out[i * 4 + 3] = 255;
+              }
+              ctx.putImageData(new ImageData(out, W, H), 0, 0);
+              resolve(canvas.toDataURL("image/png"));
+              return;
+            }
+
+            if (mode === "contrast") {
+              // Contrast enhancement + mild sharpening for scanned docs with stamps
+              let minG = 255, maxG = 0;
+              for (let i = 0; i < W * H; i++) {
+                minG = Math.min(minG, gray[i]);
+                maxG = Math.max(maxG, gray[i]);
+              }
+              const range = maxG - minG || 1;
+              const out = new Uint8ClampedArray(W * H * 4);
+              for (let i = 0; i < W * H; i++) {
+                let g = ((gray[i] - minG) / range) * 255;
+                // Mild sharpening
+                g = Math.min(255, Math.max(0, g + (g - 128) * 0.3));
+                const v = Math.round(g);
+                out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = v;
+                out[i * 4 + 3] = 255;
+              }
+              ctx.putImageData(new ImageData(out, W, H), 0, 0);
+              resolve(canvas.toDataURL("image/png"));
+              return;
+            }
+
+            // Original adaptive threshold (mode === "threshold" or default)
+            // Gaussian blur
             const blurred = new Float32Array(W * H);
-            const k = [0.0625, 0.25, 0.375, 0.25, 0.0625]; // 1-D Gaussian kernel
+            const k = [0.0625, 0.25, 0.375, 0.25, 0.0625];
             const tmp = new Float32Array(W * H);
-            // Horizontal pass
             for (let y = 0; y < H; y++)
               for (let x = 0; x < W; x++) {
                 let s = 0;
@@ -1033,7 +1103,6 @@
                 }
                 tmp[y * W + x] = s;
               }
-            // Vertical pass
             for (let y = 0; y < H; y++)
               for (let x = 0; x < W; x++) {
                 let s = 0;
@@ -1043,57 +1112,35 @@
                 }
                 blurred[y * W + x] = s;
               }
-            // Sharpen: original + amount*(original - blurred)
             const sharp = new Float32Array(W * H);
             const amount = 1.5;
             for (let i = 0; i < W * H; i++)
-              sharp[i] = Math.min(
-                255,
-                Math.max(0, gray[i] + amount * (gray[i] - blurred[i])),
-              );
+              sharp[i] = Math.min(255, Math.max(0, gray[i] + amount * (gray[i] - blurred[i])));
 
-            // ── 4. Adaptive threshold via integral image (handles uneven lighting) ──
-            // Window = ~3 % of min dimension so it adapts to font size
+            // Adaptive threshold
             let win = Math.round(Math.min(W, H) * 0.03);
-            if (win % 2 === 0) win++; // must be odd
+            if (win % 2 === 0) win++;
             const half = win >> 1;
-            const C = 8; // constant: darker-than-mean by C → ink
-
-            // Build 2-D integral image (1-indexed, (W+1)×(H+1))
+            const C = 8;
             const integ = new Float64Array((W + 1) * (H + 1));
             for (let y = 1; y <= H; y++)
               for (let x = 1; x <= W; x++)
-                integ[y * (W + 1) + x] =
-                  sharp[(y - 1) * W + (x - 1)] +
-                  integ[(y - 1) * (W + 1) + x] +
-                  integ[y * (W + 1) + (x - 1)] -
-                  integ[(y - 1) * (W + 1) + (x - 1)];
-
-            // Threshold
+                integ[y * (W + 1) + x] = sharp[(y - 1) * W + (x - 1)] + integ[(y - 1) * (W + 1) + x] + integ[y * (W + 1) + (x - 1)] - integ[(y - 1) * (W + 1) + (x - 1)];
             const out = new Uint8ClampedArray(W * H * 4);
             for (let y = 0; y < H; y++) {
               for (let x = 0; x < W; x++) {
-                const x1 = Math.max(x - half, 0),
-                  y1 = Math.max(y - half, 0);
-                const x2 = Math.min(x + half, W - 1),
-                  y2 = Math.min(y + half, H - 1);
+                const x1 = Math.max(x - half, 0), y1 = Math.max(y - half, 0);
+                const x2 = Math.min(x + half, W - 1), y2 = Math.min(y + half, H - 1);
                 const cnt = (x2 - x1 + 1) * (y2 - y1 + 1);
-                const sum =
-                  integ[(y2 + 1) * (W + 1) + (x2 + 1)] -
-                  integ[y1 * (W + 1) + (x2 + 1)] -
-                  integ[(y2 + 1) * (W + 1) + x1] +
-                  integ[y1 * (W + 1) + x1];
-                const px = sharp[y * W + x] < sum / cnt - C ? 0 : 255; // 0=ink 255=paper
+                const sum = integ[(y2 + 1) * (W + 1) + (x2 + 1)] - integ[y1 * (W + 1) + (x2 + 1)] - integ[(y2 + 1) * (W + 1) + x1] + integ[y1 * (W + 1) + x1];
+                const px = sharp[y * W + x] < sum / cnt - C ? 0 : 255;
                 const idx = (y * W + x) * 4;
                 out[idx] = out[idx + 1] = out[idx + 2] = px;
                 out[idx + 3] = 255;
               }
             }
-
             ctx.putImageData(new ImageData(out, W, H), 0, 0);
-            // Show processed image in preview so user can confirm quality
-            document.getElementById("previewImg").src =
-              canvas.toDataURL("image/png");
+            document.getElementById("previewImg").src = canvas.toDataURL("image/png");
             resolve(canvas.toDataURL("image/png"));
           };
           img.src = dataUrl;
@@ -1108,57 +1155,68 @@
           preview.classList.add("show");
           ocrResultBox.classList.add("hidden");
           ocrStatus.classList.add("show");
-          document.getElementById("ocrStatusText").textContent =
-            "جاري تحسين جودة الصورة…";
-          try {
-            // ── Pass 1: adaptive-threshold binary image ──────────────────────────────
-            const processedDataUrl = await preprocessImage(reader.result);
+
+          let bestText = "";
+          let bestPoints = 0;
+
+          // Try multiple preprocessing strategies
+          const strategies = [
+            { name: "contrast", mode: "contrast", psm: "6", desc: "تحسين التباين" },
+            { name: "grayscale", mode: "grayscale", psm: "6", desc: "رمادي فقط" },
+            { name: "threshold", mode: "threshold", psm: "6", desc: "ثنائي" },
+          ];
+
+          for (const strategy of strategies) {
             document.getElementById("ocrStatusText").textContent =
-              "جاري قراءة الأرقام…";
-            const worker = await Tesseract.createWorker("eng");
-            await worker.setParameters({
-              tessedit_pageseg_mode: "6",
-              preserve_interword_spaces: "1",
-            });
-            const {
-              data: { text: text1 },
-            } = await worker.recognize(processedDataUrl);
+              "جاري القراءة — " + strategy.desc + "…";
+            try {
+              const processedDataUrl = await preprocessImage(reader.result, strategy.mode);
+              const worker = await Tesseract.createWorker("eng");
+              await worker.setParameters({
+                tessedit_pageseg_mode: strategy.psm,
+                preserve_interword_spaces: "1",
+              });
+              const { data: { text } } = await worker.recognize(processedDataUrl);
+              await worker.terminate();
 
-            // Count valid coordinate pairs found in pass 1
-            const pass1Points = countValidPairs(text1);
+              const points = countValidPairs(text);
+              if (points > bestPoints) {
+                bestPoints = points;
+                bestText = text;
+              }
+              if (points >= 4) break; // Found enough points, stop
+            } catch (err) {
+              console.log("Strategy " + strategy.name + " failed:", err);
+            }
+          }
 
-            let finalText = text1;
-
-            // ── Pass 2: greyscale fallback — only if pass 1 found fewer than 2 points ──
-            if (pass1Points < 2) {
-              document.getElementById("ocrStatusText").textContent =
-                "جاري قراءة الأرقام — مرحلة ثانية…";
+          // Fallback: try greyscale with different PSM
+          if (bestPoints < 4) {
+            document.getElementById("ocrStatusText").textContent =
+              "جاري القراءة — محاولة إضافية…";
+            try {
               const greyDataUrl = await scaleGrey(reader.result);
+              const worker = await Tesseract.createWorker("eng");
               await worker.setParameters({
                 tessedit_pageseg_mode: "4",
                 preserve_interword_spaces: "1",
               });
-              const {
-                data: { text: text2 },
-              } = await worker.recognize(greyDataUrl);
-              const pass2Points = countValidPairs(text2);
-              // Use whichever pass found more points
-              finalText = pass2Points > pass1Points ? text2 : text1;
+              const { data: { text } } = await worker.recognize(greyDataUrl);
+              await worker.terminate();
+              const points = countValidPairs(text);
+              if (points > bestPoints) {
+                bestPoints = points;
+                bestText = text;
+              }
+            } catch (err) {
+              console.log("Greyscale fallback failed:", err);
             }
-
-            await worker.terminate();
-            document.getElementById("ocrText").value = finalText;
-            ocrResultBox.classList.remove("hidden");
-            tryAutoFillPoints(finalText);
-          } catch (err) {
-            document.getElementById("ocrText").value =
-              "تعذّرت القراءة الآلية: " +
-              (err.message || "خطأ غير معروف") +
-              "\nيمكنك إدخال الأرقام يدوياً من الصورة أعلاه.";
-            ocrResultBox.classList.remove("hidden");
-          } finally {
-            ocrStatus.classList.remove("show");
           }
+
+          document.getElementById("ocrText").value = bestText;
+          ocrResultBox.classList.remove("hidden");
+          tryAutoFillPoints(bestText);
+          ocrStatus.classList.remove("show");
         };
         reader.readAsDataURL(file);
       }
@@ -1545,7 +1603,11 @@
             mapInstance.remove();
             mapInstance = null;
           }
-          mapInstance = L.map("map", { zoomControl: true }).setView(
+          mapInstance = L.map("map", { 
+            zoomControl: true,
+            maxZoom: 22,
+            minZoom: 3,
+          }).setView(
             [centroid.lat, centroid.lon],
             18,
           );
@@ -1554,14 +1616,18 @@
             "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             {
               attribution: "Esri World Imagery",
-              maxZoom: 19,
+              maxZoom: 22,
+              maxNativeZoom: 19,
+              minZoom: 3,
             },
           );
           const streets = L.tileLayer(
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             {
               attribution: "OpenStreetMap contributors",
-              maxZoom: 19,
+              maxZoom: 22,
+              maxNativeZoom: 19,
+              minZoom: 3,
             },
           );
           satLayer = satellite;
