@@ -1,620 +1,1388 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>قبلة سكاي — اتجاه القبلة من إحداثيات الأرض</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<style>
-:root{
-  --night:#0F1B2D;
-  --night-2:#16273D;
-  --card:#1B2C46;
-  --sand:#C98A4B;
-  --gold:#E3B778;
-  --gold-dim:#9C7A4E;
-  --paper:#F3EFE6;
-  --muted:#93A2B8;
-  --red:#E0554F;
-  --line:rgba(227,183,120,0.18);
-  --radius:14px;
-}
-*{box-sizing:border-box;}
-html,body{margin:0;padding:0;}
-body{
-  background:var(--night);
-  color:var(--paper);
-  font-family:'IBM Plex Sans Arabic',sans-serif;
-  line-height:1.75;
-  min-height:100vh;
-}
-.wrap{max-width:920px;margin:0 auto;padding:0 24px 80px;}
-h1,h2,h3{font-family:'Reem Kufi',sans-serif;font-weight:600;margin:0;}
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>قبلة سكاي — اتجاه القبلة من إحداثيات الأرض</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      :root {
+        --night: #0f1b2d;
+        --night-2: #16273d;
+        --card: #1b2c46;
+        --sand: #c98a4b;
+        --gold: #e3b778;
+        --gold-dim: #9c7a4e;
+        --paper: #f3efe6;
+        --muted: #93a2b8;
+        --red: #e0554f;
+        --line: rgba(227, 183, 120, 0.18);
+        --radius: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--night);
+        color: var(--paper);
+        font-family: "IBM Plex Sans Arabic", sans-serif;
+        line-height: 1.75;
+        min-height: 100vh;
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 0 24px 80px;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: "Amiri", serif;
+        font-weight: 700;
+        margin: 0;
+      }
 
-.hero{position:relative;padding:64px 24px 56px;text-align:center;overflow:hidden;border-bottom:1px solid var(--line);}
-.hero .star-field{
-  position:absolute;inset:0;
-  background-image:
-    radial-gradient(1px 1px at 20% 30%, var(--gold-dim), transparent),
-    radial-gradient(1px 1px at 70% 20%, var(--gold-dim), transparent),
-    radial-gradient(1.5px 1.5px at 85% 60%, var(--gold-dim), transparent),
-    radial-gradient(1px 1px at 45% 75%, var(--gold-dim), transparent),
-    radial-gradient(1px 1px at 10% 65%, var(--gold-dim), transparent),
-    radial-gradient(1.5px 1.5px at 60% 45%, var(--gold-dim), transparent);
-  opacity:0.5;
-}
-.hero-inner{position:relative;max-width:600px;margin:0 auto;}
-.eyebrow{
-  display:inline-flex;align-items:center;gap:8px;
-  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;
-  color:var(--gold);border:1px solid var(--line);border-radius:999px;
-  padding:6px 16px;margin-bottom:24px;
-}
-.hero h1{font-size:clamp(30px,5vw,44px);color:var(--paper);margin-bottom:16px;}
-.hero p{color:var(--muted);font-size:16px;max-width:500px;margin:0 auto;}
-.compass-mark{width:60px;height:60px;margin:0 auto 20px;}
+      .hero {
+        position: relative;
+        padding: 64px 24px 56px;
+        text-align: center;
+        overflow: hidden;
+        border-bottom: 1px solid var(--line);
+      }
+      .hero .star-field {
+        position: absolute;
+        inset: 0;
+        background-image:
+          radial-gradient(1px 1px at 20% 30%, var(--gold-dim), transparent),
+          radial-gradient(1px 1px at 70% 20%, var(--gold-dim), transparent),
+          radial-gradient(1.5px 1.5px at 85% 60%, var(--gold-dim), transparent),
+          radial-gradient(1px 1px at 45% 75%, var(--gold-dim), transparent),
+          radial-gradient(1px 1px at 10% 65%, var(--gold-dim), transparent),
+          radial-gradient(1.5px 1.5px at 60% 45%, var(--gold-dim), transparent);
+        opacity: 0.5;
+      }
+      .hero-inner {
+        position: relative;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        color: var(--gold);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 16px;
+        margin-bottom: 24px;
+      }
+      .hero h1 {
+        font-size: clamp(30px, 5vw, 44px);
+        color: var(--paper);
+        margin-bottom: 16px;
+      }
+      .hero p {
+        color: var(--muted);
+        font-size: 16px;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+      .compass-mark {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 20px;
+      }
 
-.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px;margin:32px 0 24px;}
-.panel h2{font-size:20px;color:var(--paper);margin-bottom:4px;}
-.panel .sub{color:var(--muted);font-size:14px;margin-bottom:22px;}
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 28px;
+        margin: 32px 0 24px;
+      }
+      .panel h2 {
+        font-size: 20px;
+        color: var(--paper);
+        margin-bottom: 4px;
+      }
+      .panel .sub {
+        color: var(--muted);
+        font-size: 14px;
+        margin-bottom: 22px;
+      }
 
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-.field{margin-bottom:14px;}
-.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;}
-.field input,.field select{
-  width:100%;background:var(--night-2);border:1px solid var(--line);border-radius:8px;
-  color:var(--paper);padding:11px 12px;font-size:15px;font-family:'IBM Plex Mono',monospace;
-}
-.field select{font-family:'IBM Plex Sans Arabic',sans-serif;}
-.field input:focus,.field select:focus{outline:none;border-color:var(--gold-dim);}
-.hint{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.8;}
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .field {
+        margin-bottom: 14px;
+      }
+      .field label {
+        display: block;
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .field input,
+      .field select {
+        width: 100%;
+        background: var(--night-2);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--paper);
+        padding: 11px 12px;
+        font-size: 15px;
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .field select {
+        font-family: "IBM Plex Sans Arabic", sans-serif;
+      }
+      .field input:focus,
+      .field select:focus {
+        outline: none;
+        border-color: var(--gold-dim);
+      }
+      .hint {
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-bottom: 14px;
+        line-height: 1.8;
+      }
 
-.dropzone{
-  border:1.5px dashed var(--gold-dim);border-radius:12px;
-  padding:32px 20px;text-align:center;cursor:pointer;
-  transition:border-color .15s, background .15s;
-}
-.dropzone:hover,.dropzone.drag{border-color:var(--gold);background:rgba(227,183,120,0.05);}
-.dropzone p{margin:0 0 4px;color:var(--paper);font-size:15px;}
-.dropzone span{color:var(--muted);font-size:13px;}
-.dropzone input{display:none;}
+      .dropzone {
+        border: 1.5px dashed var(--gold-dim);
+        border-radius: 12px;
+        padding: 32px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .dropzone:hover,
+      .dropzone.drag {
+        border-color: var(--gold);
+        background: rgba(227, 183, 120, 0.05);
+      }
+      .dropzone p {
+        margin: 0 0 4px;
+        color: var(--paper);
+        font-size: 15px;
+      }
+      .dropzone span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .dropzone input {
+        display: none;
+      }
 
-.preview{display:none;align-items:center;gap:16px;margin-top:16px;}
-.preview.show{display:flex;}
-.preview img{width:80px;height:80px;object-fit:cover;border-radius:10px;border:1px solid var(--line);}
-.preview .meta{flex:1;font-size:13.5px;color:var(--muted);}
-.preview .meta b{color:var(--paper);display:block;font-size:14.5px;}
-.preview button.clear{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;}
+      .preview {
+        display: none;
+        align-items: center;
+        gap: 16px;
+        margin-top: 16px;
+      }
+      .preview.show {
+        display: flex;
+      }
+      .preview img {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+      }
+      .preview .meta {
+        flex: 1;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .preview .meta b {
+        color: var(--paper);
+        display: block;
+        font-size: 14.5px;
+      }
+      .preview button.clear {
+        background: none;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 13px;
+        cursor: pointer;
+      }
 
-.status{display:none;align-items:center;gap:10px;margin-top:16px;font-size:14px;color:var(--muted);}
-.status.show{display:flex;}
-.spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--gold-dim);border-top-color:var(--gold);animation:spin 0.8s linear infinite;flex-shrink:0;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-button.primary{
-  background:var(--gold);color:#241705;border:none;border-radius:10px;
-  padding:13px 24px;font-size:15px;font-weight:600;font-family:inherit;
-  cursor:pointer;width:100%;margin-top:6px;transition:opacity .15s;
-}
-button.primary:hover{opacity:0.9;}
-.error-box{display:none;background:rgba(224,85,79,0.1);border:1px solid rgba(224,85,79,0.4);color:#F0A5A1;border-radius:10px;padding:12px 16px;font-size:13.5px;margin-top:16px;}
-.error-box.show{display:block;}
-
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
-.stat{background:var(--night-2);border-radius:10px;padding:14px;text-align:center;}
-.stat .label{font-size:11.5px;color:var(--muted);margin-bottom:6px;}
-.stat .value{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--gold);}
-
-.map-shell{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);height:460px;}
-#map{width:100%;height:100%;}
-.leaflet-container{background:#111 !important;}
-.leaflet-tile{outline:1px solid transparent;}
-
-.compass-dial-wrap{display:flex;justify-content:center;margin:22px 0 8px;}
-.compass-dial{width:220px;height:220px;}
-#needle{transition:transform .3s ease-out;}
-.qibla-tag{
-  position:absolute;bottom:12px;right:12px;z-index:500;
-  background:rgba(15,27,45,0.85);border:1px solid rgba(224,85,79,0.5);border-radius:8px;padding:8px 14px;font-size:12.5px;color:var(--paper);
-}
-.qibla-tag b{color:var(--red);font-family:'IBM Plex Mono',monospace;}
-
-.note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.8;}
-.hidden{display:none !important;}
-footer{text-align:center;color:var(--muted);font-size:12.5px;padding:28px 0 0;}
-
-.leaflet-control-layers{
-  background:rgba(15,27,45,0.92) !important;border:1px solid var(--line) !important;
-  border-radius:10px !important;color:var(--paper) !important;font-family:'IBM Plex Sans Arabic',sans-serif;
-  padding:6px 10px !important;
-}
-.leaflet-control-layers label{color:var(--paper) !important;font-size:13px;}
-.leaflet-control-layers-selector{margin-inline-start:6px;}
-
-.layer-toggle{
-  position:absolute;top:12px;right:12px;z-index:500;
-  display:flex;background:rgba(15,27,45,0.85);border:1px solid var(--line);border-radius:8px;overflow:hidden;
-}
-.layer-toggle button{
-  border:none;background:transparent;color:var(--muted);font-family:'IBM Plex Sans Arabic',sans-serif;
-  font-size:12.5px;padding:8px 14px;cursor:pointer;transition:background .15s,color .15s;
-}
-.layer-toggle button.active{background:var(--gold);color:#241705;font-weight:600;}
-
-@media(max-width:640px){
-  .stat-grid{grid-template-columns:repeat(2,1fr);}
-  .grid2{grid-template-columns:1fr;}
-}
-</style>
-</head>
-<body>
-
-<section class="hero">
-  <div class="star-field"></div>
-  <div class="hero-inner">
-    <svg class="compass-mark" viewBox="0 0 64 64">
-      <circle cx="32" cy="32" r="29" fill="none" stroke="#E3B778" stroke-width="1" stroke-dasharray="2,4"/>
-      <polygon points="32,10 37,32 32,54 27,32" fill="#E3B778"/>
-      <polygon points="10,32 32,27 54,32 32,37" fill="#9C7A4E"/>
-    </svg>
-    <div class="eyebrow"><span>قبلة سكاي</span></div>
-    <h1>اتجاه القبلة من إحداثيات الأرض</h1>
-    <p>أدخل Easting وNorthing من جدول الإحداثيات المطبوع على الرسم المساحي (الكروكي)، وسنحدد لك اتجاه القبلة بدقة على خريطة الأقمار الصناعية.</p>
-  </div>
-</section>
-
-<div class="wrap">
-
-  <div class="panel">
-    <h2>الخطوة الأولى (اختياري) — رفع الكروكي لقراءة الأرقام تلقائياً</h2>
-    <p class="sub">قراءة نصية مجانية داخل المتصفح، بدون اشتراك أو مفتاح API. الدقة تعتمد على وضوح الصورة</p>
-
-    <label class="dropzone" id="dropzone">
-      <p>اسحب صورة الكروكي هنا أو انقر للاختيار</p>
-      <span>PNG أو JPG — تتم القراءة محلياً في متصفحك فقط</span>
-      <input type="file" id="fileInput" accept="image/png,image/jpeg">
-    </label>
-
-    <div class="preview" id="preview">
-      <img id="previewImg" alt="معاينة الكروكي">
-      <div class="meta"><b id="fileName"></b></div>
-      <button class="clear" id="clearBtn">إزالة</button>
-    </div>
-
-    <div class="status" id="ocrStatus"><div class="spinner"></div><span id="ocrStatusText">جاري قراءة النص من الصورة…</span></div>
-
-    <div id="ocrResultBox" class="hidden">
-      <p class="hint">النص المستخرج من الصورة (راجعه وانسخ الأرقام الصحيحة للحقول أدناه — القراءة الآلية قد تخطئ في بعض الأرقام):</p>
-      <textarea id="ocrText" style="width:100%;min-height:140px;background:var(--night-2);border:1px solid var(--line);border-radius:8px;color:var(--paper);padding:12px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;"></textarea>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h2>بيانات القطعة</h2>
-    <p class="sub">انسخ الأرقام كما هي من جدول الإحداثيات على الكروكي (مثال: من نقطة Centeroid)</p>
-
-    <div class="field">
-      <label>نقاط زوايا القطعة (Easting, Northing) — سطر لكل نقطة من جدول الإحداثيات</label>
-      <textarea id="pointsInput" rows="6" placeholder="552408.95, 2535491.37&#10;552355.34, 2535478.90&#10;552348.88, 2535503.07&#10;552352.46, 2535509.04&#10;552401.19, 2535520.37" style="width:100%;background:var(--night-2);border:1px solid var(--line);border-radius:8px;color:var(--paper);padding:11px 12px;font-size:14px;font-family:'IBM Plex Mono',monospace;resize:vertical;"></textarea>
-    </div>
-    <p class="hint">أدخل نقطة واحدة فقط للحساب السريع، أو كل نقاط الزوايا (Line 1-2, 2-3...) لرسم حدود القطعة الحقيقية وحساب المركز الفعلي بدقة أعلى.</p>
-    <div class="grid2">
-      <div class="field">
-        <label>نظام الإسناد (Datum)</label>
-        <select id="datum">
-          <option value="psd93">PSD93 / Clarke 1880 (المعتمد في عُمان)</option>
-          <option value="wgs84utm">WGS84 UTM (قياسي دولي)</option>
-        </select>
-      </div>
-      <div class="field"><label>نطاق UTM (Zone)</label><input type="text" id="zone" value="40" placeholder="40"></div>
-    </div>
-    <p class="hint">عُمان تقع غالباً في النطاق 40، وبعض المناطق الغربية في النطاق 39. نظام الإسناد الافتراضي (PSD93) هو المستخدم في معظم الرسومات المساحية الصادرة من وزارة الإسكان والتخطيط العمراني — إذا كتب على الكروكي "Clark1880" فهذا هو الخيار الصحيح.</p>
-
-    <button class="primary" id="computeBtn">احسب اتجاه القبلة واعرض الخريطة</button>
-    <div class="error-box" id="errorBox"></div>
-  </div>
-
-  <div class="panel hidden" id="resultPanel">
-    <h2>النتيجة</h2>
-    <p class="sub">اتجاه القبلة من موقع القطعة</p>
-
-    <div class="stat-grid">
-      <div class="stat"><div class="label">خط العرض</div><div class="value" id="outLat">—</div></div>
-      <div class="stat"><div class="label">خط الطول</div><div class="value" id="outLon">—</div></div>
-      <div class="stat"><div class="label">اتجاه القبلة (الشمال الحقيقي)</div><div class="value" id="outBearing">—</div></div>
-      <div class="stat"><div class="label">المسافة للكعبة</div><div class="value" id="outDist">—</div></div>
-    </div>
-
-    <div class="compass-dial-wrap">
-      <svg viewBox="0 0 240 240" class="compass-dial">
-        <circle cx="120" cy="120" r="98" fill="var(--night-2)" stroke="var(--line)" stroke-width="1"/>
-        <circle cx="120" cy="120" r="86" fill="none" stroke="var(--gold-dim)" stroke-width="1" stroke-dasharray="2,5"/>
-        <g id="ticks"></g>
-        <text x="120" y="26" text-anchor="middle" font-size="13" font-weight="700" fill="var(--gold)">N</text>
-        <text x="120" y="222" text-anchor="middle" font-size="13" font-weight="700" fill="var(--gold)">S</text>
-        <text x="222" y="125" text-anchor="middle" font-size="13" font-weight="700" fill="var(--gold)">E</text>
-        <text x="18"  y="125" text-anchor="middle" font-size="13" font-weight="700" fill="var(--gold)">W</text>
-        <g transform="translate(120,120) scale(0.62)" opacity="0.5">
-          <rect x="-32" y="-24" width="64" height="48" fill="#1B2C46" stroke="var(--gold-dim)" stroke-width="1.5"/>
-          <rect x="-32" y="-6" width="64" height="10" fill="var(--gold)"/>
-          <rect x="-6" y="6" width="12" height="18" fill="#0F1B2D" stroke="var(--gold-dim)"/>
-        </g>
-        <g id="needle" transform="rotate(0,120,120)">
-          <line x1="120" y1="120" x2="120" y2="34" stroke="var(--red)" stroke-width="3.5" stroke-linecap="round"/>
-          <polygon points="120,26 114,42 126,42" fill="var(--red)"/>
-          <circle cx="120" cy="120" r="6" fill="var(--red)" stroke="#0F1B2D" stroke-width="2"/>
-        </g>
-      </svg>
-    </div>
-
-    <div class="grid2" style="margin-top:8px;">
-      <div class="field">
-        <label>الانحراف المغناطيسي (اختياري، بالدرجات — شرقي = +)</label>
-        <input type="text" id="declination" placeholder="مثال: 1.15">
-      </div>
-      <div class="field">
-        <label>زاوية القبلة للبوصلة اليدوية</label>
-        <input type="text" id="compassBearing" readonly value="—" style="color:var(--gold);font-weight:600;">
-      </div>
-    </div>
-    <p class="hint" style="margin-top:-6px;">إبرة البوصلة العادية تشير للشمال المغناطيسي وليس الشمال الحقيقي. إن كتبت قيمة الانحراف المغناطيسي لمنطقتك (تجدها في <a href="https://www.magnetic-declination.com" target="_blank" style="color:var(--gold);">magnetic-declination.com</a>) ستظهر لك الزاوية الصحيحة لاستخدامها مع بوصلة يدوية فعلية.</p>
-
-    <div class="map-shell">
-      <div id="map"></div>
-      <div class="qibla-tag">القبلة <b id="tagBearing">—</b></div>
-      <div class="layer-toggle">
-        <button id="satBtn" class="active">قمر صناعي</button>
-        <button id="mapBtn">خريطة</button>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-      <button class="ghost" id="fitBtn" style="flex:1;">تصغير لرؤية المسار كاملاً حتى الكعبة</button>
-      <button class="ghost" id="closeBtn" style="flex:1;">تكبير للموقع مجدداً</button>
-    </div>
-    <p class="hint" style="margin-top:12px;">يمكنك سحب علامة البوصلة على الخريطة لتعديل الموقع بدقة (مثلاً لمطابقتها مع زاوية المبنى الفعلية) — سيُعاد حساب اتجاه القبلة والمسافة تلقائياً.</p>
-
-    <p class="note">الخط الأحمر على الخريطة يشير لاتجاه القبلة انطلاقاً من موقع القطعة. الحساب يعتمد على التحويل من نظام PSD93 (Clarke 1880) المستخدم رسمياً في المساحة العُمانية إلى WGS84 — وقد يختلف بضعة أمتار حسب جودة مسح الرسم الأصلي.</p>
-  </div>
-
-  <footer>قبلة سكاي — أداة مساعدة، يُنصح بمراجعة اتجاه القبلة ميدانياً باستخدام بوصلة معتمدة قبل البناء.</footer>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
-<script>
-const KAABA = {lat:21.422487, lon:39.826206};
-
-/* ---------------- upload + free client-side OCR ---------------- */
-const dropzone=document.getElementById('dropzone'), fileInput=document.getElementById('fileInput');
-const preview=document.getElementById('preview'), previewImg=document.getElementById('previewImg');
-const ocrStatus=document.getElementById('ocrStatus'), ocrResultBox=document.getElementById('ocrResultBox');
-
-['dragover','dragenter'].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.add('drag');}));
-['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.remove('drag');}));
-dropzone.addEventListener('drop', e=>{ if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
-document.getElementById('clearBtn').addEventListener('click', e=>{
-  e.preventDefault(); preview.classList.remove('show'); fileInput.value=''; ocrResultBox.classList.add('hidden');
-});
-
-function tryAutoFillPoints(text){
-  // ── Step 0: Fuse digit groups split by spaces/newlines by OCR ─────────────
-  // OCR sometimes inserts spaces inside large numbers: "552 408.95" or "2535 491.37"
-  // Also handle decimal written as space: "552408 95" → "552408.95"
-  let pre = text
-    // Merge digits separated by a single space when total digits suggest a coordinate
-    .replace(/\b(\d{3,7})\s(\d{3,6})\b/g, (m, a, b) => {
-      const joined = a + b;
-      const n = parseInt(joined);
-      // Only merge if result looks like a valid E or N
-      if(joined.length===8 && n>=40000000 && n<=79999999) return joined;
-      if(joined.length===9 && n>=200000000 && n<=299999999) return joined;
-      return m; // don't merge if uncertain
-    })
-    // Decimal written as space after 6-digit easting: "552408 95" → "552408.95"
-    .replace(/\b([4-7]\d{5})\s(\d{2})\b/g, '$1.$2')
-    // Decimal written as space after 7-digit northing: "2535491 37" → "2535491.37"
-    .replace(/\b(2\d{6})\s(\d{2})\b/g, '$1.$2');
-
-  // ── Step 1: Reconstruct dropped decimal points ─────────────────────────────
-  // Easting  (Oman UTM40): 6 digits + 2 dec  → 8 total  e.g. 55560165 → 555601.65
-  // Northing (Oman UTM40): 7 digits + 2 dec  → 9 total  e.g. 247025297 → 2470252.97
-  const normalized = pre.replace(/\b(\d{8,9})\b/g, (match) => {
-    const len = match.length, n = parseInt(match);
-    if(len===9 && n>=200000000 && n<=299999999) return match.slice(0,7)+'.'+match.slice(7); // northing
-    if(len===8 && n>=40000000  && n<=79999999)  return match.slice(0,6)+'.'+match.slice(6); // easting
-    return match;
-  });
-
-  // ── Step 2: Per-line scan (column-order independent) ───────────────────────
-  const pairs = [];
-  for(const row of normalized.split('\n')){
-    // Easting: 4xxxxx–7xxxxx (UTM zone 38-41 western Arabia/Oman)
-    const eM = row.match(/\b([4-7]\d{5}\.\d{1,3})\b/);
-    // Northing: 2xxxxxxx (northern hemisphere, Oman latitude band)
-    const nM = row.match(/\b(2\d{6}\.\d{1,3})\b/);
-    if(eM && nM){
-      const e=parseFloat(eM[1]), n=parseFloat(nM[1]);
-      if(e>300000 && e<900000 && n>1500000 && n<3500000)
-        pairs.push(e.toFixed(2)+', '+n.toFixed(2));
-    }
-  }
-
-  // ── Step 3: CENTEROID fallback (if no polygon rows found) ─────────────────
-  if(pairs.length===0){
-    const cm = normalized.match(/CENT(?:ER|RO)?I?D[:\s,]+([4-7]\d{5}\.\d{1,3})[,\s]+(\d{7}\.\d{1,3})/i);
-    if(cm) pairs.push(parseFloat(cm[1]).toFixed(2)+', '+parseFloat(cm[2]).toFixed(2));
-  }
-
-  // ── Step 4: Full-text fallback (separate column scan) ─────────────────────
-  if(pairs.length===0){
-    const ee = [...normalized.matchAll(/\b([4-7]\d{5}\.\d{1,3})\b/g)].map(m=>parseFloat(m[1])).filter(v=>v>300000&&v<900000);
-    const nn = [...normalized.matchAll(/\b(2\d{6}\.\d{1,3})\b/g)].map(m=>parseFloat(m[1])).filter(v=>v>1500000&&v<3500000);
-    const count=Math.min(ee.length,nn.length);
-    for(let i=0;i<count;i++) pairs.push(ee[i].toFixed(2)+', '+nn[i].toFixed(2));
-  }
-
-  if(pairs.length>0) document.getElementById('pointsInput').value = pairs.join('\n');
-
-  // ── Auto-detect datum & zone ───────────────────────────────────────────────
-  if(/WGS\s*84/i.test(text))          document.getElementById('datum').value='wgs84utm';
-  else if(/PSD\s*93|CLARK/i.test(text)) document.getElementById('datum').value='psd93';
-  const zoneM = text.match(/\b(\d{1,2})\s*N\b/i);
-  if(zoneM){ const z=parseInt(zoneM[1]); if(z>=1&&z<=60) document.getElementById('zone').value=z; }
-}
-
-function preprocessImage(dataUrl){
-  return new Promise((resolve)=>{
-    const img=new Image();
-    img.onload=()=>{
-      // ── 1. Scale up 3× for more detail ──────────────────────────────────────
-      const scale=3;
-      const canvas=document.createElement('canvas');
-      canvas.width=img.width*scale;
-      canvas.height=img.height*scale;
-      const ctx=canvas.getContext('2d');
-      ctx.imageSmoothingEnabled=true;
-      ctx.imageSmoothingQuality='high';
-      ctx.drawImage(img,0,0,canvas.width,canvas.height);
-
-      const W=canvas.width, H=canvas.height;
-      const raw=ctx.getImageData(0,0,W,H).data;
-
-      // ── 2. Luminance-weighted grayscale ─────────────────────────────────────
-      const gray=new Float32Array(W*H);
-      for(let i=0;i<W*H;i++)
-        gray[i]=0.299*raw[i*4]+0.587*raw[i*4+1]+0.114*raw[i*4+2];
-
-      // ── 3. Unsharp mask (sharpens edges before thresholding) ────────────────
-      // Gaussian blur ~radius 1 via two 1-D passes
-      const blurred=new Float32Array(W*H);
-      const k=[0.0625,0.25,0.375,0.25,0.0625]; // 1-D Gaussian kernel
-      const tmp=new Float32Array(W*H);
-      // Horizontal pass
-      for(let y=0;y<H;y++)
-        for(let x=0;x<W;x++){
-          let s=0;
-          for(let d=-2;d<=2;d++){const xx=Math.min(W-1,Math.max(0,x+d)); s+=k[d+2]*gray[y*W+xx];}
-          tmp[y*W+x]=s;
-        }
-      // Vertical pass
-      for(let y=0;y<H;y++)
-        for(let x=0;x<W;x++){
-          let s=0;
-          for(let d=-2;d<=2;d++){const yy=Math.min(H-1,Math.max(0,y+d)); s+=k[d+2]*tmp[yy*W+x];}
-          blurred[y*W+x]=s;
-        }
-      // Sharpen: original + amount*(original - blurred)
-      const sharp=new Float32Array(W*H);
-      const amount=1.5;
-      for(let i=0;i<W*H;i++) sharp[i]=Math.min(255,Math.max(0,gray[i]+amount*(gray[i]-blurred[i])));
-
-      // ── 4. Adaptive threshold via integral image (handles uneven lighting) ──
-      // Window = ~3 % of min dimension so it adapts to font size
-      let win=Math.round(Math.min(W,H)*0.03);
-      if(win%2===0) win++;              // must be odd
-      const half=win>>1;
-      const C=8;                        // constant: darker-than-mean by C → ink
-
-      // Build 2-D integral image (1-indexed, (W+1)×(H+1))
-      const integ=new Float64Array((W+1)*(H+1));
-      for(let y=1;y<=H;y++)
-        for(let x=1;x<=W;x++)
-          integ[y*(W+1)+x]=sharp[(y-1)*W+(x-1)]
-            +integ[(y-1)*(W+1)+x]+integ[y*(W+1)+(x-1)]
-            -integ[(y-1)*(W+1)+(x-1)];
-
-      // Threshold
-      const out=new Uint8ClampedArray(W*H*4);
-      for(let y=0;y<H;y++){
-        for(let x=0;x<W;x++){
-          const x1=Math.max(x-half,0), y1=Math.max(y-half,0);
-          const x2=Math.min(x+half,W-1), y2=Math.min(y+half,H-1);
-          const cnt=(x2-x1+1)*(y2-y1+1);
-          const sum=integ[(y2+1)*(W+1)+(x2+1)]
-            -integ[y1*(W+1)+(x2+1)]
-            -integ[(y2+1)*(W+1)+x1]
-            +integ[y1*(W+1)+x1];
-          const px=sharp[y*W+x]<(sum/cnt-C)?0:255; // 0=ink 255=paper
-          const idx=(y*W+x)*4;
-          out[idx]=out[idx+1]=out[idx+2]=px; out[idx+3]=255;
+      .status {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        margin-top: 16px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .status.show {
+        display: flex;
+      }
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid var(--gold-dim);
+        border-top-color: var(--gold);
+        animation: spin 0.8s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
         }
       }
 
-      ctx.putImageData(new ImageData(out,W,H),0,0);
-      // Show processed image in preview so user can confirm quality
-      document.getElementById('previewImg').src=canvas.toDataURL('image/png');
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.src=dataUrl;
-  });
-}
+      button.primary {
+        background: var(--gold);
+        color: #241705;
+        border: none;
+        border-radius: 10px;
+        padding: 13px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 6px;
+        transition: opacity 0.15s;
+      }
+      button.primary:hover {
+        opacity: 0.9;
+      }
+      .error-box {
+        display: none;
+        background: rgba(224, 85, 79, 0.1);
+        border: 1px solid rgba(224, 85, 79, 0.4);
+        color: #f0a5a1;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 13.5px;
+        margin-top: 16px;
+      }
+      .error-box.show {
+        display: block;
+      }
 
-async function handleFile(file){
-  const reader=new FileReader();
-  reader.onload=async ()=>{
-    previewImg.src=reader.result;
-    document.getElementById('fileName').textContent=file.name;
-    preview.classList.add('show');
-    ocrResultBox.classList.add('hidden');
-    ocrStatus.classList.add('show');
-    document.getElementById('ocrStatusText').textContent='جاري تحسين جودة الصورة…';
-    try{
-      const processedDataUrl = await preprocessImage(reader.result);
-      document.getElementById('ocrStatusText').textContent='جاري قراءة الأرقام من الصورة… (قد يستغرق بضع ثوانٍ)';
-      const worker = await Tesseract.createWorker('eng');
-      // PSM 6 = uniform block of text — best for tabular data; no whitelist so spaces are preserved
-      await worker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
-      const { data:{ text } } = await worker.recognize(processedDataUrl);
-      await worker.terminate();
-      document.getElementById('ocrText').value = text;
-      ocrResultBox.classList.remove('hidden');
-      tryAutoFillPoints(text);
-    }catch(err){
-      document.getElementById('ocrText').value = 'تعذّرت القراءة الآلية: ' + (err.message||'خطأ غير معروف') + '\nيمكنك إدخال الأرقام يدوياً من الصورة أعلاه.';
-      ocrResultBox.classList.remove('hidden');
-    }finally{
-      ocrStatus.classList.remove('show');
-    }
-  };
-  reader.readAsDataURL(file);
-}
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .stat {
+        background: var(--night-2);
+        border-radius: 10px;
+        padding: 14px;
+        text-align: center;
+      }
+      .stat .label {
+        font-size: 11.5px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .stat .value {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 16px;
+        color: var(--gold);
+      }
 
-function utmInverse(E, N, zone, a, invF){
-  const f = 1/invF, e2 = 2*f - f*f, k0 = 0.9996;
-  const lon0 = (zone*6 - 183) * Math.PI/180;
-  const x = E - 500000, y = N;
-  const M = y / k0;
-  const e1 = (1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
-  const mu = M / (a*(1 - e2/4 - 3*e2*e2/64 - 5*Math.pow(e2,3)/256));
-  const phi1 = mu + (3*e1/2 - 27*Math.pow(e1,3)/32)*Math.sin(2*mu)
-              + (21*e1*e1/16 - 55*Math.pow(e1,4)/32)*Math.sin(4*mu)
-              + (151*Math.pow(e1,3)/96)*Math.sin(6*mu)
-              + (1097*Math.pow(e1,4)/512)*Math.sin(8*mu);
-  const ep2 = e2/(1-e2);
-  const C1 = ep2*Math.pow(Math.cos(phi1),2);
-  const T1 = Math.pow(Math.tan(phi1),2);
-  const N1 = a/Math.sqrt(1-e2*Math.pow(Math.sin(phi1),2));
-  const R1 = a*(1-e2)/Math.pow(1-e2*Math.pow(Math.sin(phi1),2),1.5);
-  const D = x/(N1*k0);
-  const lat = phi1 - (N1*Math.tan(phi1)/R1)*(D*D/2
-              - (5+3*T1+10*C1-4*C1*C1-9*ep2)*Math.pow(D,4)/24
-              + (61+90*T1+298*C1+45*T1*T1-252*ep2-3*C1*C1)*Math.pow(D,6)/720);
-  const lon = lon0 + (D - (1+2*T1+C1)*Math.pow(D,3)/6
-              + (5-2*C1+28*T1-3*C1*C1+8*ep2+24*T1*T1)*Math.pow(D,5)/120)/Math.cos(phi1);
-  return {lat: lat*180/Math.PI, lon: lon*180/Math.PI};
-}
-function geodeticToGeocentric(lat, lon, a, e2){
-  const phi = lat*Math.PI/180, lambda = lon*Math.PI/180;
-  const Nn = a/Math.sqrt(1-e2*Math.pow(Math.sin(phi),2));
-  return [Nn*Math.cos(phi)*Math.cos(lambda), Nn*Math.cos(phi)*Math.sin(lambda), Nn*(1-e2)*Math.sin(phi)];
-}
-function geocentricToGeodetic(X,Y,Z,a,e2){
-  const lon = Math.atan2(Y,X);
-  const p = Math.sqrt(X*X+Y*Y);
-  let phi = Math.atan2(Z, p*(1-e2));
-  for(let i=0;i<5;i++){
-    const Nn = a/Math.sqrt(1-e2*Math.pow(Math.sin(phi),2));
-    const h = p/Math.cos(phi) - Nn;
-    phi = Math.atan2(Z, p*(1-e2*Nn/(Nn+h)));
-  }
-  return [phi*180/Math.PI, lon*180/Math.PI];
-}
-function helmert(X,Y,Z, dx,dy,dz, rx,ry,rz, ds){
-  const rxr = rx*Math.PI/(180*3600), ryr = ry*Math.PI/(180*3600), rzr = rz*Math.PI/(180*3600);
-  const s = ds*1e-6;
-  return [
-    dx + (1+s)*(X - rzr*Y + ryr*Z),
-    dy + (1+s)*(rzr*X + Y - rxr*Z),
-    dz + (1+s)*(-ryr*X + rxr*Y + Z)
-  ];
-}
-function convertToWGS84(E, N, zone, datum){
-  const CLARKE_A = 6378249.145, CLARKE_INVF = 293.465;
-  const WGS_A = 6378137, WGS_F = 1/298.257223563, WGS_E2 = 2*WGS_F - WGS_F*WGS_F;
-  if(datum === 'wgs84utm'){
-    return utmInverse(E, N, zone, WGS_A, 298.257223563);
-  }
-  const geo = utmInverse(E, N, zone, CLARKE_A, CLARKE_INVF);
-  const f = 1/CLARKE_INVF, e2 = 2*f-f*f;
-  const xyz = geodeticToGeocentric(geo.lat, geo.lon, CLARKE_A, e2);
-  const shifted = helmert(xyz[0],xyz[1],xyz[2], -180.624,-225.516,173.919, -0.81,-1.898,8.336, 16.71006);
-  const out = geocentricToGeodetic(shifted[0],shifted[1],shifted[2], WGS_A, WGS_E2);
-  return {lat:out[0], lon:out[1]};
-}
-function qiblaVincenty(lat1, lon1, lat2, lon2){
-  const a = 6378137, f = 1/298.257223563, b = (1-f)*a;
-  const L = (lon2-lon1)*Math.PI/180;
-  const U1 = Math.atan((1-f)*Math.tan(lat1*Math.PI/180));
-  const U2 = Math.atan((1-f)*Math.tan(lat2*Math.PI/180));
-  const sinU1=Math.sin(U1), cosU1=Math.cos(U1);
-  const sinU2=Math.sin(U2), cosU2=Math.cos(U2);
-  let lambda=L, lambdaP, iter=100;
-  let sinSigma,cosSigma,sigma,sinAlpha,cosSqAlpha,cos2SigmaM;
-  do{
-    const sinLambda=Math.sin(lambda), cosLambda=Math.cos(lambda);
-    sinSigma=Math.sqrt(Math.pow(cosU2*sinLambda,2)+Math.pow(cosU1*sinU2-sinU1*cosU2*cosLambda,2));
-    if(sinSigma===0) return {bearing:0, distanceKm:0};
-    cosSigma=sinU1*sinU2+cosU1*cosU2*cosLambda;
-    sigma=Math.atan2(sinSigma,cosSigma);
-    sinAlpha=cosU1*cosU2*sinLambda/sinSigma;
-    cosSqAlpha=1-sinAlpha*sinAlpha;
-    cos2SigmaM=cosSigma-2*sinU1*sinU2/cosSqAlpha;
-    if(isNaN(cos2SigmaM)) cos2SigmaM=0;
-    const C=f/16*cosSqAlpha*(4+f*(4-3*cosSqAlpha));
-    lambdaP=lambda;
-    lambda=L+(1-C)*f*sinAlpha*(sigma+C*sinSigma*(cos2SigmaM+C*cosSigma*(-1+2*cos2SigmaM*cos2SigmaM)));
-  }while(Math.abs(lambda-lambdaP)>1e-12 && --iter>0);
+      .map-shell {
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        height: 460px;
+      }
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+      .leaflet-container {
+        background: #111 !important;
+      }
+      .leaflet-tile {
+        outline: 1px solid transparent;
+      }
 
-  const uSq=cosSqAlpha*(a*a-b*b)/(b*b);
-  const A=1+uSq/16384*(4096+uSq*(-768+uSq*(320-175*uSq)));
-  const B=uSq/1024*(256+uSq*(-128+uSq*(74-47*uSq)));
-  const deltaSigma=B*sinSigma*(cos2SigmaM+B/4*(cosSigma*(-1+2*cos2SigmaM*cos2SigmaM)-B/6*cos2SigmaM*(-3+4*sinSigma*sinSigma)*(-3+4*cos2SigmaM*cos2SigmaM)));
-  const dist=b*A*(sigma-deltaSigma);
+      .compass-dial-wrap {
+        display: flex;
+        justify-content: center;
+        margin: 22px 0 8px;
+      }
+      .compass-dial {
+        width: 220px;
+        height: 220px;
+      }
+      #needle {
+        transition: transform 0.3s ease-out;
+      }
+      .qibla-tag {
+        position: absolute;
+        bottom: 12px;
+        right: 12px;
+        z-index: 500;
+        background: rgba(15, 27, 45, 0.85);
+        border: 1px solid rgba(224, 85, 79, 0.5);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 12.5px;
+        color: var(--paper);
+      }
+      .qibla-tag b {
+        color: var(--red);
+        font-family: "IBM Plex Mono", monospace;
+      }
 
-  const alpha1=Math.atan2(cosU2*Math.sin(lambda), cosU1*sinU2-sinU1*cosU2*Math.cos(lambda));
-  const bearing=(alpha1*180/Math.PI+360)%360;
-  return {bearing, distanceKm: dist/1000};
-}
-function destinationPoint(lat1, lon1, bearingDeg, distMeters){
-  const R=6371000, br=bearingDeg*Math.PI/180, phi1=lat1*Math.PI/180, lambda1=lon1*Math.PI/180;
-  const dR=distMeters/R;
-  const phi2=Math.asin(Math.sin(phi1)*Math.cos(dR)+Math.cos(phi1)*Math.sin(dR)*Math.cos(br));
-  const lambda2=lambda1+Math.atan2(Math.sin(br)*Math.sin(dR)*Math.cos(phi1), Math.cos(dR)-Math.sin(phi1)*Math.sin(phi2));
-  return [phi2*180/Math.PI, lambda2*180/Math.PI];
-}
+      .note {
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-top: 14px;
+        line-height: 1.8;
+      }
+      .hidden {
+        display: none !important;
+      }
+      footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 12.5px;
+        padding: 28px 0 0;
+      }
 
-const errorBox=document.getElementById('errorBox');
-let mapInstance=null, markerInstance=null, lineInstance=null, satLayer=null, streetLayer=null, lastBearing=0;
+      .leaflet-control-layers {
+        background: rgba(15, 27, 45, 0.92) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 10px !important;
+        color: var(--paper) !important;
+        font-family: "IBM Plex Sans Arabic", sans-serif;
+        padding: 6px 10px !important;
+      }
+      .leaflet-control-layers label {
+        color: var(--paper) !important;
+        font-size: 13px;
+      }
+      .leaflet-control-layers-selector {
+        margin-inline-start: 6px;
+      }
 
-(function buildTicks(){
-  const g=document.getElementById('ticks');
-  for(let deg=0; deg<360; deg+=30){
-    const rad=deg*Math.PI/180;
-    const x1=120+80*Math.sin(rad), y1=120-80*Math.cos(rad);
-    const x2=120+90*Math.sin(rad), y2=120-90*Math.cos(rad);
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',x1); line.setAttribute('y1',y1);
-    line.setAttribute('x2',x2); line.setAttribute('y2',y2);
-    line.setAttribute('stroke','#9C7A4E'); line.setAttribute('stroke-width','1.5');
-    g.appendChild(line);
-  }
-})();
+      .layer-toggle {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 500;
+        display: flex;
+        background: rgba(15, 27, 45, 0.85);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .layer-toggle button {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-family: "IBM Plex Sans Arabic", sans-serif;
+        font-size: 12.5px;
+        padding: 8px 14px;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .layer-toggle button.active {
+        background: var(--gold);
+        color: #241705;
+        font-weight: 600;
+      }
 
-function updateCompassField(){
-  const decl=parseFloat(document.getElementById('declination').value);
-  const el=document.getElementById('compassBearing');
-  if(isNaN(decl)){ el.value='—'; return; }
-  const corrected=((lastBearing - decl)+360)%360;
-  el.value=corrected.toFixed(2)+'°';
-}
-document.getElementById('declination').addEventListener('input', updateCompassField);
+      @media (max-width: 640px) {
+        .stat-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="hero">
+      <div class="star-field"></div>
+      <div class="hero-inner">
+        <svg class="compass-mark" viewBox="0 0 64 64">
+          <circle
+            cx="32"
+            cy="32"
+            r="29"
+            fill="none"
+            stroke="#E3B778"
+            stroke-width="1"
+            stroke-dasharray="2,4"
+          />
+          <polygon points="32,10 37,32 32,54 27,32" fill="#E3B778" />
+          <polygon points="10,32 32,27 54,32 32,37" fill="#9C7A4E" />
+        </svg>
+        <div class="eyebrow"><span>قبلة سكاي</span></div>
+        <h1>اتجاه القبلة من إحداثيات الأرض</h1>
+        <p>
+          أدخل Easting وNorthing من جدول الإحداثيات المطبوع على الرسم المساحي
+          (الكروكي)، وسنحدد لك اتجاه القبلة بدقة على خريطة الأقمار الصناعية.
+        </p>
+      </div>
+    </section>
 
-function compassIcon(){
-  const svg = `
+    <div class="wrap">
+      <div class="panel">
+        <h2>الخطوة الأولى (اختياري) — رفع الكروكي لقراءة الأرقام تلقائياً</h2>
+        <p class="sub">
+          قراءة نصية مجانية داخل المتصفح، بدون اشتراك أو مفتاح API. الدقة تعتمد
+          على وضوح الصورة
+        </p>
+
+        <label class="dropzone" id="dropzone">
+          <p>اسحب صورة الكروكي هنا أو انقر للاختيار</p>
+          <span>PNG أو JPG — تتم القراءة محلياً في متصفحك فقط</span>
+          <input type="file" id="fileInput" accept="image/png,image/jpeg" />
+        </label>
+
+        <div class="preview" id="preview">
+          <img id="previewImg" alt="معاينة الكروكي" />
+          <div class="meta"><b id="fileName"></b></div>
+          <button class="clear" id="clearBtn">إزالة</button>
+        </div>
+
+        <div class="status" id="ocrStatus">
+          <div class="spinner"></div>
+          <span id="ocrStatusText">جاري قراءة النص من الصورة…</span>
+        </div>
+
+        <div id="ocrResultBox" class="hidden">
+          <p class="hint">
+            النص المستخرج من الصورة (راجعه وانسخ الأرقام الصحيحة للحقول أدناه —
+            القراءة الآلية قد تخطئ في بعض الأرقام):
+          </p>
+          <textarea
+            id="ocrText"
+            style="
+              width: 100%;
+              min-height: 140px;
+              background: var(--night-2);
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              color: var(--paper);
+              padding: 12px;
+              font-family: &quot;IBM Plex Mono&quot;, monospace;
+              font-size: 12.5px;
+            "
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>بيانات القطعة</h2>
+        <p class="sub">
+          انسخ الأرقام كما هي من جدول الإحداثيات على الكروكي (مثال: من نقطة
+          Centeroid)
+        </p>
+
+        <div class="field">
+          <label
+            >نقاط زوايا القطعة (Easting, Northing) — سطر لكل نقطة من جدول
+            الإحداثيات</label
+          >
+          <textarea
+            id="pointsInput"
+            rows="6"
+            placeholder="552408.95, 2535491.37&#10;552355.34, 2535478.90&#10;552348.88, 2535503.07&#10;552352.46, 2535509.04&#10;552401.19, 2535520.37"
+            style="
+              width: 100%;
+              background: var(--night-2);
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              color: var(--paper);
+              padding: 11px 12px;
+              font-size: 14px;
+              font-family: &quot;IBM Plex Mono&quot;, monospace;
+              resize: vertical;
+            "
+          ></textarea>
+        </div>
+        <p class="hint">
+          أدخل نقطة واحدة فقط للحساب السريع، أو كل نقاط الزوايا (Line 1-2,
+          2-3...) لرسم حدود القطعة الحقيقية وحساب المركز الفعلي بدقة أعلى.
+        </p>
+        <div class="grid2">
+          <div class="field">
+            <label>نظام الإسناد (Datum)</label>
+            <select id="datum">
+              <option value="psd93">
+                PSD93 / Clarke 1880 (المعتمد في عُمان)
+              </option>
+              <option value="wgs84utm">WGS84 UTM (قياسي دولي)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>نطاق UTM (Zone)</label
+            ><input type="text" id="zone" value="40" placeholder="40" />
+          </div>
+        </div>
+        <p class="hint">
+          عُمان تقع غالباً في النطاق 40، وبعض المناطق الغربية في النطاق 39. نظام
+          الإسناد الافتراضي (PSD93) هو المستخدم في معظم الرسومات المساحية
+          الصادرة من وزارة الإسكان والتخطيط العمراني — إذا كتب على الكروكي
+          "Clark1880" فهذا هو الخيار الصحيح.
+        </p>
+
+        <button class="primary" id="computeBtn">
+          احسب اتجاه القبلة واعرض الخريطة
+        </button>
+        <div class="error-box" id="errorBox"></div>
+      </div>
+
+      <div class="panel hidden" id="resultPanel">
+        <h2>النتيجة</h2>
+        <p class="sub">اتجاه القبلة من موقع القطعة</p>
+
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="label">خط العرض</div>
+            <div class="value" id="outLat">—</div>
+          </div>
+          <div class="stat">
+            <div class="label">خط الطول</div>
+            <div class="value" id="outLon">—</div>
+          </div>
+          <div class="stat">
+            <div class="label">اتجاه القبلة (الشمال الحقيقي)</div>
+            <div class="value" id="outBearing">—</div>
+          </div>
+          <div class="stat">
+            <div class="label">المسافة للكعبة</div>
+            <div class="value" id="outDist">—</div>
+          </div>
+        </div>
+
+        <div class="compass-dial-wrap">
+          <svg viewBox="0 0 240 240" class="compass-dial">
+            <circle
+              cx="120"
+              cy="120"
+              r="98"
+              fill="var(--night-2)"
+              stroke="var(--line)"
+              stroke-width="1"
+            />
+            <circle
+              cx="120"
+              cy="120"
+              r="86"
+              fill="none"
+              stroke="var(--gold-dim)"
+              stroke-width="1"
+              stroke-dasharray="2,5"
+            />
+            <g id="ticks"></g>
+            <text
+              x="120"
+              y="26"
+              text-anchor="middle"
+              font-size="13"
+              font-weight="700"
+              fill="var(--gold)"
+            >
+              N
+            </text>
+            <text
+              x="120"
+              y="222"
+              text-anchor="middle"
+              font-size="13"
+              font-weight="700"
+              fill="var(--gold)"
+            >
+              S
+            </text>
+            <text
+              x="222"
+              y="125"
+              text-anchor="middle"
+              font-size="13"
+              font-weight="700"
+              fill="var(--gold)"
+            >
+              E
+            </text>
+            <text
+              x="18"
+              y="125"
+              text-anchor="middle"
+              font-size="13"
+              font-weight="700"
+              fill="var(--gold)"
+            >
+              W
+            </text>
+            <g transform="translate(120,120) scale(0.62)" opacity="0.5">
+              <rect
+                x="-32"
+                y="-24"
+                width="64"
+                height="48"
+                fill="#1B2C46"
+                stroke="var(--gold-dim)"
+                stroke-width="1.5"
+              />
+              <rect x="-32" y="-6" width="64" height="10" fill="var(--gold)" />
+              <rect
+                x="-6"
+                y="6"
+                width="12"
+                height="18"
+                fill="#0F1B2D"
+                stroke="var(--gold-dim)"
+              />
+            </g>
+            <g id="needle" transform="rotate(0,120,120)">
+              <line
+                x1="120"
+                y1="120"
+                x2="120"
+                y2="34"
+                stroke="var(--red)"
+                stroke-width="3.5"
+                stroke-linecap="round"
+              />
+              <polygon points="120,26 114,42 126,42" fill="var(--red)" />
+              <circle
+                cx="120"
+                cy="120"
+                r="6"
+                fill="var(--red)"
+                stroke="#0F1B2D"
+                stroke-width="2"
+              />
+            </g>
+          </svg>
+        </div>
+
+        <div class="grid2" style="margin-top: 8px">
+          <div class="field">
+            <label>الانحراف المغناطيسي (اختياري، بالدرجات — شرقي = +)</label>
+            <input type="text" id="declination" placeholder="مثال: 1.15" />
+          </div>
+          <div class="field">
+            <label>زاوية القبلة للبوصلة اليدوية</label>
+            <input
+              type="text"
+              id="compassBearing"
+              readonly
+              value="—"
+              style="color: var(--gold); font-weight: 600"
+            />
+          </div>
+        </div>
+        <p class="hint" style="margin-top: -6px">
+          إبرة البوصلة العادية تشير للشمال المغناطيسي وليس الشمال الحقيقي. إن
+          كتبت قيمة الانحراف المغناطيسي لمنطقتك (تجدها في
+          <a
+            href="https://www.magnetic-declination.com"
+            target="_blank"
+            style="color: var(--gold)"
+            >magnetic-declination.com</a
+          >) ستظهر لك الزاوية الصحيحة لاستخدامها مع بوصلة يدوية فعلية.
+        </p>
+
+        <div class="map-shell">
+          <div id="map"></div>
+          <div class="qibla-tag">القبلة <b id="tagBearing">—</b></div>
+          <div class="layer-toggle">
+            <button id="satBtn" class="active">قمر صناعي</button>
+            <button id="mapBtn">خريطة</button>
+          </div>
+        </div>
+        <div
+          style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px"
+        >
+          <button class="ghost" id="fitBtn" style="flex: 1">
+            تصغير لرؤية المسار كاملاً حتى الكعبة
+          </button>
+          <button class="ghost" id="closeBtn" style="flex: 1">
+            تكبير للموقع مجدداً
+          </button>
+        </div>
+        <p class="hint" style="margin-top: 12px">
+          يمكنك سحب علامة البوصلة على الخريطة لتعديل الموقع بدقة (مثلاً
+          لمطابقتها مع زاوية المبنى الفعلية) — سيُعاد حساب اتجاه القبلة والمسافة
+          تلقائياً.
+        </p>
+
+        <p class="note">
+          الخط الأحمر على الخريطة يشير لاتجاه القبلة انطلاقاً من موقع القطعة.
+          الحساب يعتمد على التحويل من نظام PSD93 (Clarke 1880) المستخدم رسمياً
+          في المساحة العُمانية إلى WGS84 — وقد يختلف بضعة أمتار حسب جودة مسح
+          الرسم الأصلي.
+        </p>
+      </div>
+
+      <footer>
+        قبلة سكاي — أداة مساعدة، يُنصح بمراجعة اتجاه القبلة ميدانياً باستخدام
+        بوصلة معتمدة قبل البناء.
+      </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+    <script>
+      const KAABA = { lat: 21.422487, lon: 39.826206 };
+
+      /* ---------------- upload + free client-side OCR ---------------- */
+      const dropzone = document.getElementById("dropzone"),
+        fileInput = document.getElementById("fileInput");
+      const preview = document.getElementById("preview"),
+        previewImg = document.getElementById("previewImg");
+      const ocrStatus = document.getElementById("ocrStatus"),
+        ocrResultBox = document.getElementById("ocrResultBox");
+
+      ["dragover", "dragenter"].forEach((ev) =>
+        dropzone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          dropzone.classList.add("drag");
+        }),
+      );
+      ["dragleave", "drop"].forEach((ev) =>
+        dropzone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove("drag");
+        }),
+      );
+      dropzone.addEventListener("drop", (e) => {
+        if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files[0]) handleFile(e.target.files[0]);
+      });
+      document.getElementById("clearBtn").addEventListener("click", (e) => {
+        e.preventDefault();
+        preview.classList.remove("show");
+        fileInput.value = "";
+        ocrResultBox.classList.add("hidden");
+      });
+
+      // Count how many valid E+N pairs exist in raw OCR text (quick pre-check)
+      function countValidPairs(text) {
+        const ee = [...text.matchAll(/\b([3-8]\d{5}[.,]\d{1,3})\b/g)];
+        const nn = [...text.matchAll(/\b(2\d{6}[.,]\d{1,3})\b/g)];
+        return Math.min(ee.length, nn.length);
+      }
+
+      function tryAutoFillPoints(text) {
+        // ── Step 0: Normalise common OCR corruption patterns ──────────────────────
+        // First, save CENTEROID value separately then strip its line so it doesn't
+        // get picked up as a corner point during Steps 2 & 4.
+        let centroidFallback = null;
+        text = text.replace(
+          /^.*CENT(?:ER|RO)?I?D[^0-9]*([3-8]\d{5}[.,]\d{1,3})[,\s]+(\d{7}[.,]\d{1,3}).*$/gim,
+          (_, e, n) => {
+            const ef = parseFloat(e.replace(",", ".")),
+              nf = parseFloat(n.replace(",", "."));
+            if (!isNaN(ef) && !isNaN(nf)) centroidFallback = { e: ef, n: nf };
+            return ""; // remove the line
+          },
+        );
+
+        let pre = text
+          // European comma decimal: "518749,69" → "518749.69"
+          .replace(/\b(\d{4,7}),(\d{2,3})\b/g, "$1.$2")
+          // Decimal written as space: "518749 69" → "518749.69" (easting)
+          .replace(/\b([3-8]\d{5})\s(\d{2})\b/g, "$1.$2")
+          // Decimal written as space: "2160083 68" → "2160083.68" (northing)
+          .replace(/\b(2\d{6})\s(\d{2})\b/g, "$1.$2")
+          // Fuse two digit groups split by a single space into one number
+          .replace(/\b(\d{3,7})\s(\d{3,6})\b/g, (m, a, b) => {
+            const joined = a + b,
+              n = parseInt(joined);
+            if (joined.length === 8 && n >= 40000000 && n <= 79999999)
+              return joined;
+            if (joined.length === 9 && n >= 200000000 && n <= 299999999)
+              return joined;
+            return m;
+          })
+          // Standalone 6-digit easting integer (no decimal) → add .00
+          .replace(/\b([3-8]\d{5})\b(?![.\d])/g, "$1.00")
+          // Standalone 7-digit northing integer (no decimal) → add .00
+          .replace(/\b(2\d{6})\b(?![.\d])/g, "$1.00");
+
+        // ── Step 1: Reconstruct dropped decimal points from fused runs ─────────────
+        // 8-digit fused easting: 55560165 → 555601.65
+        // 9-digit fused northing: 247025297 → 2470252.97
+        const normalized = pre.replace(/\b(\d{8,9})\b/g, (match) => {
+          const len = match.length,
+            n = parseInt(match);
+          if (len === 9 && n >= 200000000 && n <= 299999999)
+            return match.slice(0, 7) + "." + match.slice(7);
+          if (len === 8 && n >= 40000000 && n <= 79999999)
+            return match.slice(0, 6) + "." + match.slice(6);
+          return match;
+        });
+
+        // ── Step 2: Per-line scan — extract ALL E+N pairs from each line ─────────────
+        // OCR sometimes collapses two table rows onto one line; matchAll captures both.
+        const pairs = [];
+        const seenCoords = []; // [{e,n}] for proximity dedup
+        const DEDUP_M = 5; // treat points within 5 m as the same
+        const addPair = (e, n) => {
+          if (e > 300000 && e < 900000 && n > 1500000 && n < 3500000) {
+            const dup = seenCoords.some(
+              (p) => Math.abs(p.e - e) < DEDUP_M && Math.abs(p.n - n) < DEDUP_M,
+            );
+            if (!dup) {
+              seenCoords.push({ e, n });
+              pairs.push(e.toFixed(2) + ", " + n.toFixed(2));
+            }
+          }
+        };
+
+        for (const row of normalized.split("\n")) {
+          const ems = [...row.matchAll(/\b([3-8]\d{5}\.\d{1,3})\b/g)]
+            .map((m) => parseFloat(m[1]))
+            .filter((v) => v > 300000 && v < 900000);
+          const nms = [...row.matchAll(/\b(2\d{6}\.\d{1,3})\b/g)]
+            .map((m) => parseFloat(m[1]))
+            .filter((v) => v > 1500000 && v < 3500000);
+          if (!ems.length || !nms.length) continue;
+
+          if (ems.length === nms.length) {
+            // Equal counts → pair in positional order (most common table layout)
+            for (let i = 0; i < ems.length; i++) addPair(ems[i], nms[i]);
+          } else {
+            // Unequal counts → pair first of each (safe fallback)
+            addPair(ems[0], nms[0]);
+            // If extra matches exist pair remainder sequentially
+            const extra = Math.min(ems.length, nms.length);
+            for (let i = 1; i < extra; i++) addPair(ems[i], nms[i]);
+          }
+        }
+
+        // ── Step 3: CENTROID fallback ──────────────────────────────────────────────
+        // Use the centroid saved earlier (its line was stripped to avoid polluting corners)
+        if (pairs.length === 0 && centroidFallback) {
+          addPair(centroidFallback.e, centroidFallback.n);
+        }
+
+        // ── Step 4: Full-text supplemental scan — ALWAYS runs ─────────────────────
+        // Catches any row that Step 2 missed (e.g. two rows collapsed on one line
+        // but with unequal E/N counts, or a row skipped due to OCR noise).
+        // addPair() deduplicates so already-found coordinates are ignored.
+        {
+          const ee = [...normalized.matchAll(/\b([3-8]\d{5}\.\d{1,3})\b/g)]
+            .map((m) => parseFloat(m[1]))
+            .filter((v) => v > 300000 && v < 900000);
+          const nn = [...normalized.matchAll(/\b(\d{7}\.\d{1,3})\b/g)]
+            .map((m) => parseFloat(m[1]))
+            .filter((v) => v > 1500000 && v < 3500000);
+          // If full-text finds more points than per-line, use it instead
+          if (nn.length > pairs.length) {
+            seenCoords.length = 0;
+            pairs.length = 0;
+            const count = Math.min(ee.length, nn.length);
+            for (let i = 0; i < count; i++) addPair(ee[i], nn[i]);
+          } else {
+            // Otherwise just add any missing ones
+            const count = Math.min(ee.length, nn.length);
+            for (let i = 0; i < count; i++) addPair(ee[i], nn[i]);
+          }
+        }
+
+        if (pairs.length > 0)
+          document.getElementById("pointsInput").value = pairs.join("\n");
+
+        // ── Auto-detect datum & zone ───────────────────────────────────────────────
+        if (/WGS\s*84/i.test(text))
+          document.getElementById("datum").value = "wgs84utm";
+        else if (/PSD\s*93|CLARK/i.test(text))
+          document.getElementById("datum").value = "psd93";
+        const zoneM = text.match(/\b(\d{1,2})\s*N\b/i);
+        if (zoneM) {
+          const z = parseInt(zoneM[1]);
+          if (z >= 1 && z <= 60) document.getElementById("zone").value = z;
+        }
+      }
+
+      // Plain 3× greyscale — no binarisation, preserves ink shades Tesseract reads better
+      function scaleGrey(dataUrl) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = 3;
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext("2d");
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const W = canvas.width,
+              H = canvas.height;
+            const d = ctx.getImageData(0, 0, W, H);
+            for (let i = 0; i < W * H; i++) {
+              const g = Math.round(
+                0.299 * d.data[i * 4] +
+                  0.587 * d.data[i * 4 + 1] +
+                  0.114 * d.data[i * 4 + 2],
+              );
+              d.data[i * 4] = d.data[i * 4 + 1] = d.data[i * 4 + 2] = g;
+            }
+            ctx.putImageData(d, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+          };
+          img.src = dataUrl;
+        });
+      }
+
+      function preprocessImage(dataUrl) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            // ── 1. Scale up 3× for more detail ──────────────────────────────────────
+            const scale = 3;
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext("2d");
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const W = canvas.width,
+              H = canvas.height;
+            const raw = ctx.getImageData(0, 0, W, H).data;
+
+            // ── 2. Luminance-weighted grayscale ─────────────────────────────────────
+            const gray = new Float32Array(W * H);
+            for (let i = 0; i < W * H; i++)
+              gray[i] =
+                0.299 * raw[i * 4] +
+                0.587 * raw[i * 4 + 1] +
+                0.114 * raw[i * 4 + 2];
+
+            // ── 3. Unsharp mask (sharpens edges before thresholding) ────────────────
+            // Gaussian blur ~radius 1 via two 1-D passes
+            const blurred = new Float32Array(W * H);
+            const k = [0.0625, 0.25, 0.375, 0.25, 0.0625]; // 1-D Gaussian kernel
+            const tmp = new Float32Array(W * H);
+            // Horizontal pass
+            for (let y = 0; y < H; y++)
+              for (let x = 0; x < W; x++) {
+                let s = 0;
+                for (let d = -2; d <= 2; d++) {
+                  const xx = Math.min(W - 1, Math.max(0, x + d));
+                  s += k[d + 2] * gray[y * W + xx];
+                }
+                tmp[y * W + x] = s;
+              }
+            // Vertical pass
+            for (let y = 0; y < H; y++)
+              for (let x = 0; x < W; x++) {
+                let s = 0;
+                for (let d = -2; d <= 2; d++) {
+                  const yy = Math.min(H - 1, Math.max(0, y + d));
+                  s += k[d + 2] * tmp[yy * W + x];
+                }
+                blurred[y * W + x] = s;
+              }
+            // Sharpen: original + amount*(original - blurred)
+            const sharp = new Float32Array(W * H);
+            const amount = 1.5;
+            for (let i = 0; i < W * H; i++)
+              sharp[i] = Math.min(
+                255,
+                Math.max(0, gray[i] + amount * (gray[i] - blurred[i])),
+              );
+
+            // ── 4. Adaptive threshold via integral image (handles uneven lighting) ──
+            // Window = ~3 % of min dimension so it adapts to font size
+            let win = Math.round(Math.min(W, H) * 0.03);
+            if (win % 2 === 0) win++; // must be odd
+            const half = win >> 1;
+            const C = 8; // constant: darker-than-mean by C → ink
+
+            // Build 2-D integral image (1-indexed, (W+1)×(H+1))
+            const integ = new Float64Array((W + 1) * (H + 1));
+            for (let y = 1; y <= H; y++)
+              for (let x = 1; x <= W; x++)
+                integ[y * (W + 1) + x] =
+                  sharp[(y - 1) * W + (x - 1)] +
+                  integ[(y - 1) * (W + 1) + x] +
+                  integ[y * (W + 1) + (x - 1)] -
+                  integ[(y - 1) * (W + 1) + (x - 1)];
+
+            // Threshold
+            const out = new Uint8ClampedArray(W * H * 4);
+            for (let y = 0; y < H; y++) {
+              for (let x = 0; x < W; x++) {
+                const x1 = Math.max(x - half, 0),
+                  y1 = Math.max(y - half, 0);
+                const x2 = Math.min(x + half, W - 1),
+                  y2 = Math.min(y + half, H - 1);
+                const cnt = (x2 - x1 + 1) * (y2 - y1 + 1);
+                const sum =
+                  integ[(y2 + 1) * (W + 1) + (x2 + 1)] -
+                  integ[y1 * (W + 1) + (x2 + 1)] -
+                  integ[(y2 + 1) * (W + 1) + x1] +
+                  integ[y1 * (W + 1) + x1];
+                const px = sharp[y * W + x] < sum / cnt - C ? 0 : 255; // 0=ink 255=paper
+                const idx = (y * W + x) * 4;
+                out[idx] = out[idx + 1] = out[idx + 2] = px;
+                out[idx + 3] = 255;
+              }
+            }
+
+            ctx.putImageData(new ImageData(out, W, H), 0, 0);
+            // Show processed image in preview so user can confirm quality
+            document.getElementById("previewImg").src =
+              canvas.toDataURL("image/png");
+            resolve(canvas.toDataURL("image/png"));
+          };
+          img.src = dataUrl;
+        });
+      }
+
+      async function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          previewImg.src = reader.result;
+          document.getElementById("fileName").textContent = file.name;
+          preview.classList.add("show");
+          ocrResultBox.classList.add("hidden");
+          ocrStatus.classList.add("show");
+          document.getElementById("ocrStatusText").textContent =
+            "جاري تحسين جودة الصورة…";
+          try {
+            // ── Pass 1: adaptive-threshold binary image ──────────────────────────────
+            const processedDataUrl = await preprocessImage(reader.result);
+            document.getElementById("ocrStatusText").textContent =
+              "جاري قراءة الأرقام…";
+            const worker = await Tesseract.createWorker("eng");
+            await worker.setParameters({
+              tessedit_pageseg_mode: "6",
+              preserve_interword_spaces: "1",
+            });
+            const {
+              data: { text: text1 },
+            } = await worker.recognize(processedDataUrl);
+
+            // Count valid coordinate pairs found in pass 1
+            const pass1Points = countValidPairs(text1);
+
+            let finalText = text1;
+
+            // ── Pass 2: greyscale fallback — only if pass 1 found fewer than 2 points ──
+            if (pass1Points < 2) {
+              document.getElementById("ocrStatusText").textContent =
+                "جاري قراءة الأرقام — مرحلة ثانية…";
+              const greyDataUrl = await scaleGrey(reader.result);
+              await worker.setParameters({
+                tessedit_pageseg_mode: "4",
+                preserve_interword_spaces: "1",
+              });
+              const {
+                data: { text: text2 },
+              } = await worker.recognize(greyDataUrl);
+              const pass2Points = countValidPairs(text2);
+              // Use whichever pass found more points
+              finalText = pass2Points > pass1Points ? text2 : text1;
+            }
+
+            await worker.terminate();
+            document.getElementById("ocrText").value = finalText;
+            ocrResultBox.classList.remove("hidden");
+            tryAutoFillPoints(finalText);
+          } catch (err) {
+            document.getElementById("ocrText").value =
+              "تعذّرت القراءة الآلية: " +
+              (err.message || "خطأ غير معروف") +
+              "\nيمكنك إدخال الأرقام يدوياً من الصورة أعلاه.";
+            ocrResultBox.classList.remove("hidden");
+          } finally {
+            ocrStatus.classList.remove("show");
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function utmInverse(E, N, zone, a, invF) {
+        const f = 1 / invF,
+          e2 = 2 * f - f * f,
+          k0 = 0.9996;
+        const lon0 = ((zone * 6 - 183) * Math.PI) / 180;
+        const x = E - 500000,
+          y = N;
+        const M = y / k0;
+        const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+        const mu =
+          M /
+          (a * (1 - e2 / 4 - (3 * e2 * e2) / 64 - (5 * Math.pow(e2, 3)) / 256));
+        const phi1 =
+          mu +
+          ((3 * e1) / 2 - (27 * Math.pow(e1, 3)) / 32) * Math.sin(2 * mu) +
+          ((21 * e1 * e1) / 16 - (55 * Math.pow(e1, 4)) / 32) *
+            Math.sin(4 * mu) +
+          ((151 * Math.pow(e1, 3)) / 96) * Math.sin(6 * mu) +
+          ((1097 * Math.pow(e1, 4)) / 512) * Math.sin(8 * mu);
+        const ep2 = e2 / (1 - e2);
+        const C1 = ep2 * Math.pow(Math.cos(phi1), 2);
+        const T1 = Math.pow(Math.tan(phi1), 2);
+        const N1 = a / Math.sqrt(1 - e2 * Math.pow(Math.sin(phi1), 2));
+        const R1 =
+          (a * (1 - e2)) / Math.pow(1 - e2 * Math.pow(Math.sin(phi1), 2), 1.5);
+        const D = x / (N1 * k0);
+        const lat =
+          phi1 -
+          ((N1 * Math.tan(phi1)) / R1) *
+            ((D * D) / 2 -
+              ((5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) *
+                Math.pow(D, 4)) /
+                24 +
+              ((61 +
+                90 * T1 +
+                298 * C1 +
+                45 * T1 * T1 -
+                252 * ep2 -
+                3 * C1 * C1) *
+                Math.pow(D, 6)) /
+                720);
+        const lon =
+          lon0 +
+          (D -
+            ((1 + 2 * T1 + C1) * Math.pow(D, 3)) / 6 +
+            ((5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) *
+              Math.pow(D, 5)) /
+              120) /
+            Math.cos(phi1);
+        return { lat: (lat * 180) / Math.PI, lon: (lon * 180) / Math.PI };
+      }
+      function geodeticToGeocentric(lat, lon, a, e2) {
+        const phi = (lat * Math.PI) / 180,
+          lambda = (lon * Math.PI) / 180;
+        const Nn = a / Math.sqrt(1 - e2 * Math.pow(Math.sin(phi), 2));
+        return [
+          Nn * Math.cos(phi) * Math.cos(lambda),
+          Nn * Math.cos(phi) * Math.sin(lambda),
+          Nn * (1 - e2) * Math.sin(phi),
+        ];
+      }
+      function geocentricToGeodetic(X, Y, Z, a, e2) {
+        const lon = Math.atan2(Y, X);
+        const p = Math.sqrt(X * X + Y * Y);
+        let phi = Math.atan2(Z, p * (1 - e2));
+        for (let i = 0; i < 5; i++) {
+          const Nn = a / Math.sqrt(1 - e2 * Math.pow(Math.sin(phi), 2));
+          const h = p / Math.cos(phi) - Nn;
+          phi = Math.atan2(Z, p * (1 - (e2 * Nn) / (Nn + h)));
+        }
+        return [(phi * 180) / Math.PI, (lon * 180) / Math.PI];
+      }
+      function helmert(X, Y, Z, dx, dy, dz, rx, ry, rz, ds) {
+        const rxr = (rx * Math.PI) / (180 * 3600),
+          ryr = (ry * Math.PI) / (180 * 3600),
+          rzr = (rz * Math.PI) / (180 * 3600);
+        const s = ds * 1e-6;
+        return [
+          dx + (1 + s) * (X - rzr * Y + ryr * Z),
+          dy + (1 + s) * (rzr * X + Y - rxr * Z),
+          dz + (1 + s) * (-ryr * X + rxr * Y + Z),
+        ];
+      }
+      function convertToWGS84(E, N, zone, datum) {
+        const CLARKE_A = 6378249.145,
+          CLARKE_INVF = 293.465;
+        const WGS_A = 6378137,
+          WGS_F = 1 / 298.257223563,
+          WGS_E2 = 2 * WGS_F - WGS_F * WGS_F;
+        if (datum === "wgs84utm") {
+          return utmInverse(E, N, zone, WGS_A, 298.257223563);
+        }
+        const geo = utmInverse(E, N, zone, CLARKE_A, CLARKE_INVF);
+        const f = 1 / CLARKE_INVF,
+          e2 = 2 * f - f * f;
+        const xyz = geodeticToGeocentric(geo.lat, geo.lon, CLARKE_A, e2);
+        const shifted = helmert(
+          xyz[0],
+          xyz[1],
+          xyz[2],
+          -180.624,
+          -225.516,
+          173.919,
+          -0.81,
+          -1.898,
+          8.336,
+          16.71006,
+        );
+        const out = geocentricToGeodetic(
+          shifted[0],
+          shifted[1],
+          shifted[2],
+          WGS_A,
+          WGS_E2,
+        );
+        return { lat: out[0], lon: out[1] };
+      }
+      function qiblaVincenty(lat1, lon1, lat2, lon2) {
+        const a = 6378137,
+          f = 1 / 298.257223563,
+          b = (1 - f) * a;
+        const L = ((lon2 - lon1) * Math.PI) / 180;
+        const U1 = Math.atan((1 - f) * Math.tan((lat1 * Math.PI) / 180));
+        const U2 = Math.atan((1 - f) * Math.tan((lat2 * Math.PI) / 180));
+        const sinU1 = Math.sin(U1),
+          cosU1 = Math.cos(U1);
+        const sinU2 = Math.sin(U2),
+          cosU2 = Math.cos(U2);
+        let lambda = L,
+          lambdaP,
+          iter = 100;
+        let sinSigma, cosSigma, sigma, sinAlpha, cosSqAlpha, cos2SigmaM;
+        do {
+          const sinLambda = Math.sin(lambda),
+            cosLambda = Math.cos(lambda);
+          sinSigma = Math.sqrt(
+            Math.pow(cosU2 * sinLambda, 2) +
+              Math.pow(cosU1 * sinU2 - sinU1 * cosU2 * cosLambda, 2),
+          );
+          if (sinSigma === 0) return { bearing: 0, distanceKm: 0 };
+          cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda;
+          sigma = Math.atan2(sinSigma, cosSigma);
+          sinAlpha = (cosU1 * cosU2 * sinLambda) / sinSigma;
+          cosSqAlpha = 1 - sinAlpha * sinAlpha;
+          cos2SigmaM = cosSigma - (2 * sinU1 * sinU2) / cosSqAlpha;
+          if (isNaN(cos2SigmaM)) cos2SigmaM = 0;
+          const C = (f / 16) * cosSqAlpha * (4 + f * (4 - 3 * cosSqAlpha));
+          lambdaP = lambda;
+          lambda =
+            L +
+            (1 - C) *
+              f *
+              sinAlpha *
+              (sigma +
+                C *
+                  sinSigma *
+                  (cos2SigmaM +
+                    C * cosSigma * (-1 + 2 * cos2SigmaM * cos2SigmaM)));
+        } while (Math.abs(lambda - lambdaP) > 1e-12 && --iter > 0);
+
+        const uSq = (cosSqAlpha * (a * a - b * b)) / (b * b);
+        const A =
+          1 + (uSq / 16384) * (4096 + uSq * (-768 + uSq * (320 - 175 * uSq)));
+        const B = (uSq / 1024) * (256 + uSq * (-128 + uSq * (74 - 47 * uSq)));
+        const deltaSigma =
+          B *
+          sinSigma *
+          (cos2SigmaM +
+            (B / 4) *
+              (cosSigma * (-1 + 2 * cos2SigmaM * cos2SigmaM) -
+                (B / 6) *
+                  cos2SigmaM *
+                  (-3 + 4 * sinSigma * sinSigma) *
+                  (-3 + 4 * cos2SigmaM * cos2SigmaM)));
+        const dist = b * A * (sigma - deltaSigma);
+
+        const alpha1 = Math.atan2(
+          cosU2 * Math.sin(lambda),
+          cosU1 * sinU2 - sinU1 * cosU2 * Math.cos(lambda),
+        );
+        const bearing = ((alpha1 * 180) / Math.PI + 360) % 360;
+        return { bearing, distanceKm: dist / 1000 };
+      }
+      function destinationPoint(lat1, lon1, bearingDeg, distMeters) {
+        const R = 6371000,
+          br = (bearingDeg * Math.PI) / 180,
+          phi1 = (lat1 * Math.PI) / 180,
+          lambda1 = (lon1 * Math.PI) / 180;
+        const dR = distMeters / R;
+        const phi2 = Math.asin(
+          Math.sin(phi1) * Math.cos(dR) +
+            Math.cos(phi1) * Math.sin(dR) * Math.cos(br),
+        );
+        const lambda2 =
+          lambda1 +
+          Math.atan2(
+            Math.sin(br) * Math.sin(dR) * Math.cos(phi1),
+            Math.cos(dR) - Math.sin(phi1) * Math.sin(phi2),
+          );
+        return [(phi2 * 180) / Math.PI, (lambda2 * 180) / Math.PI];
+      }
+
+      const errorBox = document.getElementById("errorBox");
+      let mapInstance = null,
+        markerInstance = null,
+        lineInstance = null,
+        satLayer = null,
+        streetLayer = null,
+        lastBearing = 0;
+
+      (function buildTicks() {
+        const g = document.getElementById("ticks");
+        for (let deg = 0; deg < 360; deg += 30) {
+          const rad = (deg * Math.PI) / 180;
+          const x1 = 120 + 80 * Math.sin(rad),
+            y1 = 120 - 80 * Math.cos(rad);
+          const x2 = 120 + 90 * Math.sin(rad),
+            y2 = 120 - 90 * Math.cos(rad);
+          const line = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "line",
+          );
+          line.setAttribute("x1", x1);
+          line.setAttribute("y1", y1);
+          line.setAttribute("x2", x2);
+          line.setAttribute("y2", y2);
+          line.setAttribute("stroke", "#9C7A4E");
+          line.setAttribute("stroke-width", "1.5");
+          g.appendChild(line);
+        }
+      })();
+
+      function updateCompassField() {
+        const decl = parseFloat(document.getElementById("declination").value);
+        const el = document.getElementById("compassBearing");
+        if (isNaN(decl)) {
+          el.value = "—";
+          return;
+        }
+        const corrected = (lastBearing - decl + 360) % 360;
+        el.value = corrected.toFixed(2) + "°";
+      }
+      document
+        .getElementById("declination")
+        .addEventListener("input", updateCompassField);
+
+      function compassIcon() {
+        const svg = `
   <svg width="90" height="90" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
     <circle cx="45" cy="45" r="34" fill="none" stroke="#2946A8" stroke-width="2" stroke-dasharray="2,5"/>
     <polygon points="45,14 51,45 45,76 39,45" fill="#182E7A"/>
@@ -624,129 +1392,228 @@ function compassIcon(){
     <text x="83" y="49" text-anchor="middle" font-size="11" font-weight="700" fill="#182E7A" font-family="sans-serif">E</text>
     <text x="7"  y="49" text-anchor="middle" font-size="11" font-weight="700" fill="#182E7A" font-family="sans-serif">W</text>
   </svg>`;
-  return L.divIcon({html:svg, className:'', iconSize:[90,90], iconAnchor:[45,45]});
-}
+        return L.divIcon({
+          html: svg,
+          className: "",
+          iconSize: [90, 90],
+          iconAnchor: [45, 45],
+        });
+      }
 
-function greatCirclePoints(lat1, lon1, lat2, lon2, n){
-  const toRad=d=>d*Math.PI/180, toDeg=r=>r*180/Math.PI;
-  const p1=[Math.cos(toRad(lat1))*Math.cos(toRad(lon1)), Math.cos(toRad(lat1))*Math.sin(toRad(lon1)), Math.sin(toRad(lat1))];
-  const p2=[Math.cos(toRad(lat2))*Math.cos(toRad(lon2)), Math.cos(toRad(lat2))*Math.sin(toRad(lon2)), Math.sin(toRad(lat2))];
-  const dot=Math.max(-1,Math.min(1, p1[0]*p2[0]+p1[1]*p2[1]+p1[2]*p2[2]));
-  const omega=Math.acos(dot);
-  const pts=[];
-  for(let i=0;i<=n;i++){
-    const t=i/n;
-    let A,B;
-    if(omega===0){ A=1-t; B=t; } else { A=Math.sin((1-t)*omega)/Math.sin(omega); B=Math.sin(t*omega)/Math.sin(omega); }
-    const x=A*p1[0]+B*p2[0], y=A*p1[1]+B*p2[1], z=A*p1[2]+B*p2[2];
-    pts.push([toDeg(Math.atan2(z,Math.sqrt(x*x+y*y))), toDeg(Math.atan2(y,x))]);
-  }
-  return pts;
-}
+      function greatCirclePoints(lat1, lon1, lat2, lon2, n) {
+        const toRad = (d) => (d * Math.PI) / 180,
+          toDeg = (r) => (r * 180) / Math.PI;
+        const p1 = [
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lon1)),
+          Math.cos(toRad(lat1)) * Math.sin(toRad(lon1)),
+          Math.sin(toRad(lat1)),
+        ];
+        const p2 = [
+          Math.cos(toRad(lat2)) * Math.cos(toRad(lon2)),
+          Math.cos(toRad(lat2)) * Math.sin(toRad(lon2)),
+          Math.sin(toRad(lat2)),
+        ];
+        const dot = Math.max(
+          -1,
+          Math.min(1, p1[0] * p2[0] + p1[1] * p2[1] + p1[2] * p2[2]),
+        );
+        const omega = Math.acos(dot);
+        const pts = [];
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          let A, B;
+          if (omega === 0) {
+            A = 1 - t;
+            B = t;
+          } else {
+            A = Math.sin((1 - t) * omega) / Math.sin(omega);
+            B = Math.sin(t * omega) / Math.sin(omega);
+          }
+          const x = A * p1[0] + B * p2[0],
+            y = A * p1[1] + B * p2[1],
+            z = A * p1[2] + B * p2[2];
+          pts.push([
+            toDeg(Math.atan2(z, Math.sqrt(x * x + y * y))),
+            toDeg(Math.atan2(y, x)),
+          ]);
+        }
+        return pts;
+      }
 
-function updateQibla(lat, lon){
-  const q = qiblaVincenty(lat, lon, KAABA.lat, KAABA.lon);
-  lastBearing = q.bearing;
-  document.getElementById('outLat').textContent = lat.toFixed(5)+'°';
-  document.getElementById('outLon').textContent = lon.toFixed(5)+'°';
-  document.getElementById('outBearing').textContent = q.bearing.toFixed(2)+'°';
-  document.getElementById('outDist').textContent = Math.round(q.distanceKm).toLocaleString('ar')+' كم';
-  document.getElementById('tagBearing').textContent = q.bearing.toFixed(2)+'° من الشمال';
-  document.getElementById('needle').setAttribute('transform', 'rotate('+q.bearing.toFixed(2)+',120,120)');
-  updateCompassField();
+      function updateQibla(lat, lon) {
+        const q = qiblaVincenty(lat, lon, KAABA.lat, KAABA.lon);
+        lastBearing = q.bearing;
+        document.getElementById("outLat").textContent = lat.toFixed(5) + "°";
+        document.getElementById("outLon").textContent = lon.toFixed(5) + "°";
+        document.getElementById("outBearing").textContent =
+          q.bearing.toFixed(2) + "°";
+        document.getElementById("outDist").textContent =
+          Math.round(q.distanceKm).toLocaleString("ar") + " كم";
+        document.getElementById("tagBearing").textContent =
+          q.bearing.toFixed(2) + "° من الشمال";
+        document
+          .getElementById("needle")
+          .setAttribute(
+            "transform",
+            "rotate(" + q.bearing.toFixed(2) + ",120,120)",
+          );
+        updateCompassField();
 
-  const path = greatCirclePoints(lat, lon, KAABA.lat, KAABA.lon, 150);
-  if(lineInstance){ mapInstance.removeLayer(lineInstance); }
-  lineInstance = L.polyline(path,{color:'#E0303A', weight:4, opacity:0.95}).addTo(mapInstance);
-}
+        const path = greatCirclePoints(lat, lon, KAABA.lat, KAABA.lon, 150);
+        if (lineInstance) {
+          mapInstance.removeLayer(lineInstance);
+        }
+        lineInstance = L.polyline(path, {
+          color: "#E0303A",
+          weight: 4,
+          opacity: 0.95,
+        }).addTo(mapInstance);
+      }
 
-function parsePoints(){
-  const raw = document.getElementById('pointsInput').value.trim();
-  if(!raw) return [];
-  return raw.split('\n').map(line=>{
-    let parts = line.split(',').map(s=>parseFloat(s.trim()));
-    if(!(parts.length>=2 && !isNaN(parts[0]) && !isNaN(parts[1]))){
-      parts = line.trim().split(/\s+/).map(Number);
-    }
-    return (parts.length>=2 && !isNaN(parts[0]) && !isNaN(parts[1])) ? [parts[0],parts[1]] : null;
-  }).filter(Boolean);
-}
+      function parsePoints() {
+        const raw = document.getElementById("pointsInput").value.trim();
+        if (!raw) return [];
+        return raw
+          .split("\n")
+          .map((line) => {
+            let parts = line.split(",").map((s) => parseFloat(s.trim()));
+            if (!(parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1]))) {
+              parts = line.trim().split(/\s+/).map(Number);
+            }
+            return parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])
+              ? [parts[0], parts[1]]
+              : null;
+          })
+          .filter(Boolean);
+      }
 
-let polygonInstance=null;
+      let polygonInstance = null;
 
-document.getElementById('computeBtn').addEventListener('click', ()=>{
-  errorBox.classList.remove('show');
-  const rawPoints = parsePoints();
-  const zone=parseInt(document.getElementById('zone').value)||40;
-  const datum=document.getElementById('datum').value;
-  if(rawPoints.length===0){ alert('يرجى إدخال نقطة واحدة على الأقل بصيغة Easting, Northing'); return; }
+      document.getElementById("computeBtn").addEventListener("click", () => {
+        errorBox.classList.remove("show");
+        const rawPoints = parsePoints();
+        const zone = parseInt(document.getElementById("zone").value) || 40;
+        const datum = document.getElementById("datum").value;
+        if (rawPoints.length === 0) {
+          alert("يرجى إدخال نقطة واحدة على الأقل بصيغة Easting, Northing");
+          return;
+        }
 
-  const wgsPoints = rawPoints.map(([E,N])=>convertToWGS84(E,N,zone,datum));
-  const centroid = {
-    lat: wgsPoints.reduce((s,p)=>s+p.lat,0)/wgsPoints.length,
-    lon: wgsPoints.reduce((s,p)=>s+p.lon,0)/wgsPoints.length
-  };
+        const wgsPoints = rawPoints.map(([E, N]) =>
+          convertToWGS84(E, N, zone, datum),
+        );
+        const centroid = {
+          lat: wgsPoints.reduce((s, p) => s + p.lat, 0) / wgsPoints.length,
+          lon: wgsPoints.reduce((s, p) => s + p.lon, 0) / wgsPoints.length,
+        };
 
-  document.getElementById('resultPanel').classList.remove('hidden');
-  document.getElementById('resultPanel').scrollIntoView({behavior:'smooth'});
+        document.getElementById("resultPanel").classList.remove("hidden");
+        document
+          .getElementById("resultPanel")
+          .scrollIntoView({ behavior: "smooth" });
 
-  try{
-    if(mapInstance){ mapInstance.remove(); mapInstance=null; }
-    mapInstance = L.map('map',{zoomControl:true}).setView([centroid.lat, centroid.lon], 18);
+        try {
+          if (mapInstance) {
+            mapInstance.remove();
+            mapInstance = null;
+          }
+          mapInstance = L.map("map", { zoomControl: true }).setView(
+            [centroid.lat, centroid.lon],
+            18,
+          );
 
-    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
-      attribution:'Esri World Imagery', maxZoom:19
-    });
-    const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      attribution:'OpenStreetMap contributors', maxZoom:19
-    });
-    satLayer = satellite; streetLayer = streets;
-    satellite.addTo(mapInstance);
+          const satellite = L.tileLayer(
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            {
+              attribution: "Esri World Imagery",
+              maxZoom: 19,
+            },
+          );
+          const streets = L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+              attribution: "OpenStreetMap contributors",
+              maxZoom: 19,
+            },
+          );
+          satLayer = satellite;
+          streetLayer = streets;
+          satellite.addTo(mapInstance);
 
-    L.circleMarker([KAABA.lat, KAABA.lon], {radius:5, color:'#0C1E4A', fillColor:'#E3B778', fillOpacity:1, weight:2})
-      .addTo(mapInstance).bindTooltip('الكعبة المشرفة', {permanent:false, direction:'top'});
+          L.circleMarker([KAABA.lat, KAABA.lon], {
+            radius: 5,
+            color: "#0C1E4A",
+            fillColor: "#E3B778",
+            fillOpacity: 1,
+            weight: 2,
+          })
+            .addTo(mapInstance)
+            .bindTooltip("الكعبة المشرفة", {
+              permanent: false,
+              direction: "top",
+            });
 
-    if(wgsPoints.length>=3){
-      polygonInstance = L.polygon(wgsPoints.map(p=>[p.lat,p.lon]), {color:'#E3B778', weight:2, fillColor:'#E3B778', fillOpacity:0.15}).addTo(mapInstance);
-    }
+          if (wgsPoints.length >= 3) {
+            polygonInstance = L.polygon(
+              wgsPoints.map((p) => [p.lat, p.lon]),
+              {
+                color: "#E3B778",
+                weight: 2,
+                fillColor: "#E3B778",
+                fillOpacity: 0.15,
+              },
+            ).addTo(mapInstance);
+          }
 
-    markerInstance = L.marker([centroid.lat, centroid.lon], {icon: compassIcon(), draggable:true}).addTo(mapInstance);
-    markerInstance.on('drag', (e)=>{
-      const p = e.target.getLatLng();
-      updateQibla(p.lat, p.lng);
-    });
-    markerInstance.on('dragend', (e)=>{
-      const p = e.target.getLatLng();
-      updateQibla(p.lat, p.lng);
-    });
+          markerInstance = L.marker([centroid.lat, centroid.lon], {
+            icon: compassIcon(),
+            draggable: true,
+          }).addTo(mapInstance);
+          markerInstance.on("drag", (e) => {
+            const p = e.target.getLatLng();
+            updateQibla(p.lat, p.lng);
+          });
+          markerInstance.on("dragend", (e) => {
+            const p = e.target.getLatLng();
+            updateQibla(p.lat, p.lng);
+          });
 
-    updateQibla(centroid.lat, centroid.lon);
-    setTimeout(()=>{ if(mapInstance) mapInstance.invalidateSize(); }, 150);
+          updateQibla(centroid.lat, centroid.lon);
+          setTimeout(() => {
+            if (mapInstance) mapInstance.invalidateSize();
+          }, 150);
 
-    document.getElementById('fitBtn').onclick = ()=>{
-      if(lineInstance) mapInstance.fitBounds(lineInstance.getBounds(), {padding:[30,30]});
-    };
-    document.getElementById('closeBtn').onclick = ()=>{
-      const p = markerInstance.getLatLng();
-      mapInstance.setView([p.lat, p.lng], 18);
-    };
-    document.getElementById('satBtn').onclick = ()=>{
-      if(!mapInstance.hasLayer(satLayer)) satLayer.addTo(mapInstance);
-      if(mapInstance.hasLayer(streetLayer)) mapInstance.removeLayer(streetLayer);
-      document.getElementById('satBtn').classList.add('active');
-      document.getElementById('mapBtn').classList.remove('active');
-    };
-    document.getElementById('mapBtn').onclick = ()=>{
-      if(!mapInstance.hasLayer(streetLayer)) streetLayer.addTo(mapInstance);
-      if(mapInstance.hasLayer(satLayer)) mapInstance.removeLayer(satLayer);
-      document.getElementById('mapBtn').classList.add('active');
-      document.getElementById('satBtn').classList.remove('active');
-    };
-  }catch(mapErr){
-    errorBox.textContent='تعذّر تحميل الخريطة (تحقق من الاتصال بالإنترنت). النتائج الرقمية أعلاه صحيحة رغم ذلك.';
-    errorBox.classList.add('show');
-  }
-});
-</script>
-</body>
+          document.getElementById("fitBtn").onclick = () => {
+            if (lineInstance)
+              mapInstance.fitBounds(lineInstance.getBounds(), {
+                padding: [30, 30],
+              });
+          };
+          document.getElementById("closeBtn").onclick = () => {
+            const p = markerInstance.getLatLng();
+            mapInstance.setView([p.lat, p.lng], 18);
+          };
+          document.getElementById("satBtn").onclick = () => {
+            if (!mapInstance.hasLayer(satLayer)) satLayer.addTo(mapInstance);
+            if (mapInstance.hasLayer(streetLayer))
+              mapInstance.removeLayer(streetLayer);
+            document.getElementById("satBtn").classList.add("active");
+            document.getElementById("mapBtn").classList.remove("active");
+          };
+          document.getElementById("mapBtn").onclick = () => {
+            if (!mapInstance.hasLayer(streetLayer))
+              streetLayer.addTo(mapInstance);
+            if (mapInstance.hasLayer(satLayer))
+              mapInstance.removeLayer(satLayer);
+            document.getElementById("mapBtn").classList.add("active");
+            document.getElementById("satBtn").classList.remove("active");
+          };
+        } catch (mapErr) {
+          errorBox.textContent =
+            "تعذّر تحميل الخريطة (تحقق من الاتصال بالإنترنت). النتائج الرقمية أعلاه صحيحة رغم ذلك.";
+          errorBox.classList.add("show");
+        }
+      });
+    </script>
+  </body>
 </html>
