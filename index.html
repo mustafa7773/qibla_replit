@@ -801,50 +801,35 @@
       }
 
       function tryAutoFillPoints(text) {
-        // ── Step 0: Normalise common OCR corruption patterns ──────────────────────
-        // First, save CENTEROID value separately then strip its line so it doesn't
-        // get picked up as a corner point during Steps 2 & 4.
+        // ── Step 0: Extract CENTEROID ────────────────────────────────────────────
         let centroidFallback = null;
-        // FIXED: Use more permissive regex that handles OCR typos like CENTERIOD, CENTROD, etc.
-        // Also fixed: use \d\. instead of [.,] to avoid matching comma separator as decimal
         text = text.replace(
           /^.*CENT\w*D[^0-9]*([3-8]\d{5}[.,]\d{1,3})[,\s]+(\d{7}[.,]\d{1,3}).*$/gim,
           (_, e, n) => {
             const ef = parseFloat(e.replace(",", ".")),
               nf = parseFloat(n.replace(",", "."));
             if (!isNaN(ef) && !isNaN(nf)) centroidFallback = { e: ef, n: nf };
-            return ""; // remove the line
+            return "";
           },
         );
 
+        // ── Normalize text ──────────────────────────────────────────────────────
         let pre = text
-          // European comma decimal: "518749,69" → "518749.69"
           .replace(/\b(\d{4,7}),(\d{2,3})\b/g, "$1.$2")
-          // Decimal written as space: "518749 69" → "518749.69" (easting)
           .replace(/\b([3-8]\d{5})\s(\d{2})\b/g, "$1.$2")
-          // Decimal written as space: "2160083 68" → "2160083.68" (northing)
           .replace(/\b(2\d{6})\s(\d{2})\b/g, "$1.$2")
-          // Fuse two digit groups split by a single space into one number
           .replace(/\b(\d{3,7})\s(\d{3,6})\b/g, (m, a, b) => {
-            const joined = a + b,
-              n = parseInt(joined);
-            if (joined.length === 8 && n >= 40000000 && n <= 79999999)
-              return joined;
-            if (joined.length === 9 && n >= 200000000 && n <= 299999999)
-              return joined;
+            const joined = a + b, n = parseInt(joined);
+            if (joined.length === 8 && n >= 40000000 && n <= 79999999) return joined;
+            if (joined.length === 9 && n >= 200000000 && n <= 299999999) return joined;
             return m;
           })
-          // Standalone 6-digit easting integer (no decimal) → add .00
           .replace(/\b([3-8]\d{5})\b(?![.\d])/g, "$1.00")
-          // Standalone 7-digit northing integer (no decimal) → add .00
           .replace(/\b(2\d{6})\b(?![.\d])/g, "$1.00");
 
-        // ── Step 1: Reconstruct dropped decimal points from fused runs ─────────────
-        // 8-digit fused easting: 55560165 → 555601.65
-        // 9-digit fused northing: 247025297 → 2470252.97
+        // Reconstruct fused decimals
         const normalized = pre.replace(/\b(\d{8,9})\b/g, (match) => {
-          const len = match.length,
-            n = parseInt(match);
+          const len = match.length, n = parseInt(match);
           if (len === 9 && n >= 200000000 && n <= 299999999)
             return match.slice(0, 7) + "." + match.slice(7);
           if (len === 8 && n >= 40000000 && n <= 79999999)
@@ -852,11 +837,22 @@
           return match;
         });
 
-        // ── Step 2: Per-line scan — extract ALL E+N pairs from each line ─────────────
-        // OCR sometimes collapses two table rows onto one line; matchAll captures both.
+        // ── Extract ALL valid numbers ───────────────────────────────────────────
+        const allEastings = [...normalized.matchAll(/\b([3-8]\d{5}\.\d{1,3})\b/g)]
+          .map((m) => parseFloat(m[1]))
+          .filter((v) => v > 300000 && v < 900000);
+        const allNorthings = [...normalized.matchAll(/\b(2\d{6}\.\d{1,3})\b/g)]
+          .map((m) => parseFloat(m[1]))
+          .filter((v) => v > 1500000 && v < 3500000);
+
+        console.log("Raw Eastings:", allEastings);
+        console.log("Raw Northings:", allNorthings);
+
+        // ── Helper: add pair with loose dedup ───────────────────────────────────
         const pairs = [];
-        const seenCoords = []; // [{e,n}] for proximity dedup
-        const DEDUP_M = 5;   // treat points within 5 m as the same
+        const seenCoords = [];
+        const DEDUP_M = 1.0; // Very tight
+
         const addPair = (e, n) => {
           if (e > 300000 && e < 900000 && n > 1500000 && n < 3500000) {
             const dup = seenCoords.some(
@@ -869,6 +865,8 @@
           }
         };
 
+        // ── Strategy 1: Per-line pairing (try both orders) ──────────────────────
+        // First try Easting-first
         for (const row of normalized.split("\n")) {
           const ems = [...row.matchAll(/\b([3-8]\d{5}\.\d{1,3})\b/g)]
             .map((m) => parseFloat(m[1]))
@@ -877,118 +875,124 @@
             .map((m) => parseFloat(m[1]))
             .filter((v) => v > 1500000 && v < 3500000);
           if (!ems.length || !nms.length) continue;
-
-          if (ems.length === nms.length) {
-            // Equal counts → pair in positional order (most common table layout)
-            for (let i = 0; i < ems.length; i++) addPair(ems[i], nms[i]);
-          } else {
-            // Unequal counts → pair first of each (safe fallback)
-            addPair(ems[0], nms[0]);
-            // If extra matches exist pair remainder sequentially
-            const extra = Math.min(ems.length, nms.length);
-            for (let i = 1; i < extra; i++) addPair(ems[i], nms[i]);
-          }
+          const count = Math.min(ems.length, nms.length);
+          for (let i = 0; i < count; i++) addPair(ems[i], nms[i]);
         }
 
-        // ── Step 3: CENTROID fallback ──────────────────────────────────────────────
-        // Use the centroid saved earlier (its line was stripped to avoid polluting corners)
-        if (pairs.length === 0 && centroidFallback) {
-          addPair(centroidFallback.e, centroidFallback.n);
-        }
+        let bestPairs = [...pairs];
+        let bestCount = pairs.length;
 
-        // ── Step 4: Full-text supplemental scan — ALWAYS runs ─────────────────────
-        // Catches any row that Step 2 missed (e.g. two rows collapsed on one line
-        // but with unequal E/N counts, or a row skipped due to OCR noise).
-        // addPair() deduplicates so already-found coordinates are ignored.
-        {
-          const ee = [...normalized.matchAll(/\b([3-8]\d{5}\.\d{1,3})\b/g)]
-            .map((m) => parseFloat(m[1]))
-            .filter((v) => v > 300000 && v < 900000);
-          const nn = [...normalized.matchAll(/\b(\d{7}\.\d{1,3})\b/g)]
+        // Try Northing-first per-line
+        pairs.length = 0;
+        seenCoords.length = 0;
+        for (const row of normalized.split("\n")) {
+          const nms = [...row.matchAll(/\b(2\d{6}\.\d{1,3})\b/g)]
             .map((m) => parseFloat(m[1]))
             .filter((v) => v > 1500000 && v < 3500000);
-          // If full-text finds more points than per-line, use it instead
-          if (nn.length > pairs.length) {
-            seenCoords.length = 0;
-            pairs.length = 0;
-            const count = Math.min(ee.length, nn.length);
-            for (let i = 0; i < count; i++) addPair(ee[i], nn[i]);
-          } else {
-            // Otherwise just add any missing ones
-            const count = Math.min(ee.length, nn.length);
-            for (let i = 0; i < count; i++) addPair(ee[i], nn[i]);
+          const ems = [...row.matchAll(/\b([3-8]\d{5}\.\d{1,3})\b/g)]
+            .map((m) => parseFloat(m[1]))
+            .filter((v) => v > 300000 && v < 900000);
+          if (!ems.length || !nms.length) continue;
+          const count = Math.min(ems.length, nms.length);
+          for (let i = 0; i < count; i++) addPair(ems[i], nms[i]);
+        }
+        if (pairs.length > bestCount) {
+          bestPairs = [...pairs];
+          bestCount = pairs.length;
+        }
+
+        // ── Strategy 2: Full-text sequential pairing ────────────────────────────
+        // Pair all Eastings with all Northings by position
+        if (allEastings.length >= 2 && allNorthings.length >= 2) {
+          pairs.length = 0;
+          seenCoords.length = 0;
+          const count = Math.min(allEastings.length, allNorthings.length);
+          for (let i = 0; i < count; i++) addPair(allEastings[i], allNorthings[i]);
+          if (pairs.length > bestCount) {
+            bestPairs = [...pairs];
+            bestCount = pairs.length;
           }
         }
 
-        // ── Step 5: Handle reversed coordinates (Northing,Easting) ──────────────────
-        // Some OCR outputs have coordinates in reversed order
-        if (pairs.length < 3) {
-          const revPairs = [];
-          const revSeen = [];
-          const addRevPair = (n, e) => {
-            if (e > 300000 && e < 900000 && n > 1500000 && n < 3500000) {
-              const dup = revSeen.some(
-                (p) => Math.abs(p.e - e) < DEDUP_M && Math.abs(p.n - n) < DEDUP_M,
-              );
-              if (!dup) {
-                revSeen.push({ e, n });
-                revPairs.push(e.toFixed(2) + ", " + n.toFixed(2));
+        // ── Strategy 3: Full-text reversed pairing ──────────────────────────────
+        // Try pairing Northing[i] with Easting[i] (reversed order)
+        if (allEastings.length >= 2 && allNorthings.length >= 2) {
+          pairs.length = 0;
+          seenCoords.length = 0;
+          const count = Math.min(allEastings.length, allNorthings.length);
+          for (let i = 0; i < count; i++) addPair(allNorthings[i], allEastings[i]);
+          // Check if these make sense (Easting should be ~500k, Northing ~2.5M)
+          const validReversed = pairs.filter(p => {
+            const [e, n] = p.split(',').map(s => parseFloat(s.trim()));
+            return e > 300000 && e < 900000 && n > 1500000 && n < 3500000;
+          });
+          if (validReversed.length > bestCount) {
+            bestPairs = [...validReversed];
+            bestCount = validReversed.length;
+          }
+        }
+
+        // Restore best pairs
+        pairs.length = 0;
+        seenCoords.length = 0;
+        bestPairs.forEach(p => {
+          const [e, n] = p.split(',').map(s => parseFloat(s.trim()));
+          addPair(e, n);
+        });
+
+        console.log("Pairs before correction:", pairs);
+
+        // ── Step 4: Auto-correct common OCR digit confusion ─────────────────────
+        // Only correct if it brings point closer to median
+        if (pairs.length >= 3) {
+          const coords = pairs.map(p => { const [e, n] = p.split(',').map(s => parseFloat(s.trim())); return { e, n }; });
+          const sortedE = [...coords.map(c => c.e)].sort((a, b) => a - b);
+          const sortedN = [...coords.map(c => c.n)].sort((a, b) => a - b);
+          const medE = sortedE[Math.floor(sortedE.length / 2)];
+          const medN = sortedN[Math.floor(sortedN.length / 2)];
+          const THRESH = 60; // Lower threshold
+
+          const confusionPairs = [['0','9'], ['5','6'], ['1','7'], ['3','8']];
+
+          for (let i = 0; i < pairs.length; i++) {
+            const { e, n } = coords[i];
+            const dist = Math.abs(e - medE) + Math.abs(n - medN);
+            if (dist <= THRESH) continue; // Only correct outliers
+
+            const chars = pairs[i].split('');
+            let best = pairs[i], bestDist = dist;
+
+            for (let j = 0; j < chars.length; j++) {
+              for (const [a, b] of confusionPairs) {
+                if (chars[j] !== a && chars[j] !== b) continue;
+                const sw = [...chars]; 
+                sw[j] = chars[j] === a ? b : a;
+                const s = sw.join('');
+                const [ce, cn] = s.split(',').map(v => parseFloat(v.trim()));
+                if (isNaN(ce) || isNaN(cn)) continue;
+                if (ce < 300000 || ce > 900000 || cn < 1500000 || cn > 3500000) continue;
+                const d = Math.abs(ce - medE) + Math.abs(cn - medN);
+                if (d < bestDist) { bestDist = d; best = s; }
               }
             }
-          };
-          for (const row of normalized.split("\n")) {
-            const nms = [...row.matchAll(/\b(2\d{6}\.\d{1,3})\b/g)]
-              .map((m) => parseFloat(m[1]))
-              .filter((v) => v > 1500000 && v < 3500000);
-            const ems = [...row.matchAll(/\b([3-8]\d{5}\.\d{1,3})\b/g)]
-              .map((m) => parseFloat(m[1]))
-              .filter((v) => v > 300000 && v < 900000);
-            if (!ems.length || !nms.length) continue;
-            const count = Math.min(ems.length, nms.length);
-            for (let i = 0; i < count; i++) addRevPair(nms[i], ems[i]);
-          }
-          if (revPairs.length > pairs.length) {
-            pairs.length = 0;
-            seenCoords.length = 0;
-            revPairs.forEach(p => {
-              const [e, n] = p.split(',').map(s => parseFloat(s.trim()));
-              addPair(e, n);
-            });
+            // Only apply correction if it improves significantly
+            if (best !== pairs[i] && bestDist < dist * 0.7) {
+              pairs[i] = best;
+            }
           }
         }
 
-        // ── Step 6: Auto-correct 0↔9 confusion in outlier points ─────────────
-        if(pairs.length >= 2){
-          const coords = pairs.map(p=>{const [e,n]=p.split(',').map(s=>parseFloat(s.trim()));return{e,n};});
-          const sortedE=[...coords.map(c=>c.e)].sort((a,b)=>a-b);
-          const sortedN=[...coords.map(c=>c.n)].sort((a,b)=>a-b);
-          const medE=sortedE[Math.floor(sortedE.length/2)];
-          const medN=sortedN[Math.floor(sortedN.length/2)];
-          const THRESH=100;
-          for(let i=0;i<pairs.length;i++){
-            const {e,n}=coords[i];
-            const dist=Math.abs(e-medE)+Math.abs(n-medN);
-            if(dist<=THRESH) continue;
-            const chars=pairs[i].split('');
-            let best=pairs[i], bestDist=dist;
-            for(let j=0;j<chars.length;j++){
-              if(chars[j]!=='0'&&chars[j]!=='9') continue;
-              const sw=[...chars]; sw[j]=chars[j]==='0'?'9':'0';
-              const s=sw.join('');
-              const [ce,cn]=s.split(',').map(v=>parseFloat(v.trim()));
-              if(isNaN(ce)||isNaN(cn)) continue;
-              if(ce<300000||ce>900000||cn<1500000||cn>3500000) continue;
-              const d=Math.abs(ce-medE)+Math.abs(cn-medN);
-              if(d<bestDist){bestDist=d;best=s;}
-            }
-            if(best!==pairs[i]) pairs[i]=best;
-          }
+        console.log("Final pairs:", pairs);
+
+        // Centroid fallback
+        if (pairs.length === 0 && centroidFallback) {
+          addPair(centroidFallback.e, centroidFallback.n);
         }
 
         if (pairs.length > 0)
           document.getElementById("pointsInput").value = pairs.join("\n");
 
-        // ── Auto-detect datum & zone ───────────────────────────────────────────────
+        // Auto-detect datum & zone
         if (/WGS\s*84/i.test(text))
           document.getElementById("datum").value = "wgs84utm";
         else if (/PSD\s*93|CLARK/i.test(text))
@@ -998,9 +1002,7 @@
           const z = parseInt(zoneM[1]);
           if (z >= 1 && z <= 60) document.getElementById("zone").value = z;
         }
-      }
-
-      function scaleGrey(dataUrl) {
+      }function scaleGrey(dataUrl) {
         return new Promise((resolve) => {
           const img = new Image();
           img.onload = () => {
@@ -1032,11 +1034,13 @@
 
       
 
-      function preprocessImage(dataUrl, mode = "auto") {
+      
+
+      function preprocessImage(dataUrl) {
         return new Promise((resolve) => {
           const img = new Image();
           img.onload = () => {
-            const scale = 3;
+            const scale = 2; // Reduced from 3x to 2x
             const canvas = document.createElement("canvas");
             canvas.width = img.width * scale;
             canvas.height = img.height * scale;
@@ -1046,100 +1050,18 @@
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             const W = canvas.width, H = canvas.height;
-            const raw = ctx.getImageData(0, 0, W, H).data;
+            const imgData = ctx.getImageData(0, 0, W, H);
+            const data = imgData.data;
 
-            // ── Grayscale ───────────────────────────────────────────────────────
-            const gray = new Float32Array(W * H);
-            for (let i = 0; i < W * H; i++) {
-              gray[i] = 0.299 * raw[i * 4] + 0.587 * raw[i * 4 + 1] + 0.114 * raw[i * 4 + 2];
+            // Simple grayscale + contrast
+            for (let i = 0; i < data.length; i += 4) {
+              const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+              // Mild contrast boost
+              const g = Math.min(255, Math.max(0, (gray - 100) * 1.3 + 100));
+              data[i] = data[i + 1] = data[i + 2] = g;
             }
 
-            if (mode === "grayscale") {
-              // Just grayscale, no thresholding - best for clean scanned docs
-              const out = new Uint8ClampedArray(W * H * 4);
-              for (let i = 0; i < W * H; i++) {
-                const g = Math.round(gray[i]);
-                out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = g;
-                out[i * 4 + 3] = 255;
-              }
-              ctx.putImageData(new ImageData(out, W, H), 0, 0);
-              resolve(canvas.toDataURL("image/png"));
-              return;
-            }
-
-            if (mode === "contrast") {
-              // Contrast enhancement + mild sharpening for scanned docs with stamps
-              let minG = 255, maxG = 0;
-              for (let i = 0; i < W * H; i++) {
-                minG = Math.min(minG, gray[i]);
-                maxG = Math.max(maxG, gray[i]);
-              }
-              const range = maxG - minG || 1;
-              const out = new Uint8ClampedArray(W * H * 4);
-              for (let i = 0; i < W * H; i++) {
-                let g = ((gray[i] - minG) / range) * 255;
-                // Mild sharpening
-                g = Math.min(255, Math.max(0, g + (g - 128) * 0.3));
-                const v = Math.round(g);
-                out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = v;
-                out[i * 4 + 3] = 255;
-              }
-              ctx.putImageData(new ImageData(out, W, H), 0, 0);
-              resolve(canvas.toDataURL("image/png"));
-              return;
-            }
-
-            // Original adaptive threshold (mode === "threshold" or default)
-            // Gaussian blur
-            const blurred = new Float32Array(W * H);
-            const k = [0.0625, 0.25, 0.375, 0.25, 0.0625];
-            const tmp = new Float32Array(W * H);
-            for (let y = 0; y < H; y++)
-              for (let x = 0; x < W; x++) {
-                let s = 0;
-                for (let d = -2; d <= 2; d++) {
-                  const xx = Math.min(W - 1, Math.max(0, x + d));
-                  s += k[d + 2] * gray[y * W + xx];
-                }
-                tmp[y * W + x] = s;
-              }
-            for (let y = 0; y < H; y++)
-              for (let x = 0; x < W; x++) {
-                let s = 0;
-                for (let d = -2; d <= 2; d++) {
-                  const yy = Math.min(H - 1, Math.max(0, y + d));
-                  s += k[d + 2] * tmp[yy * W + x];
-                }
-                blurred[y * W + x] = s;
-              }
-            const sharp = new Float32Array(W * H);
-            const amount = 1.5;
-            for (let i = 0; i < W * H; i++)
-              sharp[i] = Math.min(255, Math.max(0, gray[i] + amount * (gray[i] - blurred[i])));
-
-            // Adaptive threshold
-            let win = Math.round(Math.min(W, H) * 0.03);
-            if (win % 2 === 0) win++;
-            const half = win >> 1;
-            const C = 8;
-            const integ = new Float64Array((W + 1) * (H + 1));
-            for (let y = 1; y <= H; y++)
-              for (let x = 1; x <= W; x++)
-                integ[y * (W + 1) + x] = sharp[(y - 1) * W + (x - 1)] + integ[(y - 1) * (W + 1) + x] + integ[y * (W + 1) + (x - 1)] - integ[(y - 1) * (W + 1) + (x - 1)];
-            const out = new Uint8ClampedArray(W * H * 4);
-            for (let y = 0; y < H; y++) {
-              for (let x = 0; x < W; x++) {
-                const x1 = Math.max(x - half, 0), y1 = Math.max(y - half, 0);
-                const x2 = Math.min(x + half, W - 1), y2 = Math.min(y + half, H - 1);
-                const cnt = (x2 - x1 + 1) * (y2 - y1 + 1);
-                const sum = integ[(y2 + 1) * (W + 1) + (x2 + 1)] - integ[y1 * (W + 1) + (x2 + 1)] - integ[(y2 + 1) * (W + 1) + x1] + integ[y1 * (W + 1) + x1];
-                const px = sharp[y * W + x] < sum / cnt - C ? 0 : 255;
-                const idx = (y * W + x) * 4;
-                out[idx] = out[idx + 1] = out[idx + 2] = px;
-                out[idx + 3] = 255;
-              }
-            }
-            ctx.putImageData(new ImageData(out, W, H), 0, 0);
+            ctx.putImageData(imgData, 0, 0);
             document.getElementById("previewImg").src = canvas.toDataURL("image/png");
             resolve(canvas.toDataURL("image/png"));
           };
@@ -1155,67 +1077,25 @@
           preview.classList.add("show");
           ocrResultBox.classList.add("hidden");
           ocrStatus.classList.add("show");
+          document.getElementById("ocrStatusText").textContent = "جاري قراءة الأرقام…";
 
-          let bestText = "";
-          let bestPoints = 0;
+          try {
+            const processedDataUrl = await preprocessImage(reader.result);
+            const worker = await Tesseract.createWorker("eng");
+            await worker.setParameters({
+              tessedit_pageseg_mode: "6",
+              preserve_interword_spaces: "1",
+            });
+            const { data: { text } } = await worker.recognize(processedDataUrl);
+            await worker.terminate();
 
-          // Try multiple preprocessing strategies
-          const strategies = [
-            { name: "contrast", mode: "contrast", psm: "6", desc: "تحسين التباين" },
-            { name: "grayscale", mode: "grayscale", psm: "6", desc: "رمادي فقط" },
-            { name: "threshold", mode: "threshold", psm: "6", desc: "ثنائي" },
-          ];
-
-          for (const strategy of strategies) {
-            document.getElementById("ocrStatusText").textContent =
-              "جاري القراءة — " + strategy.desc + "…";
-            try {
-              const processedDataUrl = await preprocessImage(reader.result, strategy.mode);
-              const worker = await Tesseract.createWorker("eng");
-              await worker.setParameters({
-                tessedit_pageseg_mode: strategy.psm,
-                preserve_interword_spaces: "1",
-              });
-              const { data: { text } } = await worker.recognize(processedDataUrl);
-              await worker.terminate();
-
-              const points = countValidPairs(text);
-              if (points > bestPoints) {
-                bestPoints = points;
-                bestText = text;
-              }
-              if (points >= 4) break; // Found enough points, stop
-            } catch (err) {
-              console.log("Strategy " + strategy.name + " failed:", err);
-            }
+            document.getElementById("ocrText").value = text;
+            ocrResultBox.classList.remove("hidden");
+            tryAutoFillPoints(text);
+          } catch (err) {
+            document.getElementById("ocrText").value = "تعذّرت القراءة: " + (err.message || "خطأ غير معروف");
+            ocrResultBox.classList.remove("hidden");
           }
-
-          // Fallback: try greyscale with different PSM
-          if (bestPoints < 4) {
-            document.getElementById("ocrStatusText").textContent =
-              "جاري القراءة — محاولة إضافية…";
-            try {
-              const greyDataUrl = await scaleGrey(reader.result);
-              const worker = await Tesseract.createWorker("eng");
-              await worker.setParameters({
-                tessedit_pageseg_mode: "4",
-                preserve_interword_spaces: "1",
-              });
-              const { data: { text } } = await worker.recognize(greyDataUrl);
-              await worker.terminate();
-              const points = countValidPairs(text);
-              if (points > bestPoints) {
-                bestPoints = points;
-                bestText = text;
-              }
-            } catch (err) {
-              console.log("Greyscale fallback failed:", err);
-            }
-          }
-
-          document.getElementById("ocrText").value = bestText;
-          ocrResultBox.classList.remove("hidden");
-          tryAutoFillPoints(bestText);
           ocrStatus.classList.remove("show");
         };
         reader.readAsDataURL(file);
@@ -1605,7 +1485,7 @@
           }
           mapInstance = L.map("map", { 
             zoomControl: true,
-            maxZoom: 22,
+            maxZoom: 19,
             minZoom: 3,
           }).setView(
             [centroid.lat, centroid.lon],
@@ -1616,8 +1496,7 @@
             "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             {
               attribution: "Esri World Imagery",
-              maxZoom: 22,
-              maxNativeZoom: 19,
+              maxZoom: 19,
               minZoom: 3,
             },
           );
@@ -1625,8 +1504,7 @@
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             {
               attribution: "OpenStreetMap contributors",
-              maxZoom: 22,
-              maxNativeZoom: 19,
+              maxZoom: 19,
               minZoom: 3,
             },
           );
