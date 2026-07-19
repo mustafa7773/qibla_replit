@@ -854,7 +854,7 @@
         // OCR sometimes collapses two table rows onto one line; matchAll captures both.
         const pairs = [];
         const seenCoords = []; // [{e,n}] for proximity dedup
-        const DEDUP_M = 5; // treat points within 5 m as the same
+        const DEDUP_M = 5;   // treat points within 5 m as the same
         const addPair = (e, n) => {
           if (e > 300000 && e < 900000 && n > 1500000 && n < 3500000) {
             const dup = seenCoords.some(
@@ -915,6 +915,34 @@
             // Otherwise just add any missing ones
             const count = Math.min(ee.length, nn.length);
             for (let i = 0; i < count; i++) addPair(ee[i], nn[i]);
+          }
+        }
+
+        // ── Step 5: Auto-correct 0↔9 confusion in outlier points ─────────────
+        if(pairs.length >= 2){
+          const coords = pairs.map(p=>{const [e,n]=p.split(',').map(s=>parseFloat(s.trim()));return{e,n};});
+          const sortedE=[...coords.map(c=>c.e)].sort((a,b)=>a-b);
+          const sortedN=[...coords.map(c=>c.n)].sort((a,b)=>a-b);
+          const medE=sortedE[Math.floor(sortedE.length/2)];
+          const medN=sortedN[Math.floor(sortedN.length/2)];
+          const THRESH=100;
+          for(let i=0;i<pairs.length;i++){
+            const {e,n}=coords[i];
+            const dist=Math.abs(e-medE)+Math.abs(n-medN);
+            if(dist<=THRESH) continue;
+            const chars=pairs[i].split('');
+            let best=pairs[i], bestDist=dist;
+            for(let j=0;j<chars.length;j++){
+              if(chars[j]!=='0'&&chars[j]!=='9') continue;
+              const sw=[...chars]; sw[j]=chars[j]==='0'?'9':'0';
+              const s=sw.join('');
+              const [ce,cn]=s.split(',').map(v=>parseFloat(v.trim()));
+              if(isNaN(ce)||isNaN(cn)) continue;
+              if(ce<300000||ce>900000||cn<1500000||cn>3500000) continue;
+              const d=Math.abs(ce-medE)+Math.abs(cn-medN);
+              if(d<bestDist){bestDist=d;best=s;}
+            }
+            if(best!==pairs[i]) pairs[i]=best;
           }
         }
 
