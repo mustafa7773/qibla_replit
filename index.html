@@ -541,10 +541,7 @@
           <div class="field">
             <label>نظام الإسناد (Datum)</label>
             <select id="datum">
-              <option value="psd93">
-                PSD93 / Clarke 1880 (المعتمد في عُمان)
-              </option>
-              <option value="wgs84utm">WGS84 UTM (قياسي دولي)</option>
+              <option value="wgs84utm" selected>WGS84 UTM (قياسي دولي)</option>
             </select>
           </div>
           <div class="field">
@@ -553,10 +550,7 @@
           </div>
         </div>
         <p class="hint">
-          عُمان تقع غالباً في النطاق 40، وبعض المناطق الغربية في النطاق 39. نظام
-          الإسناد الافتراضي (PSD93) هو المستخدم في معظم الرسومات المساحية
-          الصادرة من وزارة الإسكان والتخطيط العمراني — إذا كتب على الكروكي
-          "Clark1880" فهذا هو الخيار الصحيح.
+          عُمان تقع غالباً في النطاق 40، وبعض المناطق الغربية في النطاق 39.
         </p>
 
         <button class="primary" id="computeBtn">
@@ -568,6 +562,21 @@
       <div class="panel hidden" id="resultPanel">
         <h2>النتيجة</h2>
         <p class="sub">اتجاه القبلة من موقع القطعة</p>
+
+        <div id="surveyTable" style="margin: 0 0 20px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); font-family: 'IBM Plex Mono', monospace;">
+          <div style="display: grid; grid-template-columns: 1fr 1.6fr;">
+            <div style="background: #2ecc71; color: #0C1E4A; font-weight: 700; padding: 10px 12px; display: flex; align-items: center; justify-content: center; text-align: center; font-family: 'IBM Plex Sans Arabic', sans-serif;">إحداثيات الرسم المساحي</div>
+            <div id="surveyCoords" dir="ltr" style="background: var(--paper); color: #0C1E4A; font-weight: 700; padding: 10px 12px; display: flex; align-items: center; justify-content: center; text-align: center; unicode-bidi: plaintext;">—</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1.6fr; border-top: 1px solid var(--night);">
+            <div style="background: #2ecc71; color: #0C1E4A; font-weight: 700; padding: 10px 12px; display: flex; align-items: center; justify-content: center; text-align: center; font-family: 'IBM Plex Sans Arabic', sans-serif;">إحداثيات الموقع</div>
+            <div id="siteCoordsDMS" dir="ltr" style="background: #e9e9e9; color: #0C1E4A; font-weight: 700; padding: 10px 12px; display: flex; align-items: center; justify-content: center; text-align: center; unicode-bidi: plaintext;">—</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1.6fr; border-top: 1px solid var(--night);">
+            <div style="background: #2ecc71; color: #0C1E4A; font-weight: 700; padding: 10px 12px; display: flex; align-items: center; justify-content: center; text-align: center; font-family: 'IBM Plex Sans Arabic', sans-serif;">زاوية القبلة من الشمال</div>
+            <div id="bearingDMS" dir="ltr" style="background: var(--paper); color: #0C1E4A; font-weight: 700; padding: 10px 12px; display: flex; align-items: center; justify-content: center; text-align: center; unicode-bidi: plaintext;">—</div>
+          </div>
+        </div>
 
         <div class="stat-grid">
           <div class="stat">
@@ -585,6 +594,11 @@
           <div class="stat">
             <div class="label">المسافة للكعبة</div>
             <div class="value" id="outDist">—</div>
+          </div>
+          <div class="stat">
+            <div class="label">المساحة (محسوبة من الإحداثيات)</div>
+            <div class="value" id="outArea" dir="ltr" style="direction: ltr; unicode-bidi: isolate;">—</div>
+          </div>
 
         <!-- Validation Results -->
         <div id="validationPanel" class="hidden" style="margin: 16px 0; padding: 16px; background: rgba(224, 85, 79, 0.08); border: 1px solid rgba(224, 85, 79, 0.3); border-radius: 10px;">
@@ -765,9 +779,8 @@
 
         <p class="note">
           الخط الأحمر على الخريطة يشير لاتجاه القبلة انطلاقاً من موقع القطعة.
-          الحساب يعتمد على التحويل من نظام PSD93 (Clarke 1880) المستخدم رسمياً
-          في المساحة العُمانية إلى WGS84 — وقد يختلف بضعة أمتار حسب جودة مسح
-          الرسم الأصلي.
+          الحساب يعتمد على إحداثيات UTM بنظام WGS84 القياسي الدولي — وقد
+          يختلف بضعة أمتار حسب جودة مسح الرسم الأصلي.
         </p>
       </div>
 
@@ -781,6 +794,21 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
     <script>
       const KAABA = { lat: 21.422487, lon: 39.826206 };
+
+      // Convert decimal degrees to a "D° M' S.SS\" H" string (H = N/S/E/W)
+      function toDMS(decimal, posLabel, negLabel) {
+        const hemi = decimal >= 0 ? posLabel : negLabel;
+        const abs = Math.abs(decimal);
+        let d = Math.floor(abs);
+        let mFloat = (abs - d) * 60;
+        let m = Math.floor(mFloat);
+        let s = (mFloat - m) * 60;
+        // Guard against rounding pushing seconds to 60
+        s = Math.round(s * 100) / 100;
+        if (s >= 60) { s -= 60; m += 1; }
+        if (m >= 60) { m -= 60; d += 1; }
+        return d + "\u00b0 " + m + "' " + s.toFixed(2) + '" ' + hemi;
+      }
 
       /* ---------------- upload + free client-side OCR ---------------- */
       const dropzone = document.getElementById("dropzone"),
@@ -850,13 +878,41 @@
           .replace(/\b(2\d{6})\b(?![.\d])/g, "$1.00");
 
         // Reconstruct fused decimals
-        const normalized = pre.replace(/\b(\d{8,9})\b/g, (match) => {
+        let normalized = pre.replace(/\b(\d{8,9})\b/g, (match) => {
           const len = match.length, n = parseInt(match);
           if (len === 9 && n >= 200000000 && n <= 299999999)
             return match.slice(0, 7) + "." + match.slice(7);
           if (len === 8 && n >= 40000000 && n <= 79999999)
             return match.slice(0, 6) + "." + match.slice(6);
           return match;
+        });
+
+        // Peel off stray leading digits that got fused onto a coordinate with
+        // no OCR-detected space — most commonly a nearby "LINE" column number
+        // (tables like "1  2   554659.30   2534983.00   7.16" can OCR as
+        // "12554659.30" if the gap is misread). Without this, the whole
+        // number fails to match the E/N patterns and that point is silently
+        // dropped instead of just being one digit off.
+        normalized = normalized.replace(/\b(\d{7,10})\.(\d{1,3})\b/g, (m, intPart, dec) => {
+          const len = intPart.length;
+          // Already a canonical 7-digit Northing (starts with 2, in range) — leave it alone.
+          if (len === 7 && intPart[0] === "2") {
+            const asIs = parseFloat(intPart + "." + dec);
+            if (asIs > 1500000 && asIs < 3500000) return m;
+          }
+          if (len > 7) {
+            const tail7 = intPart.slice(-7);
+            if (tail7[0] === "2") {
+              const val = parseFloat(tail7 + "." + dec);
+              if (val > 1500000 && val < 3500000) return tail7 + "." + dec;
+            }
+          }
+          const tail6 = intPart.slice(-6);
+          if (/[3-8]/.test(tail6[0])) {
+            const val = parseFloat(tail6 + "." + dec);
+            if (val > 300000 && val < 900000) return tail6 + "." + dec;
+          }
+          return m;
         });
 
         // ── Extract ALL valid numbers ───────────────────────────────────────────
@@ -997,8 +1053,12 @@
                 if (d < bestDist) { bestDist = d; best = s; }
               }
             }
-            // Only apply correction if it improves significantly
-            if (best !== pairs[i] && bestDist < dist * 0.7) {
+            // Only apply the correction if it lands genuinely close to the
+            // rest of the shape (not just relatively better than before) —
+            // a single digit-flip can't repair a 2+ digit misread, and
+            // applying it anyway would silently swap one wrong number for
+            // another instead of leaving it flagged for the person to check.
+            if (best !== pairs[i] && bestDist < dist * 0.7 && bestDist <= THRESH * 1.5) {
               pairs[i] = best;
             }
           }
@@ -1014,11 +1074,7 @@
         if (pairs.length > 0)
           document.getElementById("pointsInput").value = pairs.join("\n");
 
-        // Auto-detect datum & zone
-        if (/WGS\s*84/i.test(text))
-          document.getElementById("datum").value = "wgs84utm";
-        else if (/PSD\s*93|CLARK/i.test(text))
-          document.getElementById("datum").value = "psd93";
+        // Auto-detect zone (datum is always WGS84 UTM now)
         const zoneM = text.match(/\b(\d{1,2})\s*N\b/i);
         if (zoneM) {
           const z = parseInt(zoneM[1]);
@@ -1624,6 +1680,23 @@ function utmInverse(E, N, zone, a, invF) {
           Math.round(q.distanceKm).toLocaleString("ar") + " كم";
         document.getElementById("tagBearing").textContent =
           q.bearing.toFixed(2) + "° من الشمال";
+
+        // "إحداثيات الموقع" — site coordinates in DMS
+        const siteDMS = document.getElementById("siteCoordsDMS");
+        if (siteDMS) {
+          siteDMS.textContent =
+            toDMS(lat, "N", "S") + ",  " + toDMS(lon, "E", "W");
+        }
+
+        // "زاوية القبلة من الشمال" — bearing in DMS (clockwise from North),
+        // plus the same direction's counter-clockwise reading (360° − bearing)
+        const bearingDMSEl = document.getElementById("bearingDMS");
+        if (bearingDMSEl) {
+          const bearingDMSStr = toDMS(q.bearing, "N", "N").replace(/ [NS]$/, "");
+          const ccw = (360 - q.bearing) % 360;
+          bearingDMSEl.textContent =
+            bearingDMSStr + " N CW = " + ccw.toFixed(2) + "°";
+        }
         document
           .getElementById("needle")
           .setAttribute(
@@ -1680,6 +1753,11 @@ function utmInverse(E, N, zone, a, invF) {
           lon: wgsPoints.reduce((s, p) => s + p.lon, 0) / wgsPoints.length,
         };
 
+        // "إحداثيات الرسم المساحي" = first point of the kroki, as entered
+        const [firstE, firstN] = rawPoints[0];
+        document.getElementById("surveyCoords").textContent =
+          "Easting " + firstE.toFixed(2) + "   Northing " + firstN.toFixed(2);
+
         // Validate coordinates against OCR
         const ocrText = document.getElementById("ocrText").value || "";
         const validation = validateAndCorrect(rawPoints, ocrText);
@@ -1690,6 +1768,17 @@ function utmInverse(E, N, zone, a, invF) {
 
         document.getElementById("computedArea").textContent = Math.round(validation.computedArea).toLocaleString("ar");
         document.getElementById("expectedArea").textContent = validation.expectedArea ? Math.round(validation.expectedArea).toLocaleString("ar") : "—";
+
+        // Always-visible area stat (not just inside the validation panel)
+        const outAreaEl = document.getElementById("outArea");
+        if (outAreaEl) {
+          if (rawPoints.length >= 3) {
+            outAreaEl.textContent =
+              Math.round(validation.computedArea).toLocaleString("ar") + " م²";
+          } else {
+            outAreaEl.textContent = "— (يلزم 3 نقاط على الأقل)";
+          }
+        }
 
         if (!validation.isValid) {
           valPanel.classList.remove("hidden");
