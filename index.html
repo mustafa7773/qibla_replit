@@ -529,6 +529,37 @@
         background: rgba(223, 182, 104, 0.08);
       }
 
+      /* OCR Method Choice Modal */
+      .ocr-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(5, 8, 16, 0.75);
+        backdrop-filter: blur(4px);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .ocr-modal-box {
+        background: #10192c;
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 28px;
+        max-width: 420px;
+        width: 100%;
+      }
+
+      .ocr-modal-box h3 {
+        font-family: "IBM Plex Sans Arabic", sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--paper);
+        margin-bottom: 8px;
+      }
+
       .error-box {
         display: none;
         background: rgba(244, 91, 91, 0.12);
@@ -950,6 +981,31 @@
         </div>
       </div>
 
+      <!-- OCR Method Choice Modal -->
+      <div id="ocrChoiceModal" class="ocr-modal-overlay hidden">
+        <div class="ocr-modal-box">
+          <h3>كيف تحب تقرأ هذا الكروكي؟</h3>
+          <p class="hint" style="margin-bottom: 18px;">اختر طريقة القراءة، وهيبدأ العمل فوراً.</p>
+          <button id="chooseNormalBtn" class="ghost" style="width: 100%; padding: 14px; margin-bottom: 10px;">
+            القراءة العادية (مجانية، مباشرة)
+          </button>
+          <button id="chooseAiBtn" class="primary" style="margin-top: 0;">
+            القراءة بالذكاء الاصطناعي (Claude AI — دقة أعلى)
+          </button>
+          <div id="modalAiKeyWrap" class="hidden" style="margin-top: 16px;">
+            <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px;">مفتاح Anthropic API</label>
+            <input type="password" id="modalAnthropicKey" placeholder="sk-ant-..." autocomplete="off" style="width: 100%; padding: 12px; border-radius: 10px; background: rgba(10,17,30,0.7); border: 1px solid var(--card-border); color: var(--paper); font-family: 'IBM Plex Mono', monospace;" />
+            <p class="hint" style="margin-top: 6px;">
+              يُستخدم من متصفحك فقط لهذه الجلسة، ولا يُحفظ أو يُرسل لأي مكان غير Anthropic. تُحتسب تكلفة بسيطة على حسابك لكل صورة.
+            </p>
+            <button id="confirmAiBtn" class="primary">متابعة</button>
+          </div>
+          <button id="cancelOcrModalBtn" class="ghost" style="width: 100%; margin-top: 14px; padding: 10px;">
+            إلغاء
+          </button>
+        </div>
+      </div>
+
       <!-- Step 2 Panel -->
       <div class="panel" id="panel-data">
         <div class="panel-head">
@@ -977,8 +1033,8 @@
           <div class="field">
             <label>نظام الإسناد (Datum)</label>
             <select id="datum">
-              <option value="wgs84utm" selected>WGS84 UTM (قياسي دولي)</option>
-              <option value="psd93">PSD93 / Clarke 1880 (المعتمد في عُمان)</option>
+              <option value="wgs84utm">WGS84 UTM (قياسي دولي)</option>
+              <option value="psd93" selected>PSD93 / Clarke 1880 (المعتمد في عُمان)</option>
             </select>
           </div>
           <div class="field">
@@ -1202,6 +1258,54 @@
         ocrResultBox.classList.add("hidden");
       });
 
+      const ocrChoiceModal = document.getElementById("ocrChoiceModal"),
+        chooseNormalBtn = document.getElementById("chooseNormalBtn"),
+        chooseAiBtn = document.getElementById("chooseAiBtn"),
+        modalAiKeyWrap = document.getElementById("modalAiKeyWrap"),
+        modalAnthropicKey = document.getElementById("modalAnthropicKey"),
+        confirmAiBtn = document.getElementById("confirmAiBtn"),
+        cancelOcrModalBtn = document.getElementById("cancelOcrModalBtn");
+
+      let sessionApiKey = "";
+
+      function askOcrMethod() {
+        return new Promise((resolve) => {
+          modalAiKeyWrap.classList.add("hidden");
+          modalAnthropicKey.value = sessionApiKey;
+          ocrChoiceModal.classList.remove("hidden");
+
+          function cleanup() {
+            ocrChoiceModal.classList.add("hidden");
+            chooseNormalBtn.onclick = null;
+            chooseAiBtn.onclick = null;
+            confirmAiBtn.onclick = null;
+            cancelOcrModalBtn.onclick = null;
+          }
+
+          chooseNormalBtn.onclick = () => {
+            cleanup();
+            resolve({ method: "normal" });
+          };
+          chooseAiBtn.onclick = () => {
+            modalAiKeyWrap.classList.remove("hidden");
+          };
+          confirmAiBtn.onclick = () => {
+            const key = modalAnthropicKey.value.trim();
+            if (!key) {
+              modalAnthropicKey.focus();
+              return;
+            }
+            sessionApiKey = key;
+            cleanup();
+            resolve({ method: "ai", apiKey: key });
+          };
+          cancelOcrModalBtn.onclick = () => {
+            cleanup();
+            resolve(null);
+          };
+        });
+      }
+
       function countValidPairs(text) {
         const ee = [...text.matchAll(/\b([3-8]\d{5}[.,]\d{1,3})\b/g)];
         const nn = [...text.matchAll(/\b(2\d{6}[.,]\d{1,3})\b/g)];
@@ -1360,7 +1464,7 @@
           const medN = sortedN[Math.floor(sortedN.length / 2)];
           const THRESH = 60;
 
-          const confusionPairs = [['0','9'], ['5','6'], ['1','7'], ['3','8'], ['5','9']];
+          const confusionPairs = [['0','9'], ['5','6'], ['1','7'], ['3','8'], ['5','9'], ['6','8']];
 
           for (let i = 0; i < pairs.length; i++) {
             const { e, n } = coords[i];
@@ -1400,6 +1504,20 @@
         if (zoneM) {
           const z = parseInt(zoneM[1]);
           if (z >= 1 && z <= 60) document.getElementById("zone").value = z;
+        }
+
+        // محاولة اكتشاف نظام الإسناد (Datum) تلقائياً من نص الكروكي.
+        // معظم كروكيات وزارة الإسكان في عُمان تستخدم PSD93/Clarke 1880، لذا هو الافتراضي
+        // ما لم يُذكر صراحة أن الإحداثيات بنظام WGS84.
+        const mentionsPSD93 = /PSD\s*[-_]?\s*93|Clarke\s*1880/i.test(text);
+        const mentionsWGS84 = /WGS\s*[-_]?\s*84/i.test(text);
+        const datumSelectEl = document.getElementById("datum");
+        if (mentionsPSD93 && !mentionsWGS84) {
+          datumSelectEl.value = "psd93";
+        } else if (mentionsWGS84 && !mentionsPSD93) {
+          datumSelectEl.value = "wgs84utm";
+        } else {
+          datumSelectEl.value = "psd93";
         }
       }
 
@@ -1458,6 +1576,61 @@
         });
       }
 
+      async function extractWithClaudeVision(dataUrl, mediaType, apiKey) {
+        if (!apiKey) throw new Error("يرجى إدخال مفتاح Anthropic API أولاً.");
+        const base64Data = dataUrl.split(",")[1];
+
+        const prompt =
+          "اقرأ جدول إحداثيات قطعة الأرض من هذه الصورة (كروكي مساحي عُماني). " +
+          "أعد الإجابة بصيغة JSON فقط بدون أي نص إضافي أو علامات markdown، بالشكل التالي بالضبط:\n" +
+          '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null}\n' +
+          "ملاحظات مهمة:\n" +
+          "- بعض الجداول تكتب عمود Northing قبل عمود Easting — تأكد من إخراج كل نقطة بترتيب [Easting, Northing] دائماً بغض النظر عن ترتيب الأعمدة كما تظهر في الصورة.\n" +
+          "- انسخ الأرقام كما هي بالضبط دون أي تقريب أو تعديل.\n" +
+          "- إذا لم تجد قيمة لأي حقل ضعه null.";
+
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6",
+            max_tokens: 1000,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+                  { type: "text", text: prompt },
+                ],
+              },
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text().catch(() => "");
+          throw new Error("فشل الاتصال بـ Anthropic API (" + response.status + "). " + errText.slice(0, 200));
+        }
+
+        const data = await response.json();
+        const textOut = (data.content || [])
+          .map((c) => (c.type === "text" ? c.text : ""))
+          .filter(Boolean)
+          .join("\n");
+
+        const cleaned = textOut.replace(/```json|```/g, "").trim();
+        try {
+          return JSON.parse(cleaned);
+        } catch (e) {
+          throw new Error("تعذّر تفسير استجابة الذكاء الاصطناعي.");
+        }
+      }
+
       async function handleFile(file) {
         const reader = new FileReader();
         reader.onload = async () => {
@@ -1465,9 +1638,52 @@
           document.getElementById("fileName").textContent = file.name;
           preview.classList.add("show");
           ocrResultBox.classList.add("hidden");
-          ocrStatus.classList.add("show");
-          document.getElementById("ocrStatusText").textContent = "جاري قراءة واستخراج البيانات الأوتوماتيكية…";
 
+          const choice = await askOcrMethod();
+          if (!choice) return;
+
+          ocrStatus.classList.add("show");
+
+          if (choice.method === "ai") {
+            document.getElementById("ocrStatusText").textContent = "جاري القراءة بدقة عالية بواسطة Claude AI…";
+            try {
+              const mediaType = file.type === "image/png" ? "image/png" : "image/jpeg";
+              const parsed = await extractWithClaudeVision(reader.result, mediaType, choice.apiKey);
+
+              const points = Array.isArray(parsed.points) ? parsed.points : [];
+              const pointsLines = points
+                .filter((p) => Array.isArray(p) && p.length >= 2 && isFinite(p[0]) && isFinite(p[1]))
+                .map((p) => p[0] + ", " + p[1]);
+              if (pointsLines.length > 0) {
+                document.getElementById("pointsInput").value = pointsLines.join("\n");
+              }
+              if (parsed.zone && parsed.zone >= 1 && parsed.zone <= 60) {
+                document.getElementById("zone").value = parsed.zone;
+              }
+              if (parsed.datum === "psd93" || parsed.datum === "wgs84utm") {
+                document.getElementById("datum").value = parsed.datum;
+              }
+
+              const summaryLines = [
+                "✓ تمت القراءة بواسطة Claude AI",
+                "عدد النقاط المستخرجة: " + pointsLines.length,
+              ];
+              if (parsed.area) summaryLines.push("المساحة المذكورة بالكروكي: " + parsed.area + " م²");
+              document.getElementById("ocrText").value =
+                summaryLines.join("\n") + (parsed.area ? "\nAREA = " + parsed.area + " SQ M" : "");
+              ocrResultBox.classList.remove("hidden");
+            } catch (err) {
+              document.getElementById("ocrText").value =
+                "تعذّرت القراءة بالذكاء الاصطناعي: " +
+                (err.message || "خطأ غير معروف") +
+                "\nيمكنك إعادة رفع الصورة واختيار القراءة العادية بدلاً من ذلك.";
+              ocrResultBox.classList.remove("hidden");
+            }
+            ocrStatus.classList.remove("show");
+            return;
+          }
+
+          document.getElementById("ocrStatusText").textContent = "جاري قراءة واستخراج البيانات الأوتوماتيكية…";
           try {
             const processedDataUrl = await preprocessImage(reader.result);
             const worker = await Tesseract.createWorker("eng");
