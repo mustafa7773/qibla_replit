@@ -1181,7 +1181,12 @@
         <div class="toolbar">
           <button class="ghost" id="fitBtn">تصغير لرؤية المسار المباشر للكعبة</button>
           <button class="ghost" id="closeBtn">إعادة التكبير للموقع الحالي</button>
+          <button class="primary" id="downloadWordBtn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+            تحميل تقرير Word
+          </button>
         </div>
+        <div id="wordStatus" class="hint" style="display:none; margin-top:8px;"></div>
 
         <p class="hint" style="margin-top: 14px">
           💡 يمكنك سحب الدبوس على الخريطة لتعديل الموقع بدقة متناهية (مثلاً لمطابقته مع زاوية المبنى الفعلي) — وسيعاد حساب الزاوية والمسافة فوراً.
@@ -1206,6 +1211,8 @@
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
       const KAABA = { lat: 21.422487, lon: 39.826206 };
 
@@ -1222,6 +1229,21 @@
         const dStr = d < 10 ? "0" + d : String(d);
         const mStr = m < 10 ? "0" + m : String(m);
         const sStr = s < 10 ? "0" + s.toFixed(2) : s.toFixed(2);
+        return dStr + "\u00b0 " + mStr + "' " + sStr + '" ' + hemi;
+      }
+
+      function toDMSWhole(decimal, posLabel, negLabel) {
+        const hemi = decimal >= 0 ? posLabel : negLabel;
+        const abs = Math.abs(decimal);
+        let d = Math.floor(abs);
+        let mFloat = (abs - d) * 60;
+        let m = Math.floor(mFloat);
+        let s = Math.round((mFloat - m) * 60);
+        if (s >= 60) { s -= 60; m += 1; }
+        if (m >= 60) { m -= 60; d += 1; }
+        const dStr = d < 10 ? "0" + d : String(d);
+        const mStr = m < 10 ? "0" + m : String(m);
+        const sStr = s < 10 ? "0" + s : String(s);
         return dStr + "\u00b0 " + mStr + "' " + sStr + '" ' + hemi;
       }
 
@@ -2292,7 +2314,8 @@
 
         const bearingDMSEl = document.getElementById("bearingDMS");
         if (bearingDMSEl) {
-          const bearingDMSStr = toDMS(q.bearing, "N", "N").replace(/ [NS]$/, "");
+          const bearingRounded = parseFloat(q.bearing.toFixed(2));
+          const bearingDMSStr = toDMSWhole(bearingRounded, "N", "N").replace(/ [NS]$/, "");
           const ccw = (360 - q.bearing) % 360;
           bearingDMSEl.textContent =
             bearingDMSStr + " N CW = " + ccw.toFixed(2) + "°";
@@ -2600,6 +2623,226 @@
           errorBox.classList.add("show");
         }
       });
+
+      // ===== تحميل تقرير Word =====
+      function arabicMonthsHijri() {
+        return ["محرم","صفر","ربيع الأول","ربيع الآخر","جمادى الأولى","جمادى الآخرة","رجب","شعبان","رمضان","شوال","ذو القعدة","ذو الحجة"];
+      }
+      function arabicMonthsGregorian() {
+        return ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+      }
+      function getFormattedDates() {
+        const now = new Date();
+        let hijriStr = "";
+        try {
+          const parts = new Intl.DateTimeFormat("en-US-u-ca-islamic-umalqura", {
+            day: "numeric",
+            month: "numeric",
+            year: "numeric",
+          }).formatToParts(now);
+          const d = parts.find((p) => p.type === "day").value;
+          const m = parseInt(parts.find((p) => p.type === "month").value, 10);
+          const y = parts.find((p) => p.type === "year").value;
+          hijriStr = d + " " + arabicMonthsHijri()[m - 1] + " " + y + "هـ";
+        } catch (e) {
+          hijriStr = "—";
+        }
+        const gregorianStr =
+          now.getDate() + " " + arabicMonthsGregorian()[now.getMonth()] + " " + now.getFullYear() + "م";
+        return { hijri: hijriStr, gregorian: gregorianStr };
+      }
+
+      async function generateWordReport() {
+        const btn = document.getElementById("downloadWordBtn");
+        const status = document.getElementById("wordStatus");
+        if (!mapInstance || document.getElementById("resultPanel").classList.contains("hidden")) {
+          alert("يرجى حساب اتجاه القبلة أولاً قبل تحميل التقرير.");
+          return;
+        }
+        status.style.display = "block";
+        status.textContent = "جاري تجهيز صورة الخريطة...";
+        btn.disabled = true;
+
+        let imageBytes = null;
+        try {
+          const mapEl = document.getElementById("map");
+          const canvas = await html2canvas(mapEl, {
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: "#ffffff",
+            scale: 2,
+          });
+          const dataUrl = canvas.toDataURL("image/png");
+          const base64 = dataUrl.split(",")[1];
+          const binary = atob(base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          imageBytes = bytes;
+        } catch (imgErr) {
+          imageBytes = null;
+        }
+
+        status.textContent = "جاري إنشاء ملف Word...";
+
+        try {
+          const {
+            Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+            ImageRun, AlignmentType, WidthType, ShadingType, VerticalAlign,
+          } = docx;
+
+          const GREEN = "BFE3C6";
+
+          function arabicRun(text, opts = {}) {
+            return new TextRun({ text: text || "", bold: !!opts.bold, size: opts.size || 22, font: "Arial" });
+          }
+          function arabicPara(text, opts = {}) {
+            return new Paragraph({
+              bidirectional: true,
+              alignment: opts.align || AlignmentType.RIGHT,
+              children: [arabicRun(text, opts)],
+            });
+          }
+          function valuePara(text, opts = {}) {
+            return new Paragraph({
+              alignment: opts.align || AlignmentType.LEFT,
+              children: [new TextRun({ text: text || "", size: opts.size || 22, font: "Arial", bold: !!opts.bold })],
+            });
+          }
+          function fieldRow(label, value) {
+            return new TableRow({
+              children: [
+                new TableCell({
+                  width: { size: 62, type: WidthType.PERCENTAGE },
+                  verticalAlign: VerticalAlign.CENTER,
+                  margins: { top: 100, bottom: 100, left: 120, right: 120 },
+                  children: [valuePara(value)],
+                }),
+                new TableCell({
+                  width: { size: 38, type: WidthType.PERCENTAGE },
+                  shading: { fill: GREEN, type: ShadingType.CLEAR, color: "auto" },
+                  verticalAlign: VerticalAlign.CENTER,
+                  margins: { top: 100, bottom: 100, left: 120, right: 120 },
+                  children: [arabicPara(label, { bold: true })],
+                }),
+              ],
+            });
+          }
+          function sectionHeaderRow(label) {
+            return new TableRow({
+              children: [
+                new TableCell({
+                  columnSpan: 2,
+                  shading: { fill: GREEN, type: ShadingType.CLEAR, color: "auto" },
+                  children: [arabicPara(label, { bold: true })],
+                }),
+              ],
+            });
+          }
+
+          const { hijri, gregorian } = getFormattedDates();
+          const surveyCoords = document.getElementById("surveyCoords").textContent.trim();
+          const siteCoords = document.getElementById("siteCoordsDMS").textContent.trim();
+          const bearing = document.getElementById("bearingDMS").textContent.trim();
+
+          const rows = [
+            new TableRow({
+              children: [
+                new TableCell({
+                  columnSpan: 2,
+                  shading: { fill: GREEN, type: ShadingType.CLEAR, color: "auto" },
+                  children: [arabicPara("طلب خدمة تحديد اتجاه القبلة", { align: AlignmentType.CENTER, bold: true, size: 26 })],
+                }),
+              ],
+            }),
+            fieldRow("رقم الطلب بنظام المساجد:", ""),
+            fieldRow("رقم الطلب بالشركة:", ""),
+            fieldRow("وكيل المسجد/اسمه وهاتفه:", ""),
+            fieldRow("المحافظة والولاية:", ""),
+            fieldRow("القرية (رقم القطعة):", ""),
+            fieldRow("إحداثيات الرسم المساحي:", surveyCoords),
+            fieldRow("إحداثيات الموقع خ ط ع:", siteCoords),
+            fieldRow("زاوية القبلة من الشمال =", bearing),
+            fieldRow("الزاوية بالخرائط =", ""),
+            fieldRow("ملاحظات:", ""),
+            sectionHeaderRow("الخرائط:"),
+          ];
+
+          const mapCellChildren = [];
+          if (imageBytes) {
+            mapCellChildren.push(
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new ImageRun({ type: "png", data: imageBytes, transformation: { width: 430, height: 300 } })],
+              }),
+            );
+          } else {
+            mapCellChildren.push(arabicPara("تعذّر إدراج صورة الخريطة تلقائياً — يرجى إرفاقها يدوياً.", { align: AlignmentType.CENTER }));
+          }
+          rows.push(new TableRow({ children: [new TableCell({ columnSpan: 2, children: mapCellChildren })] }));
+
+          rows.push(fieldRow("تاريخ الزيارة الميدانية:", ""));
+          rows.push(sectionHeaderRow("حالة طلب الخدمة:"));
+          rows.push(fieldRow("حالة الطلب (أولي / جاهز / مكتمل):", ""));
+          rows.push(sectionHeaderRow("جاهزية الشروع بالبناء:"));
+          rows.push(
+            new TableRow({
+              children: [
+                new TableCell({
+                  columnSpan: 2,
+                  children: [
+                    arabicPara("☐ غير جاهز للبناء — لم يتم تحديد اتجاه القبلة بالليزر ميدانياً"),
+                    arabicPara("☐ جاهز للشروع بالبناء — تم تحديد القبلة بتاريخ الزيارة أعلاه"),
+                  ],
+                }),
+              ],
+            }),
+          );
+
+          const table = new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+
+          const doc = new Document({
+            sections: [
+              {
+                children: [
+                  arabicPara("قبلة سكاي — تقرير تحديد اتجاه القبلة", { align: AlignmentType.CENTER, bold: true, size: 30 }),
+                  new Paragraph({ text: "" }),
+                  table,
+                  new Paragraph({ text: "" }),
+                  arabicPara("تاريخ الإصدار الأولي للوثيقة:", { bold: true }),
+                  arabicPara(hijri),
+                  arabicPara(gregorian),
+                ],
+              },
+            ],
+          });
+
+          const blob = await Packer.toBlob(doc);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          const today = new Date();
+          const stamp =
+            today.getFullYear() + "-" +
+            String(today.getMonth() + 1).padStart(2, "0") + "-" +
+            String(today.getDate()).padStart(2, "0");
+          a.href = url;
+          a.download = "تقرير_قبلة_سكاي_" + stamp + ".docx";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+
+          status.textContent = "تم إنشاء الملف وتحميله بنجاح.";
+          setTimeout(() => {
+            status.style.display = "none";
+          }, 4000);
+        } catch (err) {
+          status.textContent = "حدث خطأ أثناء إنشاء ملف Word: " + (err && err.message ? err.message : err);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      document.getElementById("downloadWordBtn").addEventListener("click", generateWordReport);
     </script>
   </body>
 </html>
