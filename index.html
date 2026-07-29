@@ -2475,6 +2475,8 @@
           const HARD_MAX_ZOOM = 19;
           let satMaxUsableZoom = HARD_MAX_ZOOM;
           let autoAdjusting = false;
+          // نسمح لدالة تصدير الصورة (تقرير Word) بمعرفة أقصى تكبير صالح للأقمار الصناعية
+          window.__qiblaMaxUsableZoom = satMaxUsableZoom;
 
           function tileLooksLikePlaceholder(imgEl) {
             try {
@@ -2524,6 +2526,7 @@
             if (tileLooksLikePlaceholder(e.tile)) {
               satMaxUsableZoom = Math.min(satMaxUsableZoom, z - 1);
               if (satMaxUsableZoom < 3) satMaxUsableZoom = 3;
+              window.__qiblaMaxUsableZoom = satMaxUsableZoom;
               autoAdjusting = true;
               mapInstance.setZoom(satMaxUsableZoom);
               const note = document.getElementById("zoomNote");
@@ -2662,6 +2665,67 @@
         return out;
       }
 
+      // يقصّ الصورة الملتقطة حول نقطة الدبوس مباشرة بمساحة أصغر بكثير من كامل الخريطة،
+      // فكلما صغرت مساحة الاقتصاص حول البوصلة، بدت التفاصيل حولها أوضح وأكبر في التقرير،
+      // بصرف النظر عن مستوى تكبير الخريطة نفسه.
+      function cropCanvasAroundPoint(sourceCanvas, centerX, centerY, ratio, zoomInFraction) {
+        const w = sourceCanvas.width;
+        const h = sourceCanvas.height;
+
+        let cropW = Math.round(Math.min(w, h) * zoomInFraction);
+        let cropH = Math.round(cropW / ratio);
+        if (cropH > h) {
+          cropH = h;
+          cropW = Math.round(cropH * ratio);
+        }
+        if (cropW > w) {
+          cropW = w;
+          cropH = Math.round(cropW / ratio);
+        }
+
+        let sx = Math.round(centerX - cropW / 2);
+        let sy = Math.round(centerY - cropH / 2);
+        sx = Math.max(0, Math.min(sx, w - cropW));
+        sy = Math.max(0, Math.min(sy, h - cropH));
+
+        const out = document.createElement("canvas");
+        out.width = cropW;
+        out.height = cropH;
+        const ctx = out.getContext("2d");
+        ctx.drawImage(sourceCanvas, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+        return out;
+      }
+
+      // ينتظر انتهاء تحميل بلاطات طبقة الأقمار الصناعية/الخريطة الحالية باستخدام واجهة Leaflet
+      // العامة isLoading() بدل التحقق من خصائص داخلية غير موثوقة، مع سقف زمني للأمان.
+      function waitForActiveTilesToLoad(maxWaitMs) {
+        return new Promise((resolve) => {
+          const activeLayer =
+            mapInstance && satLayer && mapInstance.hasLayer(satLayer)
+              ? satLayer
+              : streetLayer;
+
+          if (!activeLayer || typeof activeLayer.isLoading !== "function") {
+            resolve();
+            return;
+          }
+
+          if (!activeLayer.isLoading()) {
+            resolve();
+            return;
+          }
+
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+          };
+          activeLayer.once("load", finish);
+          setTimeout(finish, maxWaitMs);
+        });
+      }
+
       async function generateWordReport() {
         const btn = document.getElementById("downloadWordBtn");
         const status = document.getElementById("wordStatus");
@@ -2675,20 +2739,45 @@
 
         let imagePngBytes = null;
         try {
+          // لا نغيّر زوم الخريطة إطلاقاً؛ نلتقط الصورة بمستوى التكبير الحالي كما هو
+          // (تغيير الزوم قد يتجاوز أقصى دقة متاحة لدى مزوّد صور الأقمار الصناعية،
+          // فتظهر بلاطات رمادية غير متوفرة). ننتظر فقط اكتمال أي بلاطات معلّقة.
+          await waitForActiveTilesToLoad(1500);
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
           const mapEl = document.getElementById("map");
+          const scale = 2;
           const rawCanvas = await html2canvas(mapEl, {
             useCORS: true,
             allowTaint: false,
             backgroundColor: "#ffffff",
-            scale: 2,
+            scale,
           });
-          // قصّ الصورة لتطابق نسبة أبعاد صورة القالب الأصلي تماماً، لمنع أي تمديد أو ضغط
-          const croppedCanvas = cropCanvasToRatio(rawCanvas, TEMPLATE_IMAGE_RATIO);
-          const dataUrl = croppedCanvas.toDataURL("image/png");
+
+          let finalCanvas;
+          if (markerInstance) {
+            const containerPoint = mapInstance.latLngToContainerPoint(
+              markerInstance.getLatLng(),
+            );
+            // مساحة الاقتصاص = 100% (أي بلا اقتصاص عمليًا) من أصغر بُعد في الصورة الملتقطة حول موقع الدبوس
+            finalCanvas = cropCanvasAroundPoint(
+              rawCanvas,
+              containerPoint.x * scale,
+              containerPoint.y * scale,
+              TEMPLATE_IMAGE_RATIO,
+              1,
+            );
+          } else {
+            // قصّ الصورة لتطابق نسبة أبعاد صورة القالب الأصلي تماماً، لمنع أي تمديد أو ضغط
+            finalCanvas = cropCanvasToRatio(rawCanvas, TEMPLATE_IMAGE_RATIO);
+          }
+
+          const dataUrl = finalCanvas.toDataURL("image/png");
           imagePngBytes = base64ToUint8Array(dataUrl.split(",")[1]);
         } catch (imgErr) {
           imagePngBytes = null;
         }
+
 
         status.textContent = "جاري إنشاء ملف Word من القالب الأصلي...";
 
