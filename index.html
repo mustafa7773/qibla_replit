@@ -1006,58 +1006,10 @@
         </div>
       </div>
 
-      <!-- Step 2 Panel: Request Details -->
-      <div class="panel" id="panel-request-details">
-        <div class="panel-head">
-          <span class="step-badge">٢</span>
-          <h2>بيانات الطلب</h2>
-        </div>
-        <p class="sub">
-          هذه البيانات تظهر في تقرير Word عند التحميل. جميع الحقول اختيارية ويمكن تعبئتها أو تعديلها لاحقاً.
-        </p>
-
-        <div class="grid2">
-          <div class="field">
-            <label>رقم الطلب بنظام المساجد</label>
-            <input type="text" id="mosqueRequestNo" placeholder="مثال: 12345" />
-          </div>
-          <div class="field">
-            <label>رقم الطلب بالشركة</label>
-            <input type="text" id="companyRequestNo" placeholder="مثال: QBL-2026-001" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label>وكيل المسجد \ نائبه وهاتفه</label>
-          <input type="text" id="agentInfo" placeholder="الاسم ورقم الهاتف" />
-        </div>
-
-        <div class="grid2">
-          <div class="field">
-            <label>المحافظة والولاية</label>
-            <input type="text" id="governorateInput" placeholder="مثال: محافظة مسقط - ولاية بوشر" />
-          </div>
-          <div class="field">
-            <label>القرية (رقم القطعة)</label>
-            <input type="text" id="villagePlotInput" placeholder="مثال: الغبرة - قطعة 123" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label>الزاوية بالخرائط</label>
-          <input type="text" id="mapAngleInput" placeholder="مثال: 90°" />
-        </div>
-
-        <div class="field">
-          <label>ملاحظات</label>
-          <textarea id="notesInput" class="textarea-mono" rows="3" placeholder="أي ملاحظات إضافية على الطلب"></textarea>
-        </div>
-      </div>
-
-      <!-- Step 3 Panel -->
+      <!-- Step 2 Panel -->
       <div class="panel" id="panel-data">
         <div class="panel-head">
-          <span class="step-badge">٣</span>
+          <span class="step-badge">٢</span>
           <h2>بيانات القطعة</h2>
         </div>
         <p class="sub">
@@ -1107,7 +1059,7 @@
       <!-- Result Panel -->
       <div class="panel hidden reveal" id="resultPanel">
         <div class="panel-head">
-          <span class="step-badge">٤</span>
+          <span class="step-badge">٣</span>
           <h2>النتيجة الحسابية</h2>
         </div>
         <p class="sub">تم تحديد اتجاه القبلة بنجاح بناءً على المرجعية المكانية للقطعة</p>
@@ -1225,6 +1177,60 @@
           </div>
         </div>
         <div id="zoomNote" class="zoom-note"></div>
+
+        <div class="panel-head" style="margin-top: 28px;">
+          <h2 style="font-size: 20px;">بيانات الطلب</h2>
+        </div>
+        <p class="sub">
+          هذه البيانات تظهر في تقرير Word عند التحميل. جميع الحقول اختيارية ويمكن تعبئتها أو تعديلها لاحقاً.
+        </p>
+
+        <div class="grid2">
+          <div class="field">
+            <label>رقم الطلب بنظام المساجد</label>
+            <input type="text" id="mosqueRequestNo" placeholder="مثال: ص - 24 - 144" />
+          </div>
+          <div class="field">
+            <label>رقم الطلب بالشركة</label>
+            <input type="text" id="companyRequestNo" placeholder="مثال: ق س ا/ر12/1447خ114" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>وكيل المسجد \ نائبه وهاتفه</label>
+          <input type="text" id="agentInfo" placeholder="مثال: حميد بن علي بن سعيد الجابري - 96393938" />
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>المحافظة والولاية</label>
+            <input type="text" id="governorateInput" placeholder="مثال: شمال الشرقية - المضيبي" />
+          </div>
+          <div class="field">
+            <label>القرية (رقم القطعة)</label>
+            <input type="text" id="villagePlotInput" placeholder="مثال: التلول - قطعة 31" />
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>الزاوية بالخرائط</label>
+            <input type="text" id="mapAngleInput" placeholder="مثال: 90°" />
+          </div>
+          <div class="field">
+            <label>حالة الطلب</label>
+            <select id="requestStatusInput">
+              <option value="أولي" selected>أولي</option>
+              <option value="جاهز">جاهز</option>
+              <option value="مكتمل">مكتمل</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>ملاحظات</label>
+          <textarea id="notesInput" class="textarea-mono" rows="3" placeholder="مثال: إعادة بناء مسجد قائم"></textarea>
+        </div>
 
         <div class="toolbar">
           <button class="ghost" id="fitBtn">تصغير لرؤية المسار المباشر للكعبة</button>
@@ -2864,6 +2870,7 @@
           const governorate = document.getElementById("governorateInput").value.trim();
           const villagePlot = document.getElementById("villagePlotInput").value.trim();
           const mapAngle = document.getElementById("mapAngleInput").value.trim();
+          const requestStatus = document.getElementById("requestStatusInput").value.trim();
           const notes = document.getElementById("notesInput").value.trim();
 
           const templateBytes = base64ToUint8Array(QIBLA_TEMPLATE_BASE64);
@@ -2890,6 +2897,7 @@
             governorate: governorate,
             village_plot: villagePlot,
             map_angle: mapAngle,
+            request_status: requestStatus,
             notes: notes,
           });
 
