@@ -233,13 +233,28 @@
         return { blob };
       }
 
-      function qiblaReportFileStamp() {
-        const today = new Date();
-        return (
-          today.getFullYear() + "-" +
-          String(today.getMonth() + 1).padStart(2, "0") + "-" +
-          String(today.getDate()).padStart(2, "0")
-        );
+      // اسم ملف التقرير = "قبلة" متبوعاً برقم الطلب بنظام المساجد كما أدخله المستخدم
+      // (مثال: "قبلة ص 24-144"). تُزال فقط الرموز التي لا يقبلها نظام الملفات،
+      // ويُستخدم التاريخ كبديل إن تُرك حقل رقم الطلب فارغاً.
+      function qiblaReportFileName() {
+        const requestNo = document.getElementById("mosqueRequestNo").value.trim();
+
+        if (!requestNo) {
+          const today = new Date();
+          const stamp =
+            today.getFullYear() + "-" +
+            String(today.getMonth() + 1).padStart(2, "0") + "-" +
+            String(today.getDate()).padStart(2, "0");
+          return "قبلة " + stamp;
+        }
+
+        // الرموز \ / : * ? " < > | ممنوعة في أسماء الملفات على ويندوز وماك
+        const safeRequestNo = requestNo
+          .replace(/[\\/:*?"<>|]/g, "-")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        return "قبلة " + safeRequestNo;
       }
 
       function downloadBlobAs(blob, filename) {
@@ -271,7 +286,7 @@
           status.textContent = "جاري إنشاء ملف Word من القالب الأصلي...";
           const { blob } = await buildQiblaReportDocx(mapCanvas);
 
-          downloadBlobAs(blob, "طلب_تحديد_اتجاه_القبلة_" + qiblaReportFileStamp() + ".docx");
+          downloadBlobAs(blob, qiblaReportFileName() + ".docx");
 
           status.textContent = "تم إنشاء الملف وتحميله بنجاح.";
           setTimeout(() => {
