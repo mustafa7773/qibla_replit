@@ -362,10 +362,6 @@
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
             تحميل تقرير Word
           </button>
-          <button class="primary" id="downloadPdfBtn">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
-            تحميل تقرير PDF
-          </button>
         </div>
         <div id="wordStatus" class="hint" style="display:none; margin-top:8px;"></div>
 
@@ -395,13 +391,8 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.2.0/dist/pizzip.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.69.0/build/docxtemplater.js"></script>
+    <!-- html2canvas مطلوبة لالتقاط صورة الخريطة التي تُدرَج داخل تقرير Word -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- docx-preview: يعرض ملف Word (نفس الملف المُنتَج بواسطة docxtemplater من القالب الأصلي)
-         داخل المتصفح كما هو تماماً، فيصبح هو أيضاً مصدر التصميم الذي يُبنى منه تقرير PDF،
-         بدل الاعتماد على تصميم HTML منفصل مكتوب يدوياً (وهو سبب الاختلاف السابق بين الملفين) -->
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.3/dist/docx-preview.min.js"></script>
     <script src="assets/app.js" defer></script>
     <script src="assets/export.js" defer></script>
   </body>
