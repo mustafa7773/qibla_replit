@@ -89,7 +89,7 @@ async function callSheet(payload, method, query) {
   return data;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // الواجهة على نفس النطاق، لكن نسمح بالقراءة من أي أصل لتسهيل الاختبار
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
@@ -155,4 +155,4 @@ export default async function handler(req, res) {
       error: err && err.message ? err.message : "خطأ غير متوقع في الخادم.",
     });
   }
-}
+};
