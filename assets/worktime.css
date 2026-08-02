@@ -90,6 +90,7 @@
   display: flex;
   gap: var(--sp-4);
   align-items: flex-start;
+  padding: var(--sp-1) 0;
 }
 
 .stop-rail {
@@ -143,13 +144,16 @@
 }
 
 .stop-tag {
-  padding: 1px var(--sp-2);
+  flex: 0 0 auto;
+  padding: 2px var(--sp-3);
   border-radius: var(--radius-pill);
-  border: 1px solid var(--line);
-  background: var(--surface-sunken);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
   color: var(--muted);
   font-size: var(--fs-caption);
   font-weight: 500;
+  line-height: 1.6;
+  white-space: nowrap;
 }
 
 .stop-sub {
@@ -525,48 +529,81 @@ button.primary.subtle:hover {
 
 .break-picker {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--sp-3);
 }
 
-.break-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
+/* Each break is a bounded card, so the two never read as one run-on line */
+.break-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-1);
+  transition: border-color var(--dur-fast) var(--ease);
 }
 
-.break-row label {
+.break-card:hover {
+  border-color: var(--line-strong);
+}
+
+.break-card.is-active {
+  border-color: rgba(223, 182, 104, 0.4);
+  background: var(--gold-wash);
+}
+
+.break-card-head {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  font-size: var(--fs-body);
-  color: var(--text-2);
-  cursor: pointer;
+  min-width: 0;
 }
 
 .break-icon {
   font-size: var(--fs-md);
   line-height: 1;
+  flex: 0 0 auto;
+}
+
+.break-name {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--paper);
+  white-space: nowrap;
 }
 
 .break-dur {
   margin-inline-start: auto;
+  flex: 0 0 auto;
   padding: 1px var(--sp-2);
   border-radius: var(--radius-pill);
   border: 1px solid var(--line);
-  background: var(--surface-1);
-  color: var(--muted);
+  background: var(--surface-sunken);
+  color: var(--gold-light);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-caption);
+  white-space: nowrap;
 }
 
-.break-row select {
+.break-field {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.break-card select {
   width: 100%;
+  min-width: 0;
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
-  background: var(--surface-1);
+  background: var(--surface-sunken);
   color: var(--paper);
   font-family: var(--font-body);
   font-size: var(--fs-body);
@@ -574,11 +611,11 @@ button.primary.subtle:hover {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-.break-row select:hover {
+.break-card select:hover {
   border-color: var(--line-strong);
 }
 
-.break-row select:focus {
+.break-card select:focus {
   outline: none;
   border-color: var(--gold);
   box-shadow: 0 0 0 3px var(--gold-glow);
@@ -594,4 +631,14 @@ button.primary.subtle:hover {
 .stop.is-break .stop-name {
   font-weight: 500;
   color: var(--text-2);
+}
+
+@media (max-width: 420px) {
+  .break-card {
+    grid-template-columns: 1fr;
+  }
+
+  .break-field {
+    display: none;
+  }
 }

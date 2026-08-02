@@ -704,16 +704,21 @@
     el("breakPicker").innerHTML = Object.keys(BREAKS)
       .map((kind) => {
         const def = BREAKS[kind];
+        const active = !!chosenBreaks[kind];
         return (
-          '<div class="break-row"><label for="break-' +
-          kind +
-          '"><span class="break-icon">' +
+          '<div class="break-card' +
+          (active ? " is-active" : "") +
+          '"><div class="break-card-head"><span class="break-icon">' +
           def.icon +
-          "</span><span>" +
+          '</span><span class="break-name">' +
           def.name +
           '</span><span class="break-dur">' +
           def.minutes +
-          ' دقيقة</span></label><select id="break-' +
+          ' دقيقة</span></div>' +
+          '<label class="break-field" for="break-' +
+          kind +
+          '">تُضاف</label>' +
+          '<select id="break-' +
           kind +
           '" data-break="' +
           kind +
@@ -808,6 +813,10 @@
     const sel = e.target.closest("[data-break]");
     if (!sel) return;
     chosenBreaks[sel.getAttribute("data-break")] = sel.value;
+
+    const card = sel.closest(".break-card");
+    if (card) card.classList.toggle("is-active", !!sel.value);
+
     rebuildSchedule();
   });
 
