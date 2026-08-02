@@ -158,9 +158,13 @@
 
   // ---------------------------------------------------------------- sync
 
+  // الأولوية للرابط المضبوط في هذا الجهاز، وإلا فرابط الموقع العام في
+  // assets/config.js — وهو ما يجعل المزامنة تعمل على أي جهاز بلا إعداد.
   function getSyncConfig() {
     const cfg = readJson(CONFIG_KEY, {});
-    return { endpoint: (cfg && cfg.endpoint) || "" };
+    const local = (cfg && cfg.endpoint) || "";
+    const site = (window.SkyConfig && window.SkyConfig.syncEndpoint) || "";
+    return { endpoint: local || site, isSiteDefault: !local && !!site };
   }
 
   function setSyncConfig(endpoint) {

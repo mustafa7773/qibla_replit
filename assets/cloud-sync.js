@@ -19,13 +19,17 @@
   const STORE_KEY = "sky_tools_mosques_v1";
   const PUSH_DELAY = 1200;
 
+  // نفس منطق أداة المنتهية: رابط الجهاز إن وُجد، وإلا رابط الموقع العام
   function getEndpoint() {
+    let local = "";
     try {
       const cfg = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
-      return (cfg && cfg.endpoint) || "";
+      local = (cfg && cfg.endpoint) || "";
     } catch (e) {
-      return "";
+      local = "";
     }
+    const site = (window.SkyConfig && window.SkyConfig.syncEndpoint) || "";
+    return local || site;
   }
 
   function loadLocal() {

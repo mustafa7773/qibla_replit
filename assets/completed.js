@@ -481,9 +481,11 @@
     const pending = store.pendingRecords().length;
     const cfg = store.getSyncConfig();
     el("cmSyncStatus").textContent = !cfg.endpoint
-      ? "لم يُضبط رابط المزامنة — السجلات محفوظة محلياً."
+      ? "لم يُضبط رابط المزامنة — السجلات محفوظة على هذا الجهاز فقط."
       : pending
       ? pending + " سجل بانتظار الإرسال."
+      : cfg.isSiteDefault
+      ? "كل السجلات مُزامنة (الرابط من إعدادات الموقع)."
       : "كل السجلات مُزامنة.";
   }
 
@@ -655,7 +657,11 @@
 
   function init() {
     if (!store) return;
-    el("cmEndpoint").value = store.getSyncConfig().endpoint;
+    const cfg0 = store.getSyncConfig();
+    el("cmEndpoint").value = cfg0.endpoint;
+    if (cfg0.isSiteDefault) {
+      el("cmEndpoint").placeholder = "مضبوط من إعدادات الموقع — يعمل على كل الأجهزة";
+    }
     bind();
     render();
 
