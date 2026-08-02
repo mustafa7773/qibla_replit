@@ -431,6 +431,11 @@
         tag = '<span class="stop-tag">نهاية اليوم</span>';
         meta = 'تصل الساعة <span class="clock">' + formatClock(stop.arrival) + "</span>";
       } else {
+        // نفس تسمية القائمة المنسدلة، ليطابق ما اخترته للاستراحة
+        tag =
+          '<span class="stop-tag is-site">موقع العمل ' +
+          ordinalLabel(stop.order) +
+          "</span>";
         meta =
           'وصول <span class="clock">' +
           formatClock(stop.arrival) +

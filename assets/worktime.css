@@ -86,10 +86,15 @@
   margin: 0 0 var(--sp-6);
 }
 
+/* One uniform rhythm between every row — a stop, a leg, or a break —
+   so no two blocks ever touch. */
 .timeline-list {
   margin: 0;
   padding: 0;
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
 }
 
 .stop {
@@ -97,7 +102,14 @@
   display: flex;
   gap: var(--sp-4);
   align-items: flex-start;
-  padding: var(--sp-2) 0;
+  padding: 0;
+}
+
+/* A hairline before each stop that follows a travel leg, so an arrival
+   reads as the start of a new block rather than a continuation. */
+.timeline-list > .leg + .stop {
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-6);
 }
 
 .stop-rail {
@@ -135,7 +147,7 @@
 .stop-body {
   flex: 1;
   min-width: 0;
-  padding: var(--sp-1) 0 var(--sp-1);
+  padding: var(--sp-1) 0 var(--sp-2);
 }
 
 .stop-name {
@@ -148,6 +160,12 @@
   gap: var(--sp-2);
   flex-wrap: wrap;
   line-height: 1.5;
+}
+
+.stop-tag.is-site {
+  border-color: rgba(223, 182, 104, 0.4);
+  background: var(--gold-wash);
+  color: var(--gold-light);
 }
 
 .stop-tag {
@@ -189,6 +207,7 @@
   align-items: stretch;
   gap: var(--sp-4);
   margin: 0;
+  padding: 0;
   color: var(--muted);
   font-size: var(--fs-sm);
 }
@@ -205,7 +224,7 @@
 .leg-text {
   flex: 1;
   min-width: 0;
-  padding: var(--sp-2) 0;
+  padding: 0;
   font-variant-numeric: tabular-nums;
 }
 
