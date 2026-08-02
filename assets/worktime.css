@@ -28,7 +28,7 @@
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--sp-3);
   margin-bottom: var(--sp-6);
 }
@@ -503,6 +503,7 @@ button.primary.subtle:hover {
 
 /* --------------------------------------------------------------------------
    Day breaks — prayer and dinner
+   A quiet stacked list: one break per row, separated by a hairline.
    -------------------------------------------------------------------------- */
 .break-block {
   margin: 0 0 var(--sp-6);
@@ -528,87 +529,75 @@ button.primary.subtle:hover {
 }
 
 .break-picker {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--sp-3);
+  display: block;
 }
 
-/* Each break is a bounded card, so the two never read as one run-on line */
 .break-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
   align-items: center;
-  gap: var(--sp-2) var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  background: var(--surface-1);
-  transition: border-color var(--dur-fast) var(--ease);
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
 }
 
-.break-card:hover {
-  border-color: var(--line-strong);
-}
-
-.break-card.is-active {
-  border-color: rgba(223, 182, 104, 0.4);
-  background: var(--gold-wash);
+.break-card + .break-card {
+  border-top: 1px solid var(--line);
 }
 
 .break-card-head {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .break-icon {
   font-size: var(--fs-md);
   line-height: 1;
   flex: 0 0 auto;
+  opacity: 0.9;
 }
 
 .break-name {
   font-size: var(--fs-body);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--paper);
   white-space: nowrap;
 }
 
 .break-dur {
-  margin-inline-start: auto;
   flex: 0 0 auto;
-  padding: 1px var(--sp-2);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--line);
-  background: var(--surface-sunken);
-  color: var(--gold-light);
+  color: var(--muted);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-caption);
   white-space: nowrap;
 }
 
+.break-card.is-active .break-dur {
+  color: var(--gold-light);
+}
+
+/* The word before the dropdown is decoration on a labelled control — drop it */
 .break-field {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  white-space: nowrap;
-  cursor: pointer;
+  display: none;
 }
 
 .break-card select {
-  width: 100%;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 230px;
+  max-width: 48%;
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
-  background: var(--surface-sunken);
-  color: var(--paper);
+  background: var(--surface-1);
+  color: var(--text-2);
   font-family: var(--font-body);
   font-size: var(--fs-body);
   cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
 .break-card select:hover {
@@ -619,6 +608,11 @@ button.primary.subtle:hover {
   outline: none;
   border-color: var(--gold);
   box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+.break-card.is-active select {
+  border-color: rgba(223, 182, 104, 0.4);
+  color: var(--paper);
 }
 
 /* A break in the timeline: same rhythm as a stop, but visibly not a job */
@@ -633,12 +627,18 @@ button.primary.subtle:hover {
   color: var(--text-2);
 }
 
-@media (max-width: 420px) {
+@media (max-width: 560px) {
   .break-card {
-    grid-template-columns: 1fr;
+    flex-wrap: wrap;
+    row-gap: var(--sp-2);
   }
 
-  .break-field {
-    display: none;
+  .break-card-head {
+    flex: 1 1 100%;
+  }
+
+  .break-card select {
+    width: 100%;
+    max-width: none;
   }
 }
