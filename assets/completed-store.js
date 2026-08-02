@@ -197,33 +197,63 @@
     const batch = opts.records || pendingRecords();
     if (!batch.length) return { ok: true, sent: 0 };
 
+    const body = JSON.stringify({
+      source: "sky-tools-completed-mosques",
+      // المعرّف يمنع تكرار الصفوف عند إعادة الإرسال
+      records: batch.map((r) => ({
+        recordId: r.id,
+        completionDate: r.completionDate,
+        governorate: r.governorate,
+        price: r.price,
+        mosqueName: r.mosqueName,
+        notes: r.notes,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })),
+    });
+
+    const ids = batch.map((r) => r.id);
+
     try {
+      // مهم: نوع المحتوى "نص عادي" وليس JSON.
+      // إرساله كـ application/json يجعل المتصفح يُرسل طلب تحقق مسبق (preflight)
+      // وهو ما لا تدعمه خدمة Google Apps Script، فيفشل الطلب برسالة
+      // "Failed to fetch". المحتوى نفسه يبقى JSON ويُقرأ في الخدمة بـ JSON.parse.
       const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: "sky-tools-completed-mosques",
-          // المعرّف يمنع تكرار الصفوف عند إعادة الإرسال
-          records: batch.map((r) => ({
-            recordId: r.id,
-            completionDate: r.completionDate,
-            governorate: r.governorate,
-            price: r.price,
-            mosqueName: r.mosqueName,
-            notes: r.notes,
-            createdAt: r.createdAt,
-            updatedAt: r.updatedAt,
-          })),
-        }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: body,
+        redirect: "follow",
       });
 
       if (!res.ok) throw new Error("الخدمة ردّت بحالة " + res.status);
 
-      markSynced(batch.map((r) => r.id), "synced");
+      markSynced(ids, "synced");
       return { ok: true, sent: batch.length };
     } catch (err) {
-      markSynced(batch.map((r) => r.id), "pending");
-      return { ok: false, sent: 0, error: err && err.message ? err.message : "تعذّر الإرسال" };
+      // محاولة أخيرة: الإرسال بلا قراءة الرد. يصل الطلب فعلاً إلى الخدمة لكن
+      // المتصفح يمنعنا من رؤية نتيجته، فنُعلم المستخدم أن التأكيد غير متاح.
+      try {
+        await fetch(endpoint, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: body,
+        });
+        markSynced(ids, "synced");
+        return {
+          ok: true,
+          sent: batch.length,
+          unverified: true,
+        };
+      } catch (err2) {
+        markSynced(ids, "pending");
+        return {
+          ok: false,
+          sent: 0,
+          error: err && err.message ? err.message : "تعذّر الإرسال",
+        };
+      }
     }
   }
 

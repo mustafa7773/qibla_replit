@@ -187,8 +187,14 @@
       if (cfg.endpoint) {
         const s = await store.sync({ records: [result.record] });
         render();
-        if (s.ok) showSuccess((wasEdit ? "تم حفظ التعديل" : "تمت إضافة المسجد") + " وإرساله إلى Excel.");
-        else showError("حُفظ السجل محلياً، لكن تعذّر إرساله إلى Excel: " + s.error + " — سيُعاد الإرسال عند المزامنة.");
+        const base = wasEdit ? "تم حفظ التعديل" : "تمت إضافة المسجد";
+        if (s.ok && s.unverified) {
+          showSuccess(base + " وأُرسل إلى Excel — تحقّق من الجدول للتأكد من وصوله.");
+        } else if (s.ok) {
+          showSuccess(base + " وإرساله إلى Excel.");
+        } else {
+          showError("حُفظ السجل محلياً، لكن تعذّر إرساله إلى Excel: " + s.error + " — سيُعاد الإرسال عند المزامنة.");
+        }
       }
     } finally {
       view.busy = false;
@@ -511,7 +517,10 @@
       try {
         const s = await store.sync();
         if (s.skipped) showError(s.error);
-        else if (s.ok) showSuccess(s.sent ? "تمت مزامنة " + s.sent + " سجل." : "لا توجد سجلات بانتظار المزامنة.");
+        else if (s.ok && s.unverified)
+          showSuccess("أُرسلت " + s.sent + " سجل — تحقّق من الجدول للتأكد من وصولها.");
+        else if (s.ok)
+          showSuccess(s.sent ? "تمت مزامنة " + s.sent + " سجل." : "لا توجد سجلات بانتظار المزامنة.");
         else showError("تعذّرت المزامنة: " + s.error);
         render();
       } finally {
