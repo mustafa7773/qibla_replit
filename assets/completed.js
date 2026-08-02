@@ -101,6 +101,74 @@
     return parts.join(" و") + " في الجدول.";
   }
 
+  // ------------------------------------------------------------- from tool #1
+
+  // يعرض المساجد المحفوظة في أداة القبلة، ويميّز ما أُضيف منها هنا سابقاً
+  function fillQiblaPicker() {
+    const block = el("cmFromQiblaBlock");
+    const sel = el("cmFromQibla");
+
+    const saved =
+      window.MosqueStore && typeof window.MosqueStore.loadAll === "function"
+        ? window.MosqueStore.loadAll()
+        : [];
+
+    if (!saved.length) {
+      block.classList.add("hidden");
+      return;
+    }
+    block.classList.remove("hidden");
+
+    // أسماء المساجد المسجّلة هنا بالفعل، لتمييزها في القائمة
+    const already = new Set(
+      store.loadAll().map((r) => String(r.mosqueName || "").trim()).filter(Boolean),
+    );
+
+    sel.innerHTML =
+      '<option value="">— اختر مسجداً —</option>' +
+      saved
+        .map((m) => {
+          const title = String(m.name || "").split(" — ")[0].trim() || "مسجد بلا اسم";
+          const gov = window.Governorates
+            ? window.Governorates.governorateOf(m.governorate)
+            : m.governorate || "";
+          const mark = already.has(title) ? " ✓" : "";
+          const label = title + (gov ? " — " + gov : "") + mark;
+          return '<option value="' + escapeHtml(m.id) + '">' + escapeHtml(label) + "</option>";
+        })
+        .join("");
+  }
+
+  function applyQiblaSelection(id) {
+    if (!id || !window.MosqueStore) return;
+    const m = window.MosqueStore.loadAll().find((x) => x.id === id);
+    if (!m) return;
+
+    const title = String(m.name || "").split(" — ")[0].trim();
+    if (title) el("cmName").value = title;
+
+    const gov = window.Governorates
+      ? window.Governorates.governorateOf(m.governorate)
+      : m.governorate || "";
+
+    if (gov) {
+      fillGovernorateSelects();
+      const govSel = el("cmGovernorate");
+      // المحافظة قادمة من الأداة الأولى وقد لا تكون ضمن القائمة الرسمية
+      if (!Array.from(govSel.options).some((o) => o.value === gov)) {
+        govSel.insertAdjacentHTML(
+          "beforeend",
+          '<option value="' + escapeHtml(gov) + '">' + escapeHtml(gov) + "</option>",
+        );
+      }
+      govSel.value = gov;
+    }
+
+    clearError();
+    // ما تبقّى هو التاريخ والسعر فقط
+    el("cmDate").focus();
+  }
+
   // ------------------------------------------------------------- form
 
   function fillGovernorateSelects() {
@@ -154,6 +222,8 @@
     el("cmPrice").value = "";
     el("cmName").value = "";
     el("cmNotes").value = "";
+    const picker = el("cmFromQibla");
+    if (picker) picker.value = "";
     view.editingId = null;
     el("cmAddBtn").innerHTML =
       '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg> إضافة المسجد';
@@ -395,6 +465,7 @@
   function render() {
     const all = store.loadAll();
     fillGovernorateSelects();
+    fillQiblaPicker();
     fillPeriodFilters(all);
 
     const filtered = store.applyFilters(all, view.filters);
@@ -420,6 +491,10 @@
 
   function bind() {
     el("cmAddBtn").addEventListener("click", submitForm);
+
+    el("cmFromQibla").addEventListener("change", function () {
+      applyQiblaSelection(this.value);
+    });
 
     ["fYear", "fMonth", "fGov"].forEach((id) => {
       el(id).addEventListener("change", () => {
