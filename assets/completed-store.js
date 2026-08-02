@@ -228,11 +228,40 @@
 
       if (!res.ok) throw new Error("الخدمة ردّت بحالة " + res.status);
 
+      // مهم: Apps Script تردّ بحالة 200 حتى عند فشلها داخلياً، ورسالة الخطأ
+      // تكون داخل جسم الرد. لذلك لا يكفي فحص الحالة — نفحص المحتوى نفسه.
+      let payload = null;
+      try {
+        payload = JSON.parse(await res.text());
+      } catch (e) {
+        payload = null;
+      }
+
+      if (payload && payload.ok === false) {
+        const rejection = new Error(payload.error || "الخدمة رفضت السجلات");
+        // رفض صريح من الخدمة — لا معنى لإعادة الإرسال بلا قراءة الرد
+        rejection.definitive = true;
+        throw rejection;
+      }
+
       markSynced(ids, "synced");
-      return { ok: true, sent: batch.length };
+      return {
+        ok: true,
+        sent: batch.length,
+        added: payload ? payload.added : undefined,
+        updated: payload ? payload.updated : undefined,
+        // إن تعذّرت قراءة الرد فلا يمكننا تأكيد الكتابة فعلياً
+        unverified: !payload,
+      };
     } catch (err) {
-      // محاولة أخيرة: الإرسال بلا قراءة الرد. يصل الطلب فعلاً إلى الخدمة لكن
-      // المتصفح يمنعنا من رؤية نتيجته، فنُعلم المستخدم أن التأكيد غير متاح.
+      // رفض صريح من الخدمة (وصل الطلب لكنها لم تكتب) — نُبلغ السبب ولا نُعيد
+      if (err && err.definitive) {
+        markSynced(ids, "pending");
+        return { ok: false, sent: 0, error: err.message };
+      }
+
+      // خطأ شبكة أو CORS: الطلب قد لا يكون وصل أصلاً. محاولة أخيرة بلا قراءة
+      // الرد — يصل الطلب فعلاً لكن المتصفح يمنعنا من رؤية نتيجته.
       try {
         await fetch(endpoint, {
           method: "POST",

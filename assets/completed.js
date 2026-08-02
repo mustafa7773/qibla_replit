@@ -89,6 +89,18 @@
     successTimer = setTimeout(() => box.classList.remove("show"), 5000);
   }
 
+  // يصف ما فعلته الخدمة فعلياً بالجدول، لا مجرد "تم الإرسال"
+  function syncSummary(s) {
+    if (typeof s.added !== "number" && typeof s.updated !== "number") {
+      return "تمت مزامنة " + s.sent + " سجل.";
+    }
+    const parts = [];
+    if (s.added) parts.push("أُضيف " + s.added + " صف");
+    if (s.updated) parts.push("حُدّث " + s.updated + " صف");
+    if (!parts.length) return "لم يتغيّر أي صف في الجدول.";
+    return parts.join(" و") + " في الجدول.";
+  }
+
   // ------------------------------------------------------------- form
 
   function fillGovernorateSelects() {
@@ -191,7 +203,7 @@
         if (s.ok && s.unverified) {
           showSuccess(base + " وأُرسل إلى Excel — تحقّق من الجدول للتأكد من وصوله.");
         } else if (s.ok) {
-          showSuccess(base + " وإرساله إلى Excel.");
+          showSuccess(base + " — " + syncSummary(s));
         } else {
           showError("حُفظ السجل محلياً، لكن تعذّر إرساله إلى Excel: " + s.error + " — سيُعاد الإرسال عند المزامنة.");
         }
@@ -519,8 +531,9 @@
         if (s.skipped) showError(s.error);
         else if (s.ok && s.unverified)
           showSuccess("أُرسلت " + s.sent + " سجل — تحقّق من الجدول للتأكد من وصولها.");
-        else if (s.ok)
-          showSuccess(s.sent ? "تمت مزامنة " + s.sent + " سجل." : "لا توجد سجلات بانتظار المزامنة.");
+        else if (s.ok && !s.sent)
+          showSuccess("لا توجد سجلات بانتظار المزامنة.");
+        else if (s.ok) showSuccess(syncSummary(s));
         else showError("تعذّرت المزامنة: " + s.error);
         render();
       } finally {
