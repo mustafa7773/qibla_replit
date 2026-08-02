@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>المساجد المنتهية — Sky Innovations Tools</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/style.css?v=20260802c" />
+    <link rel="stylesheet" href="assets/hub.css?v=20260802c" />
+    <link rel="stylesheet" href="assets/completed.css?v=20260802c" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <div class="brand">
+          <svg class="brand-mark" viewBox="0 0 64 64">
+            <path d="M32 10l18 12v30H14V22z" fill="none" stroke="var(--gold)" stroke-width="3" stroke-linejoin="round" />
+            <path d="M24 40l6 6 12-14" fill="none" stroke="var(--sand)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>المساجد المنتهية</span>
+        </div>
+        <a class="back-to-tools" href="index.html">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14m0 0l-7-7m7 7l-7 7"/></svg>
+          كل الأدوات
+        </a>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="star-field"></div>
+      <div class="hero-inner">
+        <div class="eyebrow">
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+          <span>سجل المشاريع المنجزة</span>
+        </div>
+        <h1>المساجد المنتهية</h1>
+        <p>
+          سجّل كل مسجد أُنجز العمل فيه، وتابع أعداد المشاريع وإيراداتها شهرياً
+          وسنوياً وحسب المحافظة.
+        </p>
+      </div>
+    </section>
+
+    <div class="wrap">
+      <!-- ١ — إضافة مسجد -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="step-badge">١</span>
+          <h2>إضافة مسجد منتهٍ</h2>
+        </div>
+        <p class="sub">تُحفظ البيانات فور الإضافة، وتُرسل إلى جدول Excel إن ضبطت رابط المزامنة.</p>
+
+        <div class="grid2">
+          <div class="field">
+            <label for="cmDate">تاريخ الإنجاز</label>
+            <input type="date" id="cmDate" class="textarea-mono" />
+          </div>
+          <div class="field">
+            <label for="cmGovernorate">المحافظة</label>
+            <select id="cmGovernorate"></select>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label for="cmPrice">سعر المشروع (ر.ع)</label>
+            <input type="number" id="cmPrice" class="textarea-mono" min="0" step="0.001" placeholder="مثال: 1250.000" />
+          </div>
+          <div class="field">
+            <label for="cmName">اسم المسجد <span class="muted-inline">(اختياري)</span></label>
+            <input type="text" id="cmName" placeholder="مثال: جامع النور" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="cmNotes">ملاحظات <span class="muted-inline">(اختياري)</span></label>
+          <input type="text" id="cmNotes" placeholder="أي تفاصيل تريد حفظها مع السجل" />
+        </div>
+
+        <button class="primary" id="cmAddBtn">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+          إضافة المسجد
+        </button>
+
+        <div class="error-box" id="cmError"></div>
+        <div class="success-box" id="cmSuccess"></div>
+      </div>
+
+      <!-- ٢ — لوحة الإحصاءات -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="step-badge">٢</span>
+          <h2>لوحة الإحصاءات</h2>
+        </div>
+        <p class="sub">تُحدَّث فوراً مع كل إضافة أو تعديل، وتتبع الفلاتر المختارة.</p>
+
+        <div class="filter-bar">
+          <div class="filter-item">
+            <label for="fYear">السنة</label>
+            <select id="fYear"></select>
+          </div>
+          <div class="filter-item">
+            <label for="fMonth">الشهر</label>
+            <select id="fMonth"></select>
+          </div>
+          <div class="filter-item">
+            <label for="fGov">المحافظة</label>
+            <select id="fGov"></select>
+          </div>
+          <button type="button" class="link-btn" id="fReset">إعادة تعيين</button>
+        </div>
+
+        <div class="kpi-grid" id="cmKpis"></div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>الإيراد الشهري</h3>
+            <div class="chart-body" id="chartRevenue"></div>
+          </div>
+          <div class="chart-card">
+            <h3>المساجد المنتهية شهرياً</h3>
+            <div class="chart-body" id="chartCount"></div>
+          </div>
+          <div class="chart-card">
+            <h3>التوزيع حسب المحافظة</h3>
+            <div class="chart-body" id="chartGov"></div>
+          </div>
+          <div class="chart-card" id="chartYearCard">
+            <h3>مقارنة السنوات</h3>
+            <div class="chart-body" id="chartYear"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ٣ — السجل -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="step-badge">٣</span>
+          <h2>سجل المساجد</h2>
+        </div>
+        <p class="sub">ابحث ورتّب وعدّل أو احذف أي سجل.</p>
+
+        <div class="table-toolbar">
+          <input type="search" id="cmSearch" class="table-search" placeholder="ابحث باسم المسجد أو المحافظة أو الملاحظات" />
+          <span class="table-count" id="cmCount"></span>
+        </div>
+
+        <div class="table-scroll">
+          <table class="data-table" id="cmTable">
+            <thead>
+              <tr>
+                <th data-sort="completionDate" class="is-sortable">تاريخ الإنجاز</th>
+                <th data-sort="governorate" class="is-sortable">المحافظة</th>
+                <th data-sort="mosqueName" class="is-sortable">اسم المسجد</th>
+                <th data-sort="price" class="is-sortable">السعر (ر.ع)</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="cmTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="empty-state hidden" id="cmEmpty">
+          لا توجد سجلات بعد. أضف أول مسجد منتهٍ من النموذج أعلاه.
+        </div>
+
+        <div class="pagination" id="cmPagination"></div>
+      </div>
+
+      <!-- ٤ — المزامنة مع Excel -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="step-badge">٤</span>
+          <h2>المزامنة مع Excel</h2>
+        </div>
+        <p class="sub">
+          السجلات تُحفظ في جهازك فوراً. لإضافتها كصفوف في جدول Excel أونلاين،
+          ضع رابط خدمة الاستقبال هنا.
+        </p>
+
+        <div class="field">
+          <label for="cmEndpoint">رابط المزامنة</label>
+          <input type="url" id="cmEndpoint" class="textarea-mono" placeholder="https://script.google.com/macros/s/.../exec" />
+          <p class="hint" style="margin-top: 8px">
+            لا تضع أي مفتاح سري هنا. المفاتيح تبقى داخل الخدمة على الخادم، ولا
+            يُرسل المتصفح سوى بيانات السجل.
+          </p>
+        </div>
+
+        <div class="sync-row">
+          <button type="button" class="primary subtle" id="cmSaveEndpoint">حفظ الرابط</button>
+          <button type="button" class="primary subtle" id="cmSyncNow">مزامنة الآن</button>
+          <span class="sync-status" id="cmSyncStatus"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- تأكيد الحذف -->
+    <div class="ocr-modal-overlay hidden" id="cmConfirm">
+      <div class="ocr-modal-box">
+        <h3>تأكيد الحذف</h3>
+        <p class="sub" id="cmConfirmText"></p>
+        <div class="toolbar">
+          <button type="button" class="ghost" id="cmConfirmCancel">إلغاء</button>
+          <button type="button" class="primary danger" id="cmConfirmOk">حذف السجل</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="assets/mosque-store.js?v=20260802c" defer></script>
+    <script src="assets/governorates.js?v=20260802c" defer></script>
+    <script src="assets/completed-store.js?v=20260802c" defer></script>
+    <script src="assets/completed.js?v=20260802c" defer></script>
+  </body>
+</html>
