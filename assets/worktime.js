@@ -17,6 +17,12 @@
   // اسم نقطة الانطلاق الافتراضية (يظهر في خطة اليوم)
   const ORIGIN_NAME = "جامع المهيمن";
 
+  // الاستراحات الاختيارية: تُضاف بعد محطة يختارها المستخدم، بمدة ثابتة لكل نوع
+  const BREAKS = {
+    prayer: { name: "وقت الصلاة", minutes: 20, icon: "🕌" },
+    dinner: { name: "وقت العشاء", minutes: 30, icon: "🍽️" },
+  };
+
   const OSRM_BASE = "https://router.project-osrm.org/trip/v1/driving/";
 
   // معامل تقريبي لتحويل مسافة الخط المستقيم إلى مسافة طريق فعلية،
@@ -230,13 +236,32 @@
 
   // ---------- بناء الجدول الزمني ----------
 
-  function buildSchedule(route, stopMinutes, startTime) {
+  function buildSchedule(route, stopMinutes, startTime, breaks) {
     const [sh, sm] = startTime.split(":").map((v) => parseInt(v, 10));
     const clock = new Date();
     clock.setHours(isFinite(sh) ? sh : 8, isFinite(sm) ? sm : 0, 0, 0);
 
+    const chosen = breaks || {};
     const schedule = [];
     let drivingMinutes = 0;
+    let breakMinutes = 0;
+
+    // يضيف استراحة (صلاة أو عشاء) بعد المحطة المحددة
+    function pushBreak(kind) {
+      const def = BREAKS[kind];
+      const start = new Date(clock);
+      clock.setMinutes(clock.getMinutes() + def.minutes);
+      breakMinutes += def.minutes;
+      schedule.push({
+        isBreak: true,
+        kind,
+        name: def.name,
+        icon: def.icon,
+        arrival: start,
+        departure: new Date(clock),
+        workMinutes: def.minutes,
+      });
+    }
 
     // الانطلاق
     schedule.push({
@@ -244,6 +269,11 @@
       isBase: true,
       departure: new Date(clock),
       label: "الانطلاق",
+    });
+
+    // استراحة قبل أول مسجد (المحطة المختارة = "start")
+    Object.keys(BREAKS).forEach((kind) => {
+      if (chosen[kind] === "start") pushBreak(kind);
     });
 
     for (let i = 1; i < route.ordered.length; i++) {
@@ -266,6 +296,11 @@
         legMinutes: leg.minutes,
         legKm: leg.km,
         label: "مسجد",
+      });
+
+      // استراحة بعد هذا المسجد إن اختيرت له
+      Object.keys(BREAKS).forEach((kind) => {
+        if (chosen[kind] === String(i)) pushBreak(kind);
       });
     }
 
@@ -291,7 +326,8 @@
       schedule,
       drivingMinutes,
       workMinutes,
-      totalMinutes: drivingMinutes + workMinutes,
+      breakMinutes,
+      totalMinutes: drivingMinutes + workMinutes + breakMinutes,
       totalKm,
       mosqueCount,
     };
@@ -311,13 +347,22 @@
       formatDuration(result.totalMinutes) +
       "</b> من وقت العمل.";
 
-    el("summaryGrid").innerHTML = [
+    const cards = [
       card("عدد المساجد", String(result.mosqueCount), "في المسار"),
       card("زمن التنقل", formatDurationShort(result.drivingMinutes), "في الطريق"),
       card("العمل بالمواقع", formatDurationShort(result.workMinutes), "داخل المساجد"),
+    ];
+
+    if (result.breakMinutes > 0) {
+      cards.push(card("الاستراحات", formatDurationShort(result.breakMinutes), "صلاة وعشاء"));
+    }
+
+    cards.push(
       card("إجمالي اليوم", formatDurationShort(result.totalMinutes), "من الخروج للعودة"),
       card("مسافة المسار", result.totalKm.toFixed(0) + " كم", "ذهاباً وإياباً"),
-    ].join("");
+    );
+
+    el("summaryGrid").innerHTML = cards.join("");
 
     function card(label, value, note) {
       return (
@@ -346,6 +391,25 @@
             stop.legKm.toFixed(1) +
             " كم</span></li>",
         );
+      }
+
+      // استراحة (صلاة / عشاء) — صف خاص بلا رقم محطة
+      if (stop.isBreak) {
+        rows.push(
+          '<li class="stop is-break"><div class="stop-rail"><span class="stop-dot">' +
+            stop.icon +
+            '</span></div><div class="stop-body"><p class="stop-name">' +
+            escapeHtml(stop.name) +
+            '<span class="stop-tag">استراحة</span></p>' +
+            '<p class="stop-meta">من <span class="clock">' +
+            formatClock(stop.arrival) +
+            '</span> إلى <span class="clock">' +
+            formatClock(stop.departure) +
+            "</span> · " +
+            formatDuration(stop.workMinutes) +
+            "</p></div></li>",
+        );
+        return;
       }
 
       const isBase = stop.isBase;
@@ -607,6 +671,70 @@
       .forEach((cb) => (cb.checked = false));
   }
 
+  // ---------- الاستراحات ----------
+
+  // المحطة المختارة لكل استراحة: "" (بدون) أو "start" أو رقم المحطة
+  const chosenBreaks = { prayer: "", dinner: "" };
+  let lastRouteForBreaks = null;
+
+  // يبني قائمة اختيار المحطة لكل استراحة، اعتماداً على ترتيب المسار الفعلي
+  function renderBreakPicker(route) {
+    const stops = route.ordered;
+
+    const options = (selected) => {
+      let html =
+        '<option value=""' + (selected ? "" : " selected") + ">بدون</option>";
+      html +=
+        '<option value="start"' +
+        (selected === "start" ? " selected" : "") +
+        ">قبل أول مسجد</option>";
+      for (let i = 1; i < stops.length; i++) {
+        html +=
+          '<option value="' +
+          i +
+          '"' +
+          (selected === String(i) ? " selected" : "") +
+          ">بعد " +
+          escapeHtml(String(stops[i].name).split(" — ")[0]) +
+          "</option>";
+      }
+      return html;
+    };
+
+    el("breakPicker").innerHTML = Object.keys(BREAKS)
+      .map((kind) => {
+        const def = BREAKS[kind];
+        return (
+          '<div class="break-row"><label for="break-' +
+          kind +
+          '"><span class="break-icon">' +
+          def.icon +
+          "</span><span>" +
+          def.name +
+          '</span><span class="break-dur">' +
+          def.minutes +
+          ' دقيقة</span></label><select id="break-' +
+          kind +
+          '" data-break="' +
+          kind +
+          '">' +
+          options(chosenBreaks[kind]) +
+          "</select></div>"
+        );
+      })
+      .join("");
+  }
+
+  // إعادة بناء الجدول الزمني بعد تغيير الاستراحات — بلا إعادة حساب المسار
+  function rebuildSchedule() {
+    if (!lastRouteForBreaks) return;
+    const stopMinutes = Math.max(0, parseFloat(el("stopMinutes").value) || 0);
+    const startTime = el("startTime").value || "08:00";
+    const result = buildSchedule(lastRouteForBreaks, stopMinutes, startTime, chosenBreaks);
+    renderSummary(result);
+    renderTimeline(result);
+  }
+
   // ---------- التشغيل ----------
 
   async function compute() {
@@ -646,8 +774,10 @@
       const stopMinutes = Math.max(0, parseFloat(el("stopMinutes").value) || 0);
       const startTime = el("startTime").value || "08:00";
 
-      const result = buildSchedule(route, stopMinutes, startTime);
+      const result = buildSchedule(route, stopMinutes, startTime, chosenBreaks);
       lastRoute = route;
+      lastRouteForBreaks = route;
+      renderBreakPicker(route);
 
       renderSummary(result);
       renderTimeline(result);
@@ -672,6 +802,14 @@
   }
 
   el("computeBtn").addEventListener("click", compute);
+
+  // تغيير أي استراحة يُعيد بناء خطة اليوم فوراً (بلا إعادة حساب المسار)
+  el("breakPicker").addEventListener("change", function (e) {
+    const sel = e.target.closest("[data-break]");
+    if (!sel) return;
+    chosenBreaks[sel.getAttribute("data-break")] = sel.value;
+    rebuildSchedule();
+  });
 
   // ----- المساجد المحفوظة -----
   renderSavedMosques();
