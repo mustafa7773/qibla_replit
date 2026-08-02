@@ -100,9 +100,41 @@
 
   // ---------------------------------------------------------------- storage
 
+  // المصدر الآن هو ما جلبه DataAPI من الخادم (مخزّن مؤقتاً محلياً)
   function loadAll() {
+    if (window.DataAPI) {
+      return window.DataAPI.cached("completed").map(fromWire);
+    }
     const list = readJson(STORAGE_KEY, []);
     return Array.isArray(list) ? list : [];
+  }
+
+  // تحويل بين شكل السجل على الخادم وشكله في الواجهة
+  function fromWire(r) {
+    return {
+      id: r.recordId || r.id,
+      completionDate: r.completionDate || "",
+      governorate: r.governorate || "",
+      price: Number(r.price) || 0,
+      mosqueName: r.mosqueName || "",
+      notes: r.notes || "",
+      createdAt: r.createdAt || r.updatedAt || "",
+      updatedAt: r.updatedAt || "",
+      syncState: "synced",
+    };
+  }
+
+  function toWire(r) {
+    return {
+      recordId: r.id,
+      completionDate: r.completionDate,
+      governorate: r.governorate,
+      price: r.price,
+      mosqueName: r.mosqueName,
+      notes: r.notes,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    };
   }
 
   function persist(list) {
@@ -126,6 +158,16 @@
       syncState: "pending",
     });
 
+    if (window.DataAPI) {
+      // يُكتب محلياً فوراً ثم يُرسل للخادم — الوعد يُحلّ بعد محاولة الإرسال
+      return {
+        ok: true,
+        record,
+        errors: [],
+        promise: window.DataAPI.save("completed", toWire(record)),
+      };
+    }
+
     const list = loadAll();
     list.unshift(record);
     if (!persist(list)) {
@@ -146,14 +188,40 @@
       updatedAt: new Date().toISOString(),
       syncState: "pending",
     });
+
+    if (window.DataAPI) {
+      return {
+        ok: true,
+        record: list[idx],
+        errors: [],
+        promise: window.DataAPI.save("completed", toWire(list[idx])),
+      };
+    }
+
     if (!persist(list)) return { ok: false, errors: ["تعذّر حفظ التعديل."] };
     return { ok: true, record: list[idx], errors: [] };
   }
 
   function remove(id) {
+    if (window.DataAPI) {
+      const p = window.DataAPI.remove("completed", id);
+      return { list: loadAll(), promise: p };
+    }
     const list = loadAll().filter((r) => r.id !== id);
     persist(list);
     return list;
+  }
+
+  // تحميل السجلات من الخادم — تُستدعى عند فتح الصفحة
+  async function refresh() {
+    if (!window.DataAPI) return { ok: false, error: "طبقة البيانات غير محمّلة." };
+    try {
+      await window.DataAPI.flush("completed");
+      const records = await window.DataAPI.list("completed");
+      return { ok: true, total: records.length };
+    } catch (err) {
+      return { ok: false, error: err && err.message ? err.message : "تعذّر الاتصال بالخادم" };
+    }
   }
 
   // ---------------------------------------------------------------- sync
@@ -189,6 +257,10 @@
   }
 
   function pendingRecords() {
+    if (window.DataAPI) {
+      const n = window.DataAPI.pendingCount("completed");
+      return new Array(n).fill(null);
+    }
     return loadAll().filter((r) => r.syncState !== "synced");
   }
 
@@ -302,7 +374,20 @@
       const res = await fetch(url, { method: "GET", redirect: "follow" });
       if (!res.ok) throw new Error("الخدمة ردّت بحالة " + res.status);
 
-      const payload = JSON.parse(await res.text());
+      const raw = await res.text();
+      let payload = null;
+      try {
+        payload = JSON.parse(raw);
+      } catch (e) {
+        // رد غير JSON = صفحة HTML من Google، وسببها غالباً أن النشر مضبوط على
+        // "Anyone with Google account" بدل "Anyone" فيُعاد توجيهنا لصفحة دخول
+        const looksLikeLogin = /<html|accounts\.google|sign in|تسجيل الدخول/i.test(raw);
+        throw new Error(
+          looksLikeLogin
+            ? 'الخدمة طلبت تسجيل دخول. في النشر اضبط "Who has access" على Anyone.'
+            : "رد غير مفهوم من الخدمة (ليس JSON).",
+        );
+      }
       if (!payload || payload.ok === false) {
         throw new Error((payload && payload.error) || "تعذّرت قراءة الجدول");
       }
@@ -450,6 +535,7 @@
     setSyncConfig,
     sync,
     pull,
+    refresh,
     pendingRecords,
   };
 })();

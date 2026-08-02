@@ -50,9 +50,88 @@
     }
   }
 
+  function toWire(m) {
+    return {
+      recordId: m.id,
+      name: m.name,
+      governorate: m.governorate,
+      village: m.village,
+      requestNo: m.requestNo,
+      easting: m.easting,
+      northing: m.northing,
+      datum: m.datum,
+      zone: m.zone,
+      lat: m.lat,
+      lon: m.lon,
+      savedAt: m.savedAt,
+    };
+  }
+
+  function fromWire(r) {
+    return {
+      id: r.recordId,
+      name: r.name || "مسجد بلا اسم",
+      governorate: r.governorate || null,
+      village: r.village || null,
+      requestNo: r.requestNo || null,
+      easting: Number(r.easting) || 0,
+      northing: Number(r.northing) || 0,
+      datum: r.datum || null,
+      zone: r.zone || null,
+      lat: isFinite(r.lat) ? r.lat : null,
+      lon: isFinite(r.lon) ? r.lon : null,
+      savedAt: r.savedAt || new Date().toISOString(),
+    };
+  }
+
+  // يدمج ما جاء من الخادم مع النسخة المحلية بلا تكرار
+  function mergeRemote(remote) {
+    const local = loadLocal();
+    const byId = {};
+    local.forEach((m) => {
+      byId[m.id] = m;
+    });
+
+    let added = 0;
+    let updated = 0;
+
+    remote.forEach((incoming) => {
+      if (!incoming.id) return;
+      const existing = byId[incoming.id];
+      if (!existing) {
+        local.push(incoming);
+        byId[incoming.id] = incoming;
+        added++;
+      } else if (new Date(incoming.savedAt) > new Date(existing.savedAt || 0)) {
+        Object.assign(existing, incoming);
+        updated++;
+      }
+    });
+
+    if (added || updated) {
+      local.sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
+      persistLocal(local);
+    }
+    return { ok: true, added, updated, total: remote.length };
+  }
+
   // ------------------------------------------------------------------ رفع
 
   async function push(records) {
+    // الخادم هو الطريق الوحيد الآن
+    if (window.DataAPI) {
+      const batch = records || loadLocal();
+      if (!batch.length) return { ok: true, sent: 0 };
+      let sent = 0;
+      let lastErr = null;
+      for (const m of batch) {
+        const r = await window.DataAPI.save("qibla", toWire(m));
+        if (r.synced) sent++;
+        else lastErr = r.error;
+      }
+      return { ok: !lastErr, sent, error: lastErr };
+    }
+
     const endpoint = getEndpoint();
     if (!endpoint) return { ok: false, skipped: true };
 
@@ -95,6 +174,16 @@
   // ------------------------------------------------------------------ جلب
 
   async function pull() {
+    if (window.DataAPI) {
+      try {
+        await window.DataAPI.flush("qibla");
+        const remote = await window.DataAPI.list("qibla");
+        return mergeRemote(remote.map(fromWire));
+      } catch (err) {
+        return { ok: false, error: err && err.message ? err.message : "تعذّر الاتصال بالخادم" };
+      }
+    }
+
     const endpoint = getEndpoint();
     if (!endpoint) return { ok: false, skipped: true };
 
@@ -190,7 +279,8 @@
 
   async function init() {
     hookStore();
-    if (!getEndpoint()) return;
+    // مع وجود الخادم لا حاجة لرابط في المتصفح إطلاقاً
+    if (!window.DataAPI && !getEndpoint()) return;
 
     const r = await pull();
     if (r.ok && (r.added || r.updated)) {

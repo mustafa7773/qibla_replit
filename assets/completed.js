@@ -262,6 +262,16 @@
       const wasEdit = !!view.editingId;
       resetForm();
       render();
+
+      if (result.promise) {
+        const r = await result.promise;
+        render();
+        const base = wasEdit ? "تم حفظ التعديل" : "تمت إضافة المسجد";
+        if (r.synced) showSuccess(base + " وحُفظ على الخادم — سيظهر على كل الأجهزة.");
+        else showError(base + " محلياً، لكن تعذّر الوصول للخادم: " + r.error + " — سيُعاد الإرسال تلقائياً.");
+        return;
+      }
+
       showSuccess(wasEdit ? "تم حفظ التعديل." : "تمت إضافة المسجد.");
 
       // المزامنة محاولة إضافية لا تُعطّل الحفظ المحلي إن فشلت
@@ -479,6 +489,12 @@
     renderTable(filtered);
 
     const pending = store.pendingRecords().length;
+    if (window.DataAPI) {
+      el("cmSyncStatus").textContent = pending
+        ? pending + " تغيير بانتظار الاتصال بالخادم."
+        : "كل البيانات محفوظة على الخادم.";
+      return;
+    }
     const cfg = store.getSyncConfig();
     el("cmSyncStatus").textContent = !cfg.endpoint
       ? "لم يُضبط رابط المزامنة — السجلات محفوظة على هذا الجهاز فقط."
@@ -576,11 +592,19 @@
 
     el("cmConfirmOk").addEventListener("click", () => {
       if (view.pendingDeleteId) {
-        store.remove(view.pendingDeleteId);
+        const out = store.remove(view.pendingDeleteId);
         if (view.editingId === view.pendingDeleteId) resetForm();
         view.pendingDeleteId = null;
         render();
-        showSuccess("تم حذف السجل.");
+        if (out && out.promise) {
+          out.promise.then((r) => {
+            render();
+            if (r.synced) showSuccess("تم حذف السجل من الخادم.");
+            else showError("حُذف محلياً، لكن تعذّر الوصول للخادم: " + r.error);
+          });
+        } else {
+          showSuccess("تم حذف السجل.");
+        }
       }
       el("cmConfirm").classList.add("hidden");
     });
@@ -590,6 +614,42 @@
         view.pendingDeleteId = null;
         el("cmConfirm").classList.add("hidden");
       }
+    });
+
+    // فحص يشرح بالضبط أين تتعطل المزامنة
+    el("cmDiagBtn").addEventListener("click", async function () {
+      const box = el("cmDiag");
+      box.classList.remove("hidden");
+      box.textContent = "جاري الفحص...";
+
+      const cfg = store.getSyncConfig();
+      const lines = [];
+      lines.push("رابط الموقع (config.js): " + ((window.SkyConfig && window.SkyConfig.syncEndpoint) || "(فارغ)"));
+      lines.push("الرابط المستخدم فعلياً : " + (cfg.endpoint || "(لا يوجد)"));
+      lines.push("مصدره                  : " + (cfg.isSiteDefault ? "إعدادات الموقع" : cfg.endpoint ? "هذا الجهاز" : "—"));
+      lines.push("سجلات محلية            : " + store.loadAll().length);
+      lines.push("بانتظار الرفع          : " + store.pendingRecords().length);
+
+      if (!cfg.endpoint) {
+        lines.push("");
+        lines.push("النتيجة: لا يوجد رابط. ضعه في assets/config.js وارفعه.");
+        box.textContent = lines.join("\n");
+        return;
+      }
+
+      const r = await store.pull();
+      lines.push("");
+      if (r.ok) {
+        lines.push("الاتصال    : ناجح ✓");
+        lines.push("سجلات الجدول: " + r.total);
+        lines.push("جُلب جديد   : " + r.added + " · حُدّث: " + r.updated);
+        if (r.total === 0) lines.push("ملاحظة: الجدول فارغ — لم تصل أي سجلات إليه بعد.");
+      } else {
+        lines.push("الاتصال : فشل ✕");
+        lines.push("السبب   : " + r.error);
+      }
+      box.textContent = lines.join("\n");
+      render();
     });
 
     el("cmSaveEndpoint").addEventListener("click", () => {
@@ -606,8 +666,10 @@
       view.busy = true;
       this.disabled = true;
       try {
-        const r = await runPull();
-        if (!r.handled) showError("تعذّر الجلب: " + r.error);
+        const r = await store.refresh();
+        render();
+        if (r.ok) showSuccess("تم التحديث من الخادم — " + r.total + " سجل.");
+        else showError("تعذّر الاتصال بالخادم: " + r.error);
       } finally {
         view.busy = false;
         this.disabled = false;
@@ -619,6 +681,15 @@
       view.busy = true;
       this.disabled = true;
       try {
+        if (window.DataAPI) {
+          const f = await window.DataAPI.flush("completed");
+          await store.refresh();
+          render();
+          if (f.sent) showSuccess("أُرسل " + f.sent + " تغيير للخادم.");
+          else if (f.pending) showError(f.pending + " تغيير ما زال بانتظار الاتصال.");
+          else showSuccess("لا توجد تغييرات بانتظار الإرسال.");
+          return;
+        }
         const s = await store.sync();
         if (s.skipped) showError(s.error);
         else if (s.ok && s.unverified)
@@ -666,12 +737,17 @@
     render();
 
     // فتح الصفحة على أي جهاز يجلب أحدث السجلات من الجدول تلقائياً
-    if (store.getSyncConfig().endpoint) {
-      el("cmSyncStatus").textContent = "جاري الجلب من الجدول...";
-      runPull().then((r) => {
-        if (!r.handled) render();
-      });
-    }
+    // البيانات تُجلب من الخادم، وهو المصدر الوحيد للحقيقة
+    el("cmSyncStatus").textContent = "جاري التحميل من الخادم...";
+    store.refresh().then((r) => {
+      render();
+      if (r.ok) {
+        el("cmSyncStatus").textContent = "متصل بالخادم — " + r.total + " سجل.";
+      } else {
+        el("cmSyncStatus").textContent = "تعذّر الاتصال بالخادم — يُعرض آخر نسخة محفوظة.";
+        showError("تعذّر الاتصال بالخادم: " + r.error);
+      }
+    });
   }
 
   if (document.readyState === "loading") {

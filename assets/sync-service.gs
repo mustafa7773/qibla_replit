@@ -158,6 +158,11 @@ function doPost(e) {
     var payload = JSON.parse(e.postData.contents);
     var records = payload.records || [];
 
+    // الحذف يصل كطلب POST بحقل action
+    if (payload.action === 'delete') {
+      return json(deleteRecord(payload.type, payload.recordId));
+    }
+
     // نوع البيانات يحدد الورقة المستهدفة
     if (payload.type === 'qibla') {
       return json(saveQibla(records));
@@ -470,4 +475,29 @@ function readQibla() {
         savedAt: toIso(row[c['Saved At']]),
       };
     });
+}
+
+
+/**
+ * حذف سجل واحد من الورقة المناسبة اعتماداً على معرّفه.
+ */
+function deleteRecord(type, recordId) {
+  var id = String(recordId || '').trim();
+  if (!id) return { ok: false, error: 'المعرّف مطلوب للحذف.' };
+
+  var sheet = type === 'qibla' ? getQiblaSheet() : getSheet();
+  var headers = type === 'qibla' ? QIBLA_HEADERS : HEADERS;
+  var idCol = headers.indexOf('Record ID') + 1;
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: true, deleted: 0 };
+
+  var ids = sheet.getRange(2, idCol, lastRow - 1, 1).getValues();
+  for (var i = ids.length - 1; i >= 0; i--) {
+    if (String(ids[i][0]).trim() === id) {
+      sheet.deleteRow(i + 2);
+      return { ok: true, deleted: 1 };
+    }
+  }
+  return { ok: true, deleted: 0 };
 }
