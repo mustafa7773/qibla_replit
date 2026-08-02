@@ -492,6 +492,8 @@
   function bind() {
     el("cmAddBtn").addEventListener("click", submitForm);
 
+    document.addEventListener("mosques:updated", fillQiblaPicker);
+
     el("cmFromQibla").addEventListener("change", function () {
       applyQiblaSelection(this.value);
     });
@@ -597,6 +599,19 @@
       }
     });
 
+    el("cmPullNow").addEventListener("click", async function () {
+      if (view.busy) return;
+      view.busy = true;
+      this.disabled = true;
+      try {
+        const r = await runPull();
+        if (!r.handled) showError("تعذّر الجلب: " + r.error);
+      } finally {
+        view.busy = false;
+        this.disabled = false;
+      }
+    });
+
     el("cmSyncNow").addEventListener("click", async function () {
       if (view.busy) return;
       view.busy = true;
@@ -618,6 +633,24 @@
     });
   }
 
+  // يجلب من الجدول ويعرض النتيجة — يُستخدم عند فتح الصفحة وعند الضغط يدوياً
+  async function runPull() {
+    const r = await store.pull();
+    if (r.skipped) return { handled: false, error: r.error };
+    if (!r.ok) return { handled: false, error: r.error };
+
+    render();
+    if (r.added || r.updated) {
+      const parts = [];
+      if (r.added) parts.push("جُلب " + r.added + " سجل جديد");
+      if (r.updated) parts.push("حُدّث " + r.updated + " سجل");
+      showSuccess(parts.join(" و") + " من الجدول.");
+    } else {
+      showSuccess("لا جديد في الجدول — كل السجلات محدّثة.");
+    }
+    return { handled: true };
+  }
+
   // ------------------------------------------------------------- init
 
   function init() {
@@ -625,6 +658,14 @@
     el("cmEndpoint").value = store.getSyncConfig().endpoint;
     bind();
     render();
+
+    // فتح الصفحة على أي جهاز يجلب أحدث السجلات من الجدول تلقائياً
+    if (store.getSyncConfig().endpoint) {
+      el("cmSyncStatus").textContent = "جاري الجلب من الجدول...";
+      runPull().then((r) => {
+        if (!r.handled) render();
+      });
+    }
   }
 
   if (document.readyState === "loading") {

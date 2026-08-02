@@ -286,6 +286,79 @@
     }
   }
 
+  // يجلب السجلات من الجدول ويدمجها محلياً — بهذا تظهر بياناتك على أي جهاز.
+  // الدمج بالمعرّف: السجل الموجود يُحدَّث فقط إن كانت نسخة الجدول أحدث،
+  // فلا يضيع تعديل محلي لم يُرسل بعد.
+  async function pull() {
+    const { endpoint } = getSyncConfig();
+    if (!endpoint) return { ok: false, skipped: true, error: "لم يُضبط رابط المزامنة." };
+
+    try {
+      const url = endpoint + (endpoint.indexOf("?") === -1 ? "?" : "&") + "action=list";
+      const res = await fetch(url, { method: "GET", redirect: "follow" });
+      if (!res.ok) throw new Error("الخدمة ردّت بحالة " + res.status);
+
+      const payload = JSON.parse(await res.text());
+      if (!payload || payload.ok === false) {
+        throw new Error((payload && payload.error) || "تعذّرت قراءة الجدول");
+      }
+
+      const remote = Array.isArray(payload.records) ? payload.records : [];
+      const local = loadAll();
+      const byId = {};
+      local.forEach((r) => {
+        byId[r.id] = r;
+      });
+
+      let added = 0;
+      let updated = 0;
+
+      remote.forEach((r) => {
+        if (!r.recordId) return;
+        const existing = byId[r.recordId];
+
+        const incoming = {
+          id: r.recordId,
+          completionDate: String(r.completionDate || "").trim(),
+          governorate: String(r.governorate || "").trim(),
+          price: Number(r.price) || 0,
+          mosqueName: String(r.mosqueName || "").trim(),
+          notes: String(r.notes || "").trim(),
+          updatedAt: r.updatedAt || new Date().toISOString(),
+          createdAt: (existing && existing.createdAt) || r.updatedAt || new Date().toISOString(),
+          syncState: "synced",
+        };
+
+        if (!existing) {
+          local.push(incoming);
+          byId[incoming.id] = incoming;
+          added++;
+          return;
+        }
+
+        // تعديل محلي لم يُرسل بعد له الأولوية
+        if (existing.syncState !== "synced") return;
+
+        if (new Date(incoming.updatedAt) > new Date(existing.updatedAt || 0)) {
+          Object.assign(existing, incoming);
+          updated++;
+        }
+      });
+
+      if (added || updated) {
+        local.sort((a, b) => (a.completionDate < b.completionDate ? 1 : -1));
+        persist(local);
+      }
+
+      return { ok: true, added, updated, total: remote.length };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err && err.message ? err.message : "تعذّر جلب السجلات",
+      };
+    }
+  }
+
   // ---------------------------------------------------------------- filtering
 
   function applyFilters(records, filters) {
@@ -372,6 +445,7 @@
     getSyncConfig,
     setSyncConfig,
     sync,
+    pull,
     pendingRecords,
   };
 })();

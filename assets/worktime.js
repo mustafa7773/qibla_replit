@@ -846,6 +846,9 @@
   // ----- المساجد المحفوظة -----
   renderSavedMosques();
 
+  // وصول مساجد جديدة من المزامنة السحابية يُحدّث القائمة فوراً
+  document.addEventListener("mosques:updated", renderSavedMosques);
+
   el("addSelectedBtn").addEventListener("click", addSelectedSaved);
 
   // أزرار التعديل (✎) والحذف (🗑) داخل كل صف
