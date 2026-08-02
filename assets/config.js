@@ -18,6 +18,6 @@
 // الوحيد هو خادم وسيط يطلب تسجيل دخول.
 
 window.SkyConfig = {
-  "https://script.google.com/macros/s/AKfycbzaZQz69-yw4zUDMa88yYvo4jE_E5UL_-oOelmei6zjXhbhyoOa_UQ5fD9k3o3jbSYo/exec"
+  "https://script.google.com/macros/s/AKfycbzaZQz69-yw4zUDMa88yYvo4jE_E5UL_-oOelmei6zjXhbhyoOa_UQ5fD9k3o3jbSYo/exec"،
   syncEndpoint: "",
 };
