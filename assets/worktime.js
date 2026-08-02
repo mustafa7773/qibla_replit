@@ -677,6 +677,24 @@
   const chosenBreaks = { prayer: "", dinner: "" };
   let lastRouteForBreaks = null;
 
+  // ترتيب عربي لمواقع العمل: الأول، الثاني، الثالث...
+  const ORDINALS = [
+    "الأول",
+    "الثاني",
+    "الثالث",
+    "الرابع",
+    "الخامس",
+    "السادس",
+    "السابع",
+    "الثامن",
+    "التاسع",
+    "العاشر",
+  ];
+
+  function ordinalLabel(n) {
+    return ORDINALS[n - 1] || "رقم " + n;
+  }
+
   // يبني قائمة اختيار المحطة لكل استراحة، اعتماداً على ترتيب المسار الفعلي
   function renderBreakPicker(route) {
     const stops = route.ordered;
@@ -687,15 +705,15 @@
       html +=
         '<option value="start"' +
         (selected === "start" ? " selected" : "") +
-        ">قبل أول مسجد</option>";
+        ">قبل موقع العمل الأول</option>";
       for (let i = 1; i < stops.length; i++) {
         html +=
           '<option value="' +
           i +
           '"' +
           (selected === String(i) ? " selected" : "") +
-          ">بعد " +
-          escapeHtml(String(stops[i].name).split(" — ")[0]) +
+          ">بعد موقع العمل " +
+          ordinalLabel(i) +
           "</option>";
       }
       return html;
