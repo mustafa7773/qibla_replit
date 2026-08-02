@@ -515,7 +515,7 @@
   function buildGoogleMapsUrl(route) {
     const origin = route.ordered[0];
     const stops = route.ordered.slice(1);
-    const base = "https://www.google.com/maps/dir/?api=1";
+    const base = "https://www.google.com/maps/dir/?api=1&travelmode=driving";
     const originParam = "&origin=" + origin.lat + "," + origin.lon;
     const destParam = "&destination=" + origin.lat + "," + origin.lon;
     const waypoints = stops.map((s) => s.lat + "," + s.lon).join("|");
@@ -884,8 +884,24 @@
     renderSavedMosques();
   });
 
+  // ملاحظة: window.open مع وسيط خصائص (مثل "noopener") تعامله بعض المتصفحات
+  // — خصوصاً Safari — كنافذة منبثقة فتحجبه. النقر على رابط حقيقي لا يُحجب أبداً.
+  function openInNewTab(url) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   el("openMapsBtn").addEventListener("click", function () {
-    if (!lastRoute) return;
-    window.open(buildGoogleMapsUrl(lastRoute), "_blank", "noopener");
+    if (!lastRoute) {
+      showError("احسب المسار أولاً قبل فتحه في خرائط Google.");
+      return;
+    }
+    openInNewTab(buildGoogleMapsUrl(lastRoute));
   });
 })();
