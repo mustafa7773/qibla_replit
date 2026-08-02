@@ -1,0 +1,461 @@
+/* ==========================================================================
+   المساجد المنتهية — لوحة ومعطيات
+   مبنية بالكامل على متغيّرات style.css: لا ألوان ولا مقاسات محلية.
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ حالات */
+.success-box {
+  display: none;
+  margin-top: var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-inline-start: 3px solid var(--green);
+  border-radius: var(--radius-sm);
+  background: var(--green-wash);
+  color: var(--green);
+  font-size: var(--fs-body);
+  line-height: 1.7;
+}
+
+.success-box.show {
+  display: block;
+}
+
+.empty-state {
+  padding: var(--sp-8) var(--sp-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--muted);
+  font-size: var(--fs-body);
+  text-align: center;
+  line-height: 1.8;
+}
+
+/* ------------------------------------------------------------------ فلاتر */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-6);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.filter-item {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
+.filter-item label {
+  display: block;
+  margin-bottom: var(--sp-1);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+
+.filter-item select,
+.field select#cmGovernorate {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-1);
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.filter-item select:hover,
+.field select#cmGovernorate:hover {
+  border-color: var(--line-strong);
+}
+
+.filter-item select:focus,
+.field select#cmGovernorate:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+.filter-bar .link-btn {
+  flex: 0 0 auto;
+  padding: var(--sp-2) var(--sp-2);
+}
+
+/* ------------------------------------------------------------------ مؤشرات */
+.kpi-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-8);
+}
+
+.kpi-card {
+  flex: 1 1 180px;
+  padding: var(--sp-5) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  text-align: center;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.kpi-card:hover {
+  border-color: var(--line-strong);
+}
+
+.kpi-label {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+
+.kpi-value {
+  display: block;
+  margin: var(--sp-1) 0;
+  color: var(--gold-light);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.kpi-note {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+
+/* ------------------------------------------------------------------ رسوم */
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--sp-4);
+}
+
+.chart-card {
+  padding: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.chart-card h3 {
+  margin: 0 0 var(--sp-4);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--paper);
+}
+
+.chart-body {
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 150px;
+  overflow: visible;
+}
+
+.chart-svg .bar {
+  fill: var(--gold);
+  opacity: 0.85;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.chart-svg .bar:hover {
+  opacity: 1;
+}
+
+.chart-svg .bar-label {
+  fill: var(--muted);
+  font-size: 2.6px;
+  text-anchor: middle;
+  font-family: var(--font-body);
+}
+
+.chart-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--sp-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-caption);
+}
+
+.chart-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+/* أشرطة أفقية (المحافظات والسنوات) */
+.hbar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.hbar {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) 2fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.hbar-name {
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar-track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.hbar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--gold);
+  opacity: 0.85;
+}
+
+.hbar-val {
+  color: var(--gold-light);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ جدول */
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.table-search {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunken);
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.table-search:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+.table-count {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-body);
+  min-width: 640px;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--sp-3) var(--sp-4);
+  text-align: right;
+}
+
+.data-table thead th {
+  background: var(--surface-sunken);
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+
+.data-table th.is-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.data-table th.is-sortable:hover {
+  color: var(--paper);
+}
+
+.data-table th.is-active {
+  color: var(--gold-light);
+}
+
+.data-table th[data-dir="asc"]::after {
+  content: " ↑";
+}
+
+.data-table th[data-dir="desc"]::after {
+  content: " ↓";
+}
+
+.data-table tbody tr + tr td {
+  border-top: 1px solid var(--line);
+}
+
+.data-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.data-table td.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-light);
+  white-space: nowrap;
+}
+
+.pill {
+  display: inline-block;
+  padding: 1px var(--sp-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+.pill.is-ok {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: var(--green-wash);
+  color: var(--green);
+}
+
+.pill.is-wait {
+  border-color: rgba(223, 182, 104, 0.4);
+  background: var(--gold-wash);
+  color: var(--gold-light);
+}
+
+.row-actions {
+  display: flex;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ ترقيم */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  justify-content: center;
+}
+
+.page-btn {
+  min-width: 34px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.page-btn.is-active {
+  border-color: rgba(223, 182, 104, 0.5);
+  background: var(--gold-wash);
+  color: var(--gold-light);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ مزامنة */
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.sync-status {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+button.primary.danger {
+  background: linear-gradient(180deg, #fca5a5 0%, var(--red) 60%, #dc2626 100%);
+  color: #2a0707;
+}
+
+/* ------------------------------------------------------------------ استجابة */
+@media (max-width: 640px) {
+  .kpi-card {
+    flex: 1 1 130px;
+    padding: var(--sp-4) var(--sp-3);
+  }
+
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-item {
+    flex: 1 1 140px;
+  }
+
+  .hbar {
+    grid-template-columns: minmax(60px, 1fr) 1.4fr auto;
+    gap: var(--sp-2);
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: var(--sp-3);
+  }
+}

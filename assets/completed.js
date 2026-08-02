@@ -1,0 +1,538 @@
+// ============================================================================
+// طبقة الواجهة لأداة "المساجد المنتهية"
+//
+// كل المنطق (التحقق، التخزين، المزامنة، الإحصاء) في assets/completed-store.js.
+// هذا الملف مسؤول عن العرض والتفاعل فقط.
+//
+// الرسوم البيانية مرسومة بـ SVG مباشرة بلا أي مكتبة خارجية: أسرع تحميلاً،
+// وتتبع نفس ألوان النظام تلقائياً، ولا تضيف اعتمادية جديدة للمشروع.
+// ============================================================================
+
+(function () {
+  "use strict";
+
+  const store = window.CompletedStore;
+  const PAGE_SIZE = 10;
+
+  const MONTHS = [
+    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+  ];
+
+  // حالة العرض فقط — لا تُخزَّن، تُشتق من البيانات عند كل رسم
+  const view = {
+    filters: { year: "", month: "", governorate: "", search: "" },
+    sort: { key: "completionDate", dir: "desc" },
+    page: 1,
+    editingId: null,
+    pendingDeleteId: null,
+    busy: false,
+  };
+
+  const el = (id) => document.getElementById(id);
+
+  function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = str == null ? "" : String(str);
+    return d.innerHTML;
+  }
+
+  function formatMoney(n) {
+    return (Number(n) || 0).toLocaleString("en-US", {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    });
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return (
+      String(d.getDate()).padStart(2, "0") + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      d.getFullYear()
+    );
+  }
+
+  function monthLabel(key) {
+    const [y, m] = String(key).split("-");
+    return MONTHS[parseInt(m, 10) - 1] + " " + y;
+  }
+
+  function shortMonth(key) {
+    const [, m] = String(key).split("-");
+    return MONTHS[parseInt(m, 10) - 1].slice(0, 4);
+  }
+
+  // ------------------------------------------------------------- notifications
+
+  let successTimer = null;
+
+  function showError(msgs) {
+    const box = el("cmError");
+    const list = Array.isArray(msgs) ? msgs : [msgs];
+    box.innerHTML = list.map((m) => escapeHtml(m)).join("<br>");
+    box.classList.add("show");
+    el("cmSuccess").classList.remove("show");
+  }
+
+  function clearError() {
+    el("cmError").classList.remove("show");
+  }
+
+  function showSuccess(msg) {
+    const box = el("cmSuccess");
+    box.textContent = msg;
+    box.classList.add("show");
+    clearError();
+    clearTimeout(successTimer);
+    successTimer = setTimeout(() => box.classList.remove("show"), 5000);
+  }
+
+  // ------------------------------------------------------------- form
+
+  function fillGovernorateSelects() {
+    const list = window.Governorates ? window.Governorates.list() : [];
+    const opts = list.map((g) => '<option value="' + escapeHtml(g) + '">' + escapeHtml(g) + "</option>").join("");
+
+    const form = el("cmGovernorate");
+    const keep = form.value;
+    form.innerHTML = '<option value="">اختر المحافظة</option>' + opts;
+    if (keep) form.value = keep;
+
+    const filter = el("fGov");
+    const keepF = filter.value;
+    filter.innerHTML = '<option value="">كل المحافظات</option>' + opts;
+    if (keepF) filter.value = keepF;
+  }
+
+  function fillPeriodFilters(records) {
+    const years = Array.from(
+      new Set(records.map((r) => new Date(r.completionDate).getFullYear()).filter((y) => !isNaN(y))),
+    ).sort((a, b) => b - a);
+
+    const y = el("fYear");
+    const keepY = y.value;
+    y.innerHTML =
+      '<option value="">كل السنوات</option>' +
+      years.map((v) => '<option value="' + v + '">' + v + "</option>").join("");
+    if (keepY && years.indexOf(Number(keepY)) !== -1) y.value = keepY;
+
+    const m = el("fMonth");
+    if (!m.options.length) {
+      m.innerHTML =
+        '<option value="">كل الأشهر</option>' +
+        MONTHS.map((name, i) => '<option value="' + (i + 1) + '">' + name + "</option>").join("");
+    }
+  }
+
+  function readForm() {
+    return {
+      completionDate: el("cmDate").value,
+      governorate: el("cmGovernorate").value,
+      price: el("cmPrice").value,
+      mosqueName: el("cmName").value,
+      notes: el("cmNotes").value,
+    };
+  }
+
+  function resetForm() {
+    el("cmDate").value = "";
+    el("cmGovernorate").value = "";
+    el("cmPrice").value = "";
+    el("cmName").value = "";
+    el("cmNotes").value = "";
+    view.editingId = null;
+    el("cmAddBtn").innerHTML =
+      '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg> إضافة المسجد';
+  }
+
+  function loadIntoForm(record) {
+    el("cmDate").value = record.completionDate;
+    fillGovernorateSelects();
+    el("cmGovernorate").value = record.governorate;
+    el("cmPrice").value = record.price;
+    el("cmName").value = record.mosqueName || "";
+    el("cmNotes").value = record.notes || "";
+    view.editingId = record.id;
+    el("cmAddBtn").innerHTML =
+      '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> حفظ التعديل';
+    el("cmDate").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // منع الإرسال المزدوج: القفل يمنع أي ضغطة ثانية أثناء المعالجة
+  async function submitForm() {
+    if (view.busy) return;
+    view.busy = true;
+    const btn = el("cmAddBtn");
+    btn.disabled = true;
+
+    try {
+      clearError();
+      const input = readForm();
+      const result = view.editingId ? store.update(view.editingId, input) : store.add(input);
+
+      if (!result.ok) {
+        showError(result.errors);
+        return;
+      }
+
+      const wasEdit = !!view.editingId;
+      resetForm();
+      render();
+      showSuccess(wasEdit ? "تم حفظ التعديل." : "تمت إضافة المسجد.");
+
+      // المزامنة محاولة إضافية لا تُعطّل الحفظ المحلي إن فشلت
+      const cfg = store.getSyncConfig();
+      if (cfg.endpoint) {
+        const s = await store.sync({ records: [result.record] });
+        render();
+        if (s.ok) showSuccess((wasEdit ? "تم حفظ التعديل" : "تمت إضافة المسجد") + " وإرساله إلى Excel.");
+        else showError("حُفظ السجل محلياً، لكن تعذّر إرساله إلى Excel: " + s.error + " — سيُعاد الإرسال عند المزامنة.");
+      }
+    } finally {
+      view.busy = false;
+      btn.disabled = false;
+    }
+  }
+
+  // ------------------------------------------------------------- charts (SVG)
+
+  function barChart(container, data, valueKey, formatter) {
+    if (!data.length) {
+      container.innerHTML = '<p class="chart-empty">لا توجد بيانات لعرضها.</p>';
+      return;
+    }
+
+    const rows = data.slice(-12);
+    const max = Math.max.apply(null, rows.map((d) => d[valueKey])) || 1;
+    const W = 100;
+    const H = 46;
+    const gap = 1.6;
+    const barW = Math.max(2, (W - gap * (rows.length - 1)) / rows.length);
+
+    const bars = rows
+      .map((d, i) => {
+        const h = Math.max(0.6, (d[valueKey] / max) * (H - 10));
+        const x = i * (barW + gap);
+        const y = H - 8 - h;
+        return (
+          '<g><title>' + escapeHtml(monthLabel(d.key) + " — " + formatter(d[valueKey])) + "</title>" +
+          '<rect x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '" width="' + barW.toFixed(2) +
+          '" height="' + h.toFixed(2) + '" rx="0.8" class="bar" />' +
+          '<text x="' + (x + barW / 2).toFixed(2) + '" y="' + (H - 2) + '" class="bar-label">' +
+          escapeHtml(shortMonth(d.key)) + "</text></g>"
+        );
+      })
+      .join("");
+
+    container.innerHTML =
+      '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" class="chart-svg" role="img">' +
+      bars + "</svg>" +
+      '<div class="chart-scale"><span>' + formatter(max) + "</span><span>0</span></div>";
+  }
+
+  function barListChart(container, data, formatter) {
+    if (!data.length) {
+      container.innerHTML = '<p class="chart-empty">لا توجد بيانات لعرضها.</p>';
+      return;
+    }
+    const max = Math.max.apply(null, data.map((d) => d.revenue)) || 1;
+    container.innerHTML =
+      '<ul class="hbar-list">' +
+      data
+        .slice(0, 8)
+        .map((d) => {
+          const pct = Math.max(2, (d.revenue / max) * 100);
+          return (
+            '<li class="hbar"><span class="hbar-name">' + escapeHtml(d.key) + "</span>" +
+            '<span class="hbar-track"><span class="hbar-fill" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+            '<span class="hbar-val">' + formatter(d.revenue) + "</span></li>"
+          );
+        })
+        .join("") +
+      "</ul>";
+  }
+
+  function yearChart(container, byYear) {
+    if (byYear.length < 2) {
+      container.innerHTML =
+        '<p class="chart-empty">تظهر المقارنة عند وجود سجلات في أكثر من سنة.</p>';
+      return;
+    }
+    const max = Math.max.apply(null, byYear.map((d) => d.revenue)) || 1;
+    container.innerHTML =
+      '<ul class="hbar-list">' +
+      byYear
+        .map((d) => {
+          const pct = Math.max(2, (d.revenue / max) * 100);
+          return (
+            '<li class="hbar"><span class="hbar-name">' + escapeHtml(d.key) + "</span>" +
+            '<span class="hbar-track"><span class="hbar-fill" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+            '<span class="hbar-val">' + formatMoney(d.revenue) + " ر.ع</span></li>"
+          );
+        })
+        .join("") +
+      "</ul>";
+  }
+
+  // ------------------------------------------------------------- dashboard
+
+  function renderKpis(s) {
+    const cards = [
+      { label: "مساجد هذا الشهر", value: String(s.thisMonth.count), note: "منتهية" },
+      { label: "إيراد هذا الشهر", value: formatMoney(s.thisMonth.revenue), note: "ر.ع" },
+      { label: "مساجد هذه السنة", value: String(s.thisYear.count), note: "منتهية" },
+      { label: "إيراد هذه السنة", value: formatMoney(s.thisYear.revenue), note: "ر.ع" },
+      { label: "إجمالي المعروض", value: String(s.count), note: "سجل" },
+      { label: "إيراد المعروض", value: formatMoney(s.revenue), note: "ر.ع" },
+    ];
+    el("cmKpis").innerHTML = cards
+      .map(
+        (c) =>
+          '<div class="kpi-card"><span class="kpi-label">' + c.label + "</span>" +
+          '<span class="kpi-value">' + escapeHtml(c.value) + "</span>" +
+          '<span class="kpi-note">' + c.note + "</span></div>",
+      )
+      .join("");
+  }
+
+  // ------------------------------------------------------------- table
+
+  function sortRecords(records) {
+    const { key, dir } = view.sort;
+    const mul = dir === "asc" ? 1 : -1;
+    return records.slice().sort((a, b) => {
+      let x = a[key];
+      let y = b[key];
+      if (key === "price") {
+        x = Number(x) || 0;
+        y = Number(y) || 0;
+      } else {
+        x = String(x || "");
+        y = String(y || "");
+      }
+      if (x < y) return -1 * mul;
+      if (x > y) return 1 * mul;
+      return 0;
+    });
+  }
+
+  function renderTable(records) {
+    const sorted = sortRecords(records);
+    const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    if (view.page > pages) view.page = pages;
+    const slice = sorted.slice((view.page - 1) * PAGE_SIZE, view.page * PAGE_SIZE);
+
+    el("cmCount").textContent = sorted.length
+      ? "عرض " + slice.length + " من " + sorted.length + " سجل"
+      : "";
+
+    el("cmEmpty").classList.toggle("hidden", sorted.length > 0);
+    el("cmTable").classList.toggle("hidden", sorted.length === 0);
+
+    el("cmTableBody").innerHTML = slice
+      .map((r) => {
+        const synced = r.syncState === "synced";
+        return (
+          "<tr>" +
+          '<td class="num">' + formatDate(r.completionDate) + "</td>" +
+          "<td>" + escapeHtml(r.governorate) + "</td>" +
+          "<td>" + escapeHtml(r.mosqueName || "—") + "</td>" +
+          '<td class="num">' + formatMoney(r.price) + "</td>" +
+          '<td><span class="pill ' + (synced ? "is-ok" : "is-wait") + '">' +
+          (synced ? "مُزامَن" : "بانتظار المزامنة") + "</span></td>" +
+          '<td class="row-actions">' +
+          '<button type="button" class="icon-btn" data-edit="' + r.id + '" title="تعديل">✎</button>' +
+          '<button type="button" class="icon-btn danger" data-del="' + r.id + '" title="حذف">🗑</button>' +
+          "</td></tr>"
+        );
+      })
+      .join("");
+
+    // ترقيم الصفحات
+    if (pages <= 1) {
+      el("cmPagination").innerHTML = "";
+    } else {
+      let html = '<button type="button" class="page-btn" data-page="' + (view.page - 1) +
+        '"' + (view.page === 1 ? " disabled" : "") + ">السابق</button>";
+      for (let i = 1; i <= pages; i++) {
+        html += '<button type="button" class="page-btn' + (i === view.page ? " is-active" : "") +
+          '" data-page="' + i + '">' + i + "</button>";
+      }
+      html += '<button type="button" class="page-btn" data-page="' + (view.page + 1) +
+        '"' + (view.page === pages ? " disabled" : "") + ">التالي</button>";
+      el("cmPagination").innerHTML = html;
+    }
+
+    // مؤشر عمود الترتيب
+    Array.from(document.querySelectorAll("#cmTable th[data-sort]")).forEach((th) => {
+      th.classList.toggle("is-active", th.getAttribute("data-sort") === view.sort.key);
+      th.setAttribute("data-dir", th.getAttribute("data-sort") === view.sort.key ? view.sort.dir : "");
+    });
+  }
+
+  // ------------------------------------------------------------- render
+
+  function render() {
+    const all = store.loadAll();
+    fillGovernorateSelects();
+    fillPeriodFilters(all);
+
+    const filtered = store.applyFilters(all, view.filters);
+    const s = store.stats(filtered);
+
+    renderKpis(s);
+    barChart(el("chartRevenue"), s.byMonth, "revenue", (v) => formatMoney(v) + " ر.ع");
+    barChart(el("chartCount"), s.byMonth, "count", (v) => v + " مسجد");
+    barListChart(el("chartGov"), s.byGovernorate, (v) => formatMoney(v) + " ر.ع");
+    yearChart(el("chartYear"), s.byYear);
+    renderTable(filtered);
+
+    const pending = store.pendingRecords().length;
+    const cfg = store.getSyncConfig();
+    el("cmSyncStatus").textContent = !cfg.endpoint
+      ? "لم يُضبط رابط المزامنة — السجلات محفوظة محلياً."
+      : pending
+      ? pending + " سجل بانتظار الإرسال."
+      : "كل السجلات مُزامنة.";
+  }
+
+  // ------------------------------------------------------------- events
+
+  function bind() {
+    el("cmAddBtn").addEventListener("click", submitForm);
+
+    ["fYear", "fMonth", "fGov"].forEach((id) => {
+      el(id).addEventListener("change", () => {
+        view.filters.year = el("fYear").value;
+        view.filters.month = el("fMonth").value;
+        view.filters.governorate = el("fGov").value;
+        view.page = 1;
+        render();
+      });
+    });
+
+    el("fReset").addEventListener("click", () => {
+      el("fYear").value = "";
+      el("fMonth").value = "";
+      el("fGov").value = "";
+      el("cmSearch").value = "";
+      view.filters = { year: "", month: "", governorate: "", search: "" };
+      view.page = 1;
+      render();
+    });
+
+    let searchTimer = null;
+    el("cmSearch").addEventListener("input", function () {
+      clearTimeout(searchTimer);
+      const v = this.value;
+      searchTimer = setTimeout(() => {
+        view.filters.search = v;
+        view.page = 1;
+        render();
+      }, 180);
+    });
+
+    document.querySelectorAll("#cmTable th[data-sort]").forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.getAttribute("data-sort");
+        if (view.sort.key === key) {
+          view.sort.dir = view.sort.dir === "asc" ? "desc" : "asc";
+        } else {
+          view.sort.key = key;
+          view.sort.dir = "asc";
+        }
+        render();
+      });
+    });
+
+    el("cmPagination").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-page]");
+      if (!btn || btn.disabled) return;
+      view.page = parseInt(btn.getAttribute("data-page"), 10);
+      render();
+    });
+
+    el("cmTableBody").addEventListener("click", (e) => {
+      const edit = e.target.closest("[data-edit]");
+      if (edit) {
+        const rec = store.getById(edit.getAttribute("data-edit"));
+        if (rec) loadIntoForm(rec);
+        return;
+      }
+      const del = e.target.closest("[data-del]");
+      if (del) {
+        const rec = store.getById(del.getAttribute("data-del"));
+        if (!rec) return;
+        view.pendingDeleteId = rec.id;
+        el("cmConfirmText").textContent =
+          "سيُحذف سجل " + (rec.mosqueName || rec.governorate) + " بتاريخ " + formatDate(rec.completionDate) + ".";
+        el("cmConfirm").classList.remove("hidden");
+      }
+    });
+
+    el("cmConfirmCancel").addEventListener("click", () => {
+      view.pendingDeleteId = null;
+      el("cmConfirm").classList.add("hidden");
+    });
+
+    el("cmConfirmOk").addEventListener("click", () => {
+      if (view.pendingDeleteId) {
+        store.remove(view.pendingDeleteId);
+        if (view.editingId === view.pendingDeleteId) resetForm();
+        view.pendingDeleteId = null;
+        render();
+        showSuccess("تم حذف السجل.");
+      }
+      el("cmConfirm").classList.add("hidden");
+    });
+
+    el("cmConfirm").addEventListener("click", (e) => {
+      if (e.target === el("cmConfirm")) {
+        view.pendingDeleteId = null;
+        el("cmConfirm").classList.add("hidden");
+      }
+    });
+
+    el("cmSaveEndpoint").addEventListener("click", () => {
+      const res = store.setSyncConfig(el("cmEndpoint").value);
+      if (!res.ok) showError(res.error);
+      else {
+        showSuccess("تم حفظ رابط المزامنة.");
+        render();
+      }
+    });
+
+    el("cmSyncNow").addEventListener("click", async function () {
+      if (view.busy) return;
+      view.busy = true;
+      this.disabled = true;
+      try {
+        const s = await store.sync();
+        if (s.skipped) showError(s.error);
+        else if (s.ok) showSuccess(s.sent ? "تمت مزامنة " + s.sent + " سجل." : "لا توجد سجلات بانتظار المزامنة.");
+        else showError("تعذّرت المزامنة: " + s.error);
+        render();
+      } finally {
+        view.busy = false;
+        this.disabled = false;
+      }
+    });
+  }
+
+  // ------------------------------------------------------------- init
+
+  function init() {
+    if (!store) return;
+    el("cmEndpoint").value = store.getSyncConfig().endpoint;
+    bind();
+    render();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

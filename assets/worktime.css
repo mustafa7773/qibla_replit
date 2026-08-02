@@ -273,28 +273,6 @@
   gap: var(--sp-4);
 }
 
-.link-btn {
-  background: none;
-  border: none;
-  padding: var(--sp-1) var(--sp-2);
-  margin: calc(var(--sp-1) * -1) calc(var(--sp-2) * -1);
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  transition: color var(--dur-fast) var(--ease);
-}
-
-.link-btn:hover {
-  color: var(--paper);
-}
-
-.link-btn.danger:hover {
-  color: var(--red);
-}
 
 .saved-list {
   display: flex;
@@ -380,33 +358,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.icon-btn {
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: var(--fs-sm);
-  line-height: 1;
-  transition: background-color var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
-}
 
-.icon-btn:hover {
-  border-color: var(--line-strong);
-  color: var(--paper);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.icon-btn.danger:hover {
-  border-color: rgba(248, 113, 113, 0.5);
-  background: var(--red-wash);
-  color: var(--red);
-}
 
 /* Editing a saved mosque in place */
 .saved-item.is-editing {
@@ -445,25 +397,6 @@
   gap: var(--sp-4);
 }
 
-/* A quieter primary, for actions inside a card */
-button.primary.subtle {
-  width: auto;
-  margin-top: 0;
-  padding: var(--sp-2) var(--sp-5);
-  font-size: var(--fs-body);
-  font-weight: 500;
-  background: transparent;
-  color: var(--gold);
-  border: 1px solid rgba(223, 182, 104, 0.4);
-  box-shadow: none;
-}
-
-button.primary.subtle:hover {
-  background: var(--gold-wash);
-  border-color: var(--gold);
-  filter: none;
-  box-shadow: none;
-}
 
 .edit-actions .primary.subtle {
   padding: var(--sp-1) var(--sp-4);
