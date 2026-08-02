@@ -10,9 +10,9 @@
       href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=20260802f" />
-    <link rel="stylesheet" href="assets/hub.css?v=20260802f" />
-    <link rel="stylesheet" href="assets/completed.css?v=20260802f" />
+    <link rel="stylesheet" href="assets/style.css?v=20260802h" />
+    <link rel="stylesheet" href="assets/hub.css?v=20260802h" />
+    <link rel="stylesheet" href="assets/completed.css?v=20260802h" />
   </head>
   <body>
     <header class="site-header">
@@ -188,8 +188,8 @@
           <h2>المزامنة مع Excel</h2>
         </div>
         <p class="sub">
-          السجلات تُحفظ في جهازك فوراً. لإضافتها كصفوف في جدول Excel أونلاين،
-          ضع رابط خدمة الاستقبال هنا.
+          ضع رابط الخدمة هنا ليصبح الجدول مصدراً مشتركاً: تُرفع سجلاتك إليه،
+          وتُجلب منه تلقائياً على أي جهاز تفتح فيه الصفحة.
         </p>
 
         <div class="field">
@@ -203,7 +203,8 @@
 
         <div class="sync-row">
           <button type="button" class="primary subtle" id="cmSaveEndpoint">حفظ الرابط</button>
-          <button type="button" class="primary subtle" id="cmSyncNow">مزامنة الآن</button>
+          <button type="button" class="primary subtle" id="cmSyncNow">رفع السجلات</button>
+          <button type="button" class="primary subtle" id="cmPullNow">جلب من الجدول</button>
           <span class="sync-status" id="cmSyncStatus"></span>
         </div>
       </div>
@@ -222,9 +223,10 @@
     </div>
 
     <!-- Scripts -->
-    <script src="assets/mosque-store.js?v=20260802f" defer></script>
-    <script src="assets/governorates.js?v=20260802f" defer></script>
-    <script src="assets/completed-store.js?v=20260802f" defer></script>
-    <script src="assets/completed.js?v=20260802f" defer></script>
+    <script src="assets/mosque-store.js?v=20260802h" defer></script>
+    <script src="assets/cloud-sync.js?v=20260802h" defer></script>
+    <script src="assets/governorates.js?v=20260802h" defer></script>
+    <script src="assets/completed-store.js?v=20260802h" defer></script>
+    <script src="assets/completed.js?v=20260802h" defer></script>
   </body>
 </html>
