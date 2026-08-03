@@ -507,8 +507,8 @@
 
   // ------------------------------------------------------------- export
 
-  // تصدير السجلات المعروضة (بعد الفلاتر) كملف يفتحه Excel مباشرة.
-  // نستخدم CSV مع BOM لأن Excel يحتاجها لعرض العربية بشكل صحيح.
+  // تصدير السجلات المعروضة (بعد الفلاتر) كملف Excel حقيقي قابل للتعديل،
+  // بورقة مستقلة لكل شهر وورقة ملخص، مع مجاميع في كل منها.
   function exportToExcel() {
     const rows = store.applyFilters(store.loadAll(), view.filters);
     if (!rows.length) {
@@ -516,44 +516,28 @@
       return;
     }
 
-    const headers = ["اسم المسجد", "تاريخ الإنجاز", "المحافظة", "السعر (ر.ع)", "ملاحظات"];
+    try {
+      const blob = window.XlsxExport.build(rows);
 
-    const esc = (v) => {
-      const s = String(v == null ? "" : v);
-      return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-    };
+      const today = new Date();
+      const stamp =
+        today.getFullYear() + "-" +
+        String(today.getMonth() + 1).padStart(2, "0") + "-" +
+        String(today.getDate()).padStart(2, "0");
 
-    const lines = [headers.join(",")];
-    sortRecords(rows).forEach((r) => {
-      lines.push(
-        [r.mosqueName, r.completionDate, r.governorate, r.price, r.notes].map(esc).join(","),
-      );
-    });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "المساجد المنتهية " + stamp + ".xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
 
-    // صف الإجمالي في النهاية
-    const total = rows.reduce((s, r) => s + (Number(r.price) || 0), 0);
-    lines.push(["الإجمالي", "", "", total, rows.length + " سجل"].map(esc).join(","));
-
-    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const today = new Date();
-    const stamp =
-      today.getFullYear() + "-" +
-      String(today.getMonth() + 1).padStart(2, "0") + "-" +
-      String(today.getDate()).padStart(2, "0");
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "المساجد المنتهية " + stamp + ".csv";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-
-    showSuccess("تم تصدير " + rows.length + " سجل.");
+      showSuccess("تم تصدير " + rows.length + " سجل إلى ملف Excel.");
+    } catch (err) {
+      showError("تعذّر التصدير: " + (err && err.message ? err.message : err));
+    }
   }
 
   // ------------------------------------------------------------- events
