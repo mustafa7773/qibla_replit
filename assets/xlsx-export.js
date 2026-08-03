@@ -219,6 +219,42 @@
       { v: grandTotal, style: S.TOTAL_MONEY, num: true },
     ]);
 
+    // جدول ثانٍ في نفس الورقة: توزيع المساجد على المحافظات
+    const byGov = {};
+    records.forEach((r) => {
+      const g = r.governorate || "غير محددة";
+      (byGov[g] = byGov[g] || []).push(r);
+    });
+
+    const govKeys = Object.keys(byGov).sort(
+      (a, b) =>
+        byGov[b].reduce((s, r) => s + (Number(r.price) || 0), 0) -
+        byGov[a].reduce((s, r) => s + (Number(r.price) || 0), 0),
+    );
+
+    summaryRows.push([]);
+    summaryRows.push([{ v: "التوزيع حسب المحافظة", style: S.TITLE }]);
+    summaryRows.push([
+      { v: "المحافظة", style: S.HEADER },
+      { v: "عدد المساجد", style: S.HEADER },
+      { v: "الإجمالي (ر.ع)", style: S.HEADER },
+    ]);
+
+    govKeys.forEach((g) => {
+      const list = byGov[g];
+      summaryRows.push([
+        { v: g, style: S.TEXT },
+        { v: list.length, style: S.COUNT, num: true },
+        { v: list.reduce((s, r) => s + (Number(r.price) || 0), 0), style: S.MONEY, num: true },
+      ]);
+    });
+
+    summaryRows.push([
+      { v: "المجموع الكلي", style: S.TOTAL_LABEL },
+      { v: grandCount, style: S.TOTAL_LABEL, num: true },
+      { v: grandTotal, style: S.TOTAL_MONEY, num: true },
+    ]);
+
     sheets.push({
       name: safeSheetName("الملخص", used),
       xml: buildSheet(summaryRows, [22, 14, 18]),
@@ -263,6 +299,46 @@
       sheets.push({
         name: safeSheetName(k === "غير محدد" ? k : monthLabel(k), used),
         xml: buildSheet(rows, [30, 15, 26, 15, 30]),
+      });
+    });
+
+    // ---------------------------------------------------- ورقة لكل محافظة
+    // كل مسجد يظهر باسمه وسعره تحت محافظته، فيسهل معرفة نصيب كل محافظة
+    govKeys.forEach((g) => {
+      const list = byGov[g].slice().sort((a, b) =>
+        String(a.completionDate) < String(b.completionDate) ? -1 : 1,
+      );
+
+      const rows = [];
+      rows.push([{ v: g, style: S.TITLE }]);
+      rows.push([
+        { v: "اسم المسجد", style: S.HEADER },
+        { v: "تاريخ الإنجاز", style: S.HEADER },
+        { v: "السعر (ر.ع)", style: S.HEADER },
+        { v: "ملاحظات", style: S.HEADER },
+      ]);
+
+      let sum = 0;
+      list.forEach((r) => {
+        sum += Number(r.price) || 0;
+        rows.push([
+          { v: r.mosqueName || "—", style: S.TEXT },
+          { v: r.completionDate || "", style: S.COUNT },
+          { v: Number(r.price) || 0, style: S.MONEY, num: true },
+          { v: r.notes || "", style: S.TEXT },
+        ]);
+      });
+
+      rows.push([
+        { v: "المجموع (" + list.length + " مسجد)", style: S.TOTAL_LABEL },
+        { v: "", style: S.TOTAL_LABEL },
+        { v: sum, style: S.TOTAL_MONEY, num: true },
+        { v: "", style: S.TOTAL_LABEL },
+      ]);
+
+      sheets.push({
+        name: safeSheetName(g, used),
+        xml: buildSheet(rows, [30, 15, 15, 30]),
       });
     });
 
