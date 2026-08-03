@@ -154,6 +154,10 @@
         <p class="sub">ابحث ورتّب وعدّل أو احذف أي سجل.</p>
 
         <div class="table-toolbar">
+          <button type="button" class="primary subtle" id="cmExport">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+            تصدير Excel
+          </button>
           <input type="search" id="cmSearch" class="table-search" placeholder="ابحث باسم المسجد أو المحافظة أو الملاحظات" />
           <span class="table-count" id="cmCount"></span>
         </div>
@@ -181,18 +185,18 @@
         <div class="pagination" id="cmPagination"></div>
       </div>
 
-      <!-- ٤ — المزامنة مع Excel -->
+      <!-- ٤ — حالة الاتصال -->
       <div class="panel">
         <div class="panel-head">
           <span class="step-badge">٤</span>
-          <h2>المزامنة مع Excel</h2>
+          <h2>حالة الاتصال</h2>
         </div>
         <p class="sub">
-          ضع رابط الخدمة هنا ليصبح الجدول مصدراً مشتركاً: تُرفع سجلاتك إليه،
-          وتُجلب منه تلقائياً على أي جهاز تفتح فيه الصفحة.
+          البيانات محفوظة في قاعدة بيانات مركزية على الخادم، وتظهر على أي جهاز
+          تفتح منه الموقع. زر «تصدير Excel» أعلاه ينزّل نسخة من السجلات وقتما شئت.
         </p>
 
-        <div class="field">
+        <div class="field hidden">
           <label for="cmEndpoint">رابط المزامنة</label>
           <input type="url" id="cmEndpoint" class="textarea-mono" placeholder="https://script.google.com/macros/s/.../exec" />
           <p class="hint" style="margin-top: 8px">
@@ -202,8 +206,8 @@
         </div>
 
         <div class="sync-row">
-          <button type="button" class="primary subtle" id="cmSaveEndpoint">حفظ الرابط</button>
-          <button type="button" class="primary subtle" id="cmSyncNow">رفع السجلات</button>
+          <button type="button" class="primary subtle hidden" id="cmSaveEndpoint">حفظ الرابط</button>
+          <button type="button" class="primary subtle" id="cmSyncNow">رفع ما لم يُرسل</button>
           <button type="button" class="primary subtle" id="cmPullNow">جلب من الجدول</button>
           <span class="sync-status" id="cmSyncStatus"></span>
         </div>
