@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>فحص النظام — Sky Innovations Tools</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #070b14;
+        color: #f2f5fa;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.9;
+      }
+      .wrap { max-width: 860px; margin: 0 auto; }
+      h1 { font-size: 1.4rem; margin: 0 0 4px; }
+      p.sub { color: #96a3b9; margin: 0 0 24px; font-size: .95rem; }
+      .card {
+        border: 1px solid rgba(148,163,184,.16);
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 14px;
+        background: rgba(12,18,31,.85);
+      }
+      .card h2 { font-size: 1rem; margin: 0 0 12px; }
+      .row {
+        display: flex; gap: 12px; align-items: flex-start;
+        padding: 7px 0; border-bottom: 1px solid rgba(148,163,184,.09);
+        font-size: .9rem;
+      }
+      .row:last-child { border-bottom: 0; }
+      .row .k { flex: 0 0 210px; color: #96a3b9; }
+      .row .v { flex: 1; word-break: break-all; font-family: ui-monospace, monospace; }
+      .ok { color: #4ade80; }
+      .bad { color: #f87171; }
+      .warn { color: #dfb668; }
+      button {
+        background: #dfb668; color: #1a1204; border: 0; border-radius: 10px;
+        padding: 12px 22px; font: inherit; font-weight: 600; cursor: pointer;
+        margin-bottom: 20px;
+      }
+      .verdict {
+        padding: 16px; border-radius: 12px; margin-bottom: 20px;
+        border: 1px solid rgba(148,163,184,.2); font-size: .95rem;
+      }
+      a { color: #dfb668; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>فحص النظام</h1>
+      <p class="sub">
+        تعرض هذه الصفحة حالة كل طبقة على حدة، لتحديد سبب عدم ظهور البيانات بدقة.
+        شغّلها في المتصفح الذي لا تظهر فيه البيانات.
+      </p>
+
+      <button id="run">إعادة الفحص</button>
+      <div id="verdict"></div>
+      <div id="out"></div>
+    </div>
+
+    <script src="assets/data-api.js"></script>
+    <script src="assets/mosque-store.js"></script>
+    <script>
+      const out = document.getElementById("out");
+      const verdictBox = document.getElementById("verdict");
+
+      function card(title, rows) {
+        const html = rows
+          .map(
+            (r) =>
+              '<div class="row"><span class="k">' + r[0] + '</span>' +
+              '<span class="v ' + (r[2] || "") + '">' + r[1] + "</span></div>",
+          )
+          .join("");
+        return '<div class="card"><h2>' + title + "</h2>" + html + "</div>";
+      }
+
+      function localCount(key) {
+        try {
+          const v = JSON.parse(localStorage.getItem(key) || "[]");
+          return Array.isArray(v) ? v.length : 0;
+        } catch (e) {
+          return 0;
+        }
+      }
+
+      async function probe(type) {
+        try {
+          const res = await fetch("/api/records?type=" + type);
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch (e) {
+            return { ok: false, error: "رد غير JSON (" + res.status + "): " + raw.slice(0, 90) };
+          }
+          if (!res.ok || data.ok === false) {
+            return { ok: false, error: data.error || "حالة " + res.status };
+          }
+          return { ok: true, count: (data.records || []).length };
+        } catch (e) {
+          return { ok: false, error: e.message };
+        }
+      }
+
+      async function run() {
+        out.innerHTML = "<p>جاري الفحص...</p>";
+        verdictBox.innerHTML = "";
+
+        const problems = [];
+
+        // 1) ملفات الواجهة
+        const hasDataAPI = typeof window.DataAPI !== "undefined";
+        const hasStore = typeof window.MosqueStore !== "undefined";
+        if (!hasDataAPI) problems.push("ملف assets/data-api.js غير محمّل — لم يُرفع أو المتصفح يعرض نسخة قديمة.");
+        if (!hasStore) problems.push("ملف assets/mosque-store.js غير محمّل.");
+
+        let html = card("١ — ملفات الواجهة", [
+          ["DataAPI (طبقة الخادم)", hasDataAPI ? "محمّل ✓" : "غير محمّل ✕", hasDataAPI ? "ok" : "bad"],
+          ["MosqueStore", hasStore ? "محمّل ✓" : "غير محمّل ✕", hasStore ? "ok" : "bad"],
+        ]);
+
+        // 2) الخادم
+        const c = await probe("completed");
+        const q = await probe("qibla");
+        if (!c.ok) problems.push("الخادم لا يستجيب لـ completed: " + c.error);
+        if (!q.ok) problems.push("الخادم لا يستجيب لـ qibla: " + q.error);
+
+        html += card("٢ — الخادم (المصدر المشترك)", [
+          [
+            "المساجد المنتهية على الخادم",
+            c.ok ? c.count + " سجل" : "فشل: " + c.error,
+            c.ok ? (c.count ? "ok" : "warn") : "bad",
+          ],
+          [
+            "مساجد القبلة على الخادم",
+            q.ok ? q.count + " سجل" : "فشل: " + q.error,
+            q.ok ? (q.count ? "ok" : "warn") : "bad",
+          ],
+        ]);
+
+        // 3) هذا المتصفح
+        const localQibla = localCount("sky_tools_mosques_v1");
+        const localCompleted = localCount("sky_completed_mosques_v1");
+        const cacheQibla = localCount("sky_cache_qibla");
+        const cacheCompleted = localCount("sky_cache_completed");
+
+        html += card("٣ — هذا المتصفح", [
+          ["مساجد القبلة محلياً", String(localQibla)],
+          ["المنتهية محلياً (قديم)", String(localCompleted)],
+          ["ذاكرة القبلة", String(cacheQibla)],
+          ["ذاكرة المنتهية", String(cacheCompleted)],
+        ]);
+
+        // 4) الحكم
+        let verdict = "";
+        if (problems.length) {
+          verdict =
+            '<div class="verdict"><b class="bad">وُجدت مشاكل:</b><br>• ' +
+            problems.join("<br>• ") +
+            "</div>";
+        } else if (q.count === 0 && localQibla > 0) {
+          verdict =
+            '<div class="verdict"><b class="warn">التشخيص:</b><br>' +
+            "الخادم يعمل، لكن مساجد هذا المتصفح (" + localQibla + ") لم تُرفع إليه بعد.<br>" +
+            'اضغط الزر أدناه لرفعها الآن.<br><br>' +
+            '<button id="pushNow">رفع مساجد هذا المتصفح للخادم</button></div>';
+        } else if (q.count === 0 && c.count === 0) {
+          verdict =
+            '<div class="verdict"><b class="warn">التشخيص:</b><br>' +
+            "كل شيء يعمل، لكن الخادم فارغ تماماً. لم تصل أي بيانات إليه بعد — " +
+            "افتح المتصفح الذي فيه بياناتك وشغّل هذه الصفحة فيه، ثم اضغط زر الرفع.</div>";
+        } else {
+          verdict =
+            '<div class="verdict"><b class="ok">كل شيء سليم ✓</b><br>' +
+            "الخادم يحوي " + q.count + " مسجد قبلة و" + c.count + " سجل منتهٍ. " +
+            "افتح <a href='worktime.html'>أداة وقت العمل</a> أو " +
+            "<a href='completed.html'>المساجد المنتهية</a> — يجب أن تظهر البيانات.</div>";
+        }
+
+        verdictBox.innerHTML = verdict;
+        out.innerHTML = html;
+
+        const btn = document.getElementById("pushNow");
+        if (btn) {
+          btn.addEventListener("click", async function () {
+            this.disabled = true;
+            this.textContent = "جاري الرفع...";
+            const list = JSON.parse(localStorage.getItem("sky_tools_mosques_v1") || "[]");
+            let sent = 0;
+            let err = null;
+            for (const m of list) {
+              try {
+                const res = await fetch("/api/records", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    type: "qibla",
+                    records: [
+                      {
+                        recordId: m.id,
+                        name: m.name,
+                        governorate: m.governorate,
+                        village: m.village,
+                        requestNo: m.requestNo,
+                        easting: m.easting,
+                        northing: m.northing,
+                        datum: m.datum,
+                        zone: m.zone,
+                        lat: m.lat,
+                        lon: m.lon,
+                        savedAt: m.savedAt,
+                      },
+                    ],
+                  }),
+                });
+                const d = await res.json();
+                if (d.ok) sent++;
+                else err = d.error;
+              } catch (e) {
+                err = e.message;
+              }
+            }
+            this.textContent = err
+              ? "رُفع " + sent + " — خطأ: " + err
+              : "تم رفع " + sent + " مسجد ✓";
+            setTimeout(run, 1200);
+          });
+        }
+      }
+
+      document.getElementById("run").addEventListener("click", run);
+      run();
+    </script>
+  </body>
+</html>
