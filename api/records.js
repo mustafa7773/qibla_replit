@@ -1,41 +1,82 @@
 // ============================================================================
-// /api/records — نقطة النهاية المركزية لكل بيانات الموقع
+// /api/records — واجهة البيانات المركزية
 //
-// لماذا هذا الملف موجود؟
-// كانت البيانات تُحفظ في localStorage داخل متصفح كل جهاز، فلا يراها أي متصفح
-// آخر. هذه الدالة تعمل على خادم Vercel وتجعل التخزين مركزياً: كل الأجهزة
-// تقرأ وتكتب في المكان نفسه.
+// التخزين: قاعدة بيانات Redis (Upstash / Vercel KV) عبر واجهتها REST.
 //
-// أين تُخزَّن البيانات فعلياً؟
-// في جدول Google Sheets عبر خدمة Apps Script. عنوان الخدمة يُقرأ من متغيّر
-// بيئة على الخادم (SHEET_ENDPOINT) ولا يصل المتصفح إطلاقاً — فلا يُكشف أي سر،
-// ولا تحدث مشاكل CORS لأن المتصفح يخاطب نطاق موقعك نفسه.
+// لماذا هذا الاختيار؟
+//   • بلا أي حزم خارجية (نستخدم fetch المدمج) — فلا package.json ولا npm،
+//     ولا يفشل البناء لأسباب اعتمادية.
+//   • لا نشر يدوي بعد كل تعديل — على عكس Google Apps Script الذي كان يتطلب
+//     "New version" في كل مرة، وهو ما عطّل المزامنة مراراً.
+//   • بلا مشاكل CORS أو صفحات تسجيل دخول تعترض الطلبات.
+//   • كل سجل يُخزَّن كحقل مستقل في Hash، فالكتابة المتزامنة لا تُتلف بعضها.
 //
-// الإعداد المطلوب مرة واحدة في Vercel:
-//   Settings → Environment Variables → أضف:
-//     Name : SHEET_ENDPOINT
-//     Value: https://script.google.com/macros/s/.../exec
-//   ثم أعد النشر (Redeploy).
+// المفاتيح المستخدمة في القاعدة:
+//   sky:completed  → المساجد المنتهية
+//   sky:qibla      → مساجد أداة القبلة
+//
+// الإعداد مرة واحدة في Vercel:
+//   Storage → Create → Upstash Redis (أو KV) → Connect to project
+//   يضبط Vercel متغيّري البيئة تلقائياً، ثم أعد النشر.
 //
 // العمليات:
-//   GET    /api/records?type=completed|qibla   → قراءة كل السجلات
-//   POST   /api/records   { type, records }    → إنشاء أو تحديث (Upsert)
-//   DELETE /api/records   { type, recordId }   → حذف سجل
+//   GET    /api/records?type=completed|qibla
+//   POST   /api/records   { type, records:[...] }
+//   DELETE /api/records   { type, recordId }
 // ============================================================================
 
 const ALLOWED_TYPES = ["completed", "qibla"];
 
-function endpoint() {
-  const url = process.env.SHEET_ENDPOINT;
-  if (!url) {
+// أسماء متغيّرات البيئة تختلف بين تكامل KV وتكامل Upstash المباشر
+function creds() {
+  const url =
+    process.env.KV_REST_API_URL ||
+    process.env.UPSTASH_REDIS_REST_URL ||
+    process.env.REDIS_REST_URL;
+  const token =
+    process.env.KV_REST_API_TOKEN ||
+    process.env.UPSTASH_REDIS_REST_TOKEN ||
+    process.env.REDIS_REST_TOKEN;
+
+  if (!url || !token) {
     throw new Error(
-      "SHEET_ENDPOINT غير مضبوط. أضفه في Vercel → Settings → Environment Variables ثم أعد النشر.",
+      "قاعدة البيانات غير مربوطة. في Vercel: Storage ← Create ← Upstash Redis ← Connect to project، ثم أعد النشر.",
     );
   }
-  return url;
+  return { url: url.replace(/\/+$/, ""), token };
 }
 
-// يقرأ جسم الطلب سواء وصل مُحلّلاً أو كنص خام
+// تنفيذ أمر Redis عبر واجهة REST
+async function redis(command) {
+  const { url, token } = creds();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + token,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(command),
+  });
+
+  const raw = await res.text();
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (e) {
+    throw new Error("رد غير مفهوم من قاعدة البيانات: " + raw.slice(0, 120));
+  }
+
+  if (!res.ok || data.error) {
+    throw new Error(data.error || "قاعدة البيانات ردّت بحالة " + res.status);
+  }
+  return data.result;
+}
+
+function keyFor(type) {
+  return "sky:" + type;
+}
+
 async function readBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
   if (typeof req.body === "string" && req.body) {
@@ -56,41 +97,21 @@ async function readBody(req) {
   }
 }
 
-// يخاطب خدمة الجدول. يُرسل نصاً عادياً لأن Apps Script لا تدعم preflight،
-// ويُحوّل أي رد غير JSON إلى رسالة مفهومة بدل خطأ غامض.
-async function callSheet(payload, method, query) {
-  const base = endpoint();
-  const url = method === "GET" ? base + (base.includes("?") ? "&" : "?") + query : base;
-
-  const res = await fetch(url, {
-    method: method === "GET" ? "GET" : "POST",
-    headers: method === "GET" ? undefined : { "Content-Type": "text/plain;charset=utf-8" },
-    body: method === "GET" ? undefined : JSON.stringify(payload),
-    redirect: "follow",
-  });
-
-  const raw = await res.text();
-
-  let data;
-  try {
-    data = JSON.parse(raw);
-  } catch (e) {
-    if (/<html|accounts\.google|sign ?in/i.test(raw)) {
-      throw new Error(
-        'خدمة الجدول طلبت تسجيل دخول. في نشر Apps Script اضبط "Who has access" على Anyone.',
-      );
+// HGETALL يُعيد مصفوفة مسطّحة [حقل، قيمة، حقل، قيمة...]
+function parseHash(flat) {
+  const out = [];
+  if (!Array.isArray(flat)) return out;
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    try {
+      out.push(JSON.parse(flat[i + 1]));
+    } catch (e) {
+      // سجل تالف لا يُسقط البقية
     }
-    throw new Error("رد غير مفهوم من خدمة الجدول (ليس JSON).");
   }
-
-  if (!res.ok) throw new Error("خدمة الجدول ردّت بحالة " + res.status);
-  if (data && data.ok === false) throw new Error(data.error || "خدمة الجدول رفضت الطلب.");
-
-  return data;
+  return out;
 }
 
 module.exports = async function handler(req, res) {
-  // الواجهة على نفس النطاق، لكن نسمح بالقراءة من أي أصل لتسهيل الاختبار
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -100,13 +121,20 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const type = String(req.query.type || "completed");
+      const type = String((req.query && req.query.type) || "completed");
       if (!ALLOWED_TYPES.includes(type)) {
         return res.status(400).json({ ok: false, error: "نوع غير معروف: " + type });
       }
-      const q = type === "qibla" ? "action=list&type=qibla" : "action=list";
-      const data = await callSheet(null, "GET", q);
-      return res.status(200).json({ ok: true, records: data.records || [] });
+
+      const flat = await redis(["HGETALL", keyFor(type)]);
+      const records = parseHash(flat);
+
+      // الأحدث أولاً
+      records.sort((a, b) =>
+        String(b.updatedAt || b.savedAt || "") > String(a.updatedAt || a.savedAt || "") ? 1 : -1,
+      );
+
+      return res.status(200).json({ ok: true, records });
     }
 
     if (req.method === "POST") {
@@ -119,19 +147,30 @@ module.exports = async function handler(req, res) {
       }
       if (!records.length) return res.status(200).json({ ok: true, added: 0, updated: 0 });
 
-      // تحقق من الحد الأدنى للسلامة قبل الكتابة
       for (const r of records) {
         if (!r || !r.recordId) {
           return res.status(400).json({ ok: false, error: "سجل بلا معرّف (recordId)." });
         }
       }
 
-      const data = await callSheet({ type, records }, "POST");
-      return res.status(200).json({
-        ok: true,
-        added: data.added || 0,
-        updated: data.updated || 0,
+      const key = keyFor(type);
+
+      // نعرف أيها جديد قبل الكتابة، لنُبلّغ برقم دقيق
+      const existing = await redis(["HKEYS", key]);
+      const known = new Set(Array.isArray(existing) ? existing : []);
+
+      const args = ["HSET", key];
+      let added = 0;
+      let updated = 0;
+
+      records.forEach((r) => {
+        args.push(String(r.recordId), JSON.stringify(r));
+        if (known.has(String(r.recordId))) updated++;
+        else added++;
       });
+
+      await redis(args);
+      return res.status(200).json({ ok: true, added, updated });
     }
 
     if (req.method === "DELETE") {
@@ -144,8 +183,8 @@ module.exports = async function handler(req, res) {
       }
       if (!recordId) return res.status(400).json({ ok: false, error: "المعرّف مطلوب للحذف." });
 
-      const data = await callSheet({ type, action: "delete", recordId }, "POST");
-      return res.status(200).json({ ok: true, deleted: data.deleted || 0 });
+      const removed = await redis(["HDEL", keyFor(type), recordId]);
+      return res.status(200).json({ ok: true, deleted: Number(removed) || 0 });
     }
 
     return res.status(405).json({ ok: false, error: "طريقة غير مدعومة: " + req.method });
