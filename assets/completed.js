@@ -505,10 +505,62 @@
       : "كل السجلات مُزامنة.";
   }
 
+  // ------------------------------------------------------------- export
+
+  // تصدير السجلات المعروضة (بعد الفلاتر) كملف يفتحه Excel مباشرة.
+  // نستخدم CSV مع BOM لأن Excel يحتاجها لعرض العربية بشكل صحيح.
+  function exportToExcel() {
+    const rows = store.applyFilters(store.loadAll(), view.filters);
+    if (!rows.length) {
+      showError("لا توجد سجلات لتصديرها.");
+      return;
+    }
+
+    const headers = ["اسم المسجد", "تاريخ الإنجاز", "المحافظة", "السعر (ر.ع)", "ملاحظات"];
+
+    const esc = (v) => {
+      const s = String(v == null ? "" : v);
+      return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+
+    const lines = [headers.join(",")];
+    sortRecords(rows).forEach((r) => {
+      lines.push(
+        [r.mosqueName, r.completionDate, r.governorate, r.price, r.notes].map(esc).join(","),
+      );
+    });
+
+    // صف الإجمالي في النهاية
+    const total = rows.reduce((s, r) => s + (Number(r.price) || 0), 0);
+    lines.push(["الإجمالي", "", "", total, rows.length + " سجل"].map(esc).join(","));
+
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const today = new Date();
+    const stamp =
+      today.getFullYear() + "-" +
+      String(today.getMonth() + 1).padStart(2, "0") + "-" +
+      String(today.getDate()).padStart(2, "0");
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "المساجد المنتهية " + stamp + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    showSuccess("تم تصدير " + rows.length + " سجل.");
+  }
+
   // ------------------------------------------------------------- events
 
   function bind() {
     el("cmAddBtn").addEventListener("click", submitForm);
+    el("cmExport").addEventListener("click", exportToExcel);
 
     document.addEventListener("mosques:updated", fillQiblaPicker);
 
