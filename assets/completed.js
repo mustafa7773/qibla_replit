@@ -324,9 +324,17 @@
       })
       .join("");
 
+    // تدرّج ذهبي إلى فيروزي كما في التصميم المعتمد
+    const gradId = "barGrad_" + Math.random().toString(36).slice(2, 8);
+    const defs =
+      '<defs><linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="#e8c473"/>' +
+      '<stop offset="100%" stop-color="#5fbfa8"/>' +
+      "</linearGradient></defs>";
+
     container.innerHTML =
-      '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" class="chart-svg" role="img">' +
-      bars + "</svg>" +
+      '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" class="chart-svg" role="img" style="--bar-fill:url(#' + gradId + ')">' +
+      defs + bars + "</svg>" +
       '<div class="chart-scale"><span>' + formatter(max) + "</span><span>0</span></div>";
   }
 

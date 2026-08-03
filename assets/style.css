@@ -182,7 +182,7 @@ footer a,
 }
 
 .wrap {
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 0 var(--sp-6) var(--sp-18);
 }
@@ -198,67 +198,120 @@ footer a,
   position: sticky;
   top: 0;
   z-index: 900;
-  background: rgba(7, 11, 20, 0.72);
+  background: rgba(7, 11, 20, 0.86);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--line);
 }
 
 .site-header-inner {
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: var(--sp-3) var(--sp-6);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-4);
-  min-height: 60px;
+  gap: var(--sp-5);
+  min-height: 68px;
 }
 
+/* شعار مركّب: الرمز + الاسم العربي فوق اللاتيني */
 .brand {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  font-family: var(--font-display);
-  font-weight: 700;
-  color: var(--paper);
-  font-size: var(--fs-lg);
-}
-
-.brand-mark {
-  width: 30px;
-  height: 30px;
+  text-decoration: none;
   flex-shrink: 0;
 }
 
-.step-nav {
-  display: flex;
-  gap: var(--sp-6);
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
 }
 
-.step-nav a {
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.brand-ar {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-lg);
+  color: var(--paper);
+}
+
+.brand-en {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
   color: var(--muted);
-  text-decoration: none;
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  padding: var(--sp-1) var(--sp-2);
-  margin: 0 calc(var(--sp-2) * -1);
-  border-radius: var(--radius-xs);
-  min-height: 30px;
-  transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+
+/* تنقّل علوي بأقراص — القرص الذهبي يدل على الصفحة الحالية */
+.main-nav {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.step-nav a:hover {
+.main-nav a {
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: var(--fs-body);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+
+.main-nav a:hover {
   color: var(--paper);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-@media (max-width: 640px) {
-  .step-nav {
-    display: none;
+.main-nav a.is-active {
+  background: var(--gold);
+  color: #1a1204;
+  font-weight: 600;
+}
+
+/* رابط الرجوع لم يعد مستخدماً بعد إضافة التنقّل العلوي */
+.back-to-tools {
+  display: none;
+}
+
+.step-nav {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .site-header-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .main-nav {
+    justify-content: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .main-nav a {
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--fs-sm);
+  }
+
+  .brand-en {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
   }
 }
 
@@ -267,21 +320,14 @@ footer a,
    -------------------------------------------------------------------------- */
 .hero {
   position: relative;
-  padding: var(--sp-18) var(--sp-6) var(--sp-14);
+  padding: var(--sp-14) var(--sp-6) var(--sp-10);
   text-align: center;
   overflow: hidden;
 }
 
+/* حقل النجوم أُزيل: التصميم الجديد يعتمد على الهدوء والتباين لا على الزخرفة */
 .hero .star-field {
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(1.5px 1.5px at 20% 30%, rgba(223, 182, 104, 0.35), transparent),
-    radial-gradient(1px 1px at 70% 20%, rgba(223, 182, 104, 0.26), transparent),
-    radial-gradient(1.5px 1.5px at 85% 60%, rgba(255, 255, 255, 0.16), transparent),
-    radial-gradient(1px 1px at 45% 75%, rgba(223, 182, 104, 0.26), transparent);
-  opacity: 0.7;
-  pointer-events: none;
+  display: none;
 }
 
 .hero-inner {
@@ -306,15 +352,15 @@ footer a,
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-caption);
-  letter-spacing: 0.06em;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  letter-spacing: 0.04em;
   color: var(--gold);
-  background: var(--gold-wash);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  padding: var(--sp-1) var(--sp-4);
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-3);
+}
+
+.eyebrow svg {
+  display: none;
 }
 
 .hero h1 {
@@ -373,15 +419,15 @@ footer a,
 
 .step-badge {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-xs);
-  background: var(--gold-wash);
-  border: 1px solid rgba(223, 182, 104, 0.32);
-  color: var(--gold-light);
-  font-family: var(--font-mono);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: var(--font-body);
   font-size: var(--fs-sm);
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
