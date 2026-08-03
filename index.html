@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#070b14" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Sky Innovations Tools — أدوات ابتكارات السماء</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -10,20 +18,30 @@
       href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=20260802" />
-    <link rel="stylesheet" href="assets/hub.css?v=20260802" />
+    <link rel="stylesheet" href="assets/style.css?v=20260803d" />
+    <link rel="stylesheet" href="assets/hub.css?v=20260803d" />
   </head>
   <body>
     <header class="site-header">
       <div class="site-header-inner">
-        <div class="brand">
-          <svg class="brand-mark" viewBox="0 0 64 64">
-            <circle cx="32" cy="32" r="29" fill="none" stroke="var(--gold)" stroke-width="2" />
-            <polygon points="32,8 38,32 32,56 26,32" fill="var(--gold)" />
-            <polygon points="8,32 32,26 56,32 32,38" fill="var(--sand)" opacity="0.7" />
+        <a class="brand" href="index.html">
+          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="14" y="14" width="36" height="36" rx="4" transform="rotate(45 32 32)"
+                  fill="none" stroke="var(--gold)" stroke-width="2.5"/>
+            <text x="32" y="39" text-anchor="middle" font-size="20" font-weight="700"
+                  fill="var(--gold-light)" font-family="Amiri, serif">س</text>
           </svg>
-          <span>Sky Innovations Tools</span>
-        </div>
+          <span class="brand-text">
+            <span class="brand-ar">ابتكارات السماء</span>
+            <span class="brand-en">SKY INNOVATIONS</span>
+          </span>
+        </a>
+        <nav class="main-nav">
+          <a href="index.html" class="is-active">الرئيسية</a>
+          <a href="qibla.html">اتجاه القبلة</a>
+          <a href="worktime.html">وقت العمل</a>
+          <a href="completed.html">المساجد المنتهية</a>
+        </nav>
       </div>
     </header>
 
@@ -97,5 +115,15 @@
         </a>
       </div>
     </div>
+    <script>
+      // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("sw.js").catch(function () {
+            // فشل التسجيل لا يمنع الموقع من العمل بشكل عادي
+          });
+        });
+      }
+    </script>
   </body>
 </html>

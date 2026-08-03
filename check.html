@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#070b14" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>فحص النظام — Sky Innovations Tools</title>
     <style>
       body {
@@ -233,6 +241,16 @@
 
       document.getElementById("run").addEventListener("click", run);
       run();
+    </script>
+    <script>
+      // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("sw.js").catch(function () {
+            // فشل التسجيل لا يمنع الموقع من العمل بشكل عادي
+          });
+        });
+      }
     </script>
   </body>
 </html>

@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#070b14" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>أداة حساب وقت العمل — Sky Innovations Tools</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,24 +19,31 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="assets/style.css?v=20260803a" />
-    <link rel="stylesheet" href="assets/hub.css?v=20260803a" />
-    <link rel="stylesheet" href="assets/worktime.css?v=20260803a" />
+    <link rel="stylesheet" href="assets/style.css?v=20260803d" />
+    <link rel="stylesheet" href="assets/hub.css?v=20260803d" />
+    <link rel="stylesheet" href="assets/worktime.css?v=20260803d" />
   </head>
   <body>
     <header class="site-header">
       <div class="site-header-inner">
-        <div class="brand">
-          <svg class="brand-mark" viewBox="0 0 64 64">
-            <circle cx="32" cy="32" r="24" fill="none" stroke="var(--gold)" stroke-width="2.5" />
-            <path d="M32 17v16l11 6" fill="none" stroke="var(--sand)" stroke-width="3" stroke-linecap="round" />
+        <a class="brand" href="index.html">
+          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="14" y="14" width="36" height="36" rx="4" transform="rotate(45 32 32)"
+                  fill="none" stroke="var(--gold)" stroke-width="2.5"/>
+            <text x="32" y="39" text-anchor="middle" font-size="20" font-weight="700"
+                  fill="var(--gold-light)" font-family="Amiri, serif">س</text>
           </svg>
-          <span>حساب وقت العمل</span>
-        </div>
-        <a class="back-to-tools" href="index.html">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14m0 0l-7-7m7 7l-7 7"/></svg>
-          كل الأدوات
+          <span class="brand-text">
+            <span class="brand-ar">ابتكارات السماء</span>
+            <span class="brand-en">SKY INNOVATIONS</span>
+          </span>
         </a>
+        <nav class="main-nav">
+          <a href="index.html">الرئيسية</a>
+          <a href="qibla.html">اتجاه القبلة</a>
+          <a href="worktime.html" class="is-active">وقت العمل</a>
+          <a href="completed.html">المساجد المنتهية</a>
+        </nav>
       </div>
     </header>
 
@@ -188,11 +203,21 @@
 
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="assets/data-api.js?v=20260803a"></script>
-    <script src="assets/config.js?v=20260803a"></script>
-    <script src="assets/geo.js?v=20260803a"></script>
-    <script src="assets/mosque-store.js?v=20260803a" defer></script>
-    <script src="assets/cloud-sync.js?v=20260803a" defer></script>
-    <script src="assets/worktime.js?v=20260803a" defer></script>
+    <script src="assets/data-api.js?v=20260803d"></script>
+    <script src="assets/config.js?v=20260803d"></script>
+    <script src="assets/geo.js?v=20260803d"></script>
+    <script src="assets/mosque-store.js?v=20260803d" defer></script>
+    <script src="assets/cloud-sync.js?v=20260803d" defer></script>
+    <script src="assets/worktime.js?v=20260803d" defer></script>
+    <script>
+      // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("sw.js").catch(function () {
+            // فشل التسجيل لا يمنع الموقع من العمل بشكل عادي
+          });
+        });
+      }
+    </script>
   </body>
 </html>
