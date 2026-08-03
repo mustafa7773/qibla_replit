@@ -312,19 +312,41 @@
           if (z >= 1 && z <= 60) document.getElementById("zone").value = z;
         }
 
-        // محاولة اكتشاف نظام الإسناد (Datum) تلقائياً من نص الكروكي.
-        // معظم كروكيات وزارة الإسكان في عُمان تستخدم PSD93/Clarke 1880، لذا هو الافتراضي
-        // ما لم يُذكر صراحة أن الإحداثيات بنظام WGS84.
-        const mentionsPSD93 = /PSD\s*[-_]?\s*93|Clarke\s*1880/i.test(text);
-        const mentionsWGS84 = /WGS\s*[-_]?\s*84/i.test(text);
-        const datumSelectEl = document.getElementById("datum");
-        if (mentionsPSD93 && !mentionsWGS84) {
-          datumSelectEl.value = "psd93";
-        } else if (mentionsWGS84 && !mentionsPSD93) {
-          datumSelectEl.value = "wgs84utm";
-        } else {
-          datumSelectEl.value = "psd93";
-        }
+        // اكتشاف نظام الإسناد تلقائياً من نص الكروكي
+        document.getElementById("datum").value = detectDatum(text);
+      }
+
+      /**
+       * يستنتج نظام الإسناد من نص الكروكي.
+       *
+       * كروكيات وزارة الإسكان تكتبها بصيغ متعددة: "Clarke 1880" و"Clark1880"
+       * (بلا e وبلا مسافة) و"PSD93". وقراءة الصور قد تخلط بين الحرف l والرقم 1،
+       * فتُقرأ "Clarkl880". لذلك نُطبّع النص أولاً ثم نبحث عن الجذر، بدل مطابقة
+       * صيغة واحدة بعينها — وهو ما كان يجعل بعض الكروكيات تُصنَّف خطأً كـ WGS84.
+       *
+       * القاعدة: PSD93 هو الافتراضي دائماً، ولا نخرج عنه إلا إذا ذُكر WGS84
+       * صراحةً ولم يُذكر ما يخالفه.
+       */
+      function detectDatum(text) {
+        const raw = String(text || "");
+
+        // توحيد: حروف صغيرة، وإزالة كل ما ليس حرفاً أو رقماً، وتوحيد l/I مع 1
+        const flat = raw
+          .toLowerCase()
+          .replace(/[il|]/g, "1")
+          .replace(/[^a-z0-9]/g, "");
+
+        const mentionsPSD93 =
+          /c1ark/.test(flat) ||          // clark / clarke بعد التطبيع
+          /1880/.test(flat) ||           // سنة المرجع وحدها إشارة قوية
+          /psd93/.test(flat) ||
+          /psd1993/.test(flat);
+
+        const mentionsWGS84 = /wgs84/.test(flat) || /wgs1984/.test(flat);
+
+        if (mentionsPSD93) return "psd93";
+        if (mentionsWGS84) return "wgs84utm";
+        return "psd93";
       }
 
       function preprocessImage(dataUrl) {
@@ -389,7 +411,7 @@
         const prompt =
           "اقرأ جدول إحداثيات قطعة الأرض من هذه الصورة (كروكي مساحي عُماني). " +
           "أعد الإجابة بصيغة JSON فقط بدون أي نص إضافي أو علامات markdown، بالشكل التالي بالضبط:\n" +
-          '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null}\n' +
+          '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null, "rawText": "<انسخ هنا حرفياً السطر الذي يذكر نظام الإسناد كما هو مكتوب في الوثيقة، مثل Clark1880 40N، أو اتركه فارغاً>"}\n' +
           "ملاحظات مهمة:\n" +
           "- بعض الجداول تكتب عمود Northing قبل عمود Easting — تأكد من إخراج كل نقطة بترتيب [Easting, Northing] دائماً بغض النظر عن ترتيب الأعمدة كما تظهر في الصورة.\n" +
           "- انسخ الأرقام كما هي بالضبط دون أي تقريب أو تعديل.\n" +
@@ -466,7 +488,20 @@
               if (parsed.zone && parsed.zone >= 1 && parsed.zone <= 60) {
                 document.getElementById("zone").value = parsed.zone;
               }
-              if (parsed.datum === "psd93" || parsed.datum === "wgs84utm") {
+              // لا نأخذ نظام الإسناد من النموذج مباشرة: إن كان الكروكي يذكر
+              // Clark1880 أو PSD93 فهو الحاكم، مهما قال النموذج. هذا يمنع
+              // التحوّل الخاطئ إلى "قياسي دولي" في بعض الكروكيات.
+              const datumFromDoc = detectDatum(
+                (parsed.rawText || "") + " " + (parsed.datum || ""),
+              );
+              const docSaysPSD93 = detectDatum(parsed.rawText || "") === "psd93" &&
+                /c1ark|1880|psd93/.test(
+                  String(parsed.rawText || "").toLowerCase().replace(/[il|]/g, "1").replace(/[^a-z0-9]/g, ""),
+                );
+
+              if (docSaysPSD93) {
+                document.getElementById("datum").value = "psd93";
+              } else if (parsed.datum === "psd93" || parsed.datum === "wgs84utm") {
                 document.getElementById("datum").value = parsed.datum;
               }
 
