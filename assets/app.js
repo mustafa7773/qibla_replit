@@ -1,5 +1,23 @@
       const KAABA = { lat: 21.422487, lon: 39.826206 };
 
+      // لون خط اتجاه القبلة على الخريطة
+      const QIBLA_LINE_COLOR = "#22c55e";
+
+      // علامة الكعبة: قرص أخضر بحلقة بيضاء وداخله رسم الكعبة بكسوتها وحزامها الذهبي
+      const KAABA_ICON_HTML = [
+        '<svg viewBox="0 0 46 46" width="46" height="46" aria-label="الكعبة">',
+        '  <circle cx="23" cy="23" r="20" fill="#22c55e" stroke="#ffffff" stroke-width="3"/>',
+        '  <circle cx="23" cy="23" r="20" fill="none" stroke="#0b3d2e" stroke-width="1" opacity="0.35"/>',
+        '  <g transform="translate(23 24)">',
+        '    <rect x="-9" y="-8" width="18" height="16" rx="1.2" fill="#111827"/>',
+        '    <rect x="-9" y="-1.6" width="18" height="3" fill="#d4af37"/>',
+        '    <rect x="-9" y="-8" width="18" height="2" fill="#d4af37" opacity="0.9"/>',
+        '    <rect x="3.4" y="1.4" width="2.6" height="6.6" fill="#d4af37"/>',
+        '    <rect x="-9" y="-8" width="18" height="16" rx="1.2" fill="none" stroke="#0b3d2e" stroke-width="0.8"/>',
+        "  </g>",
+        "</svg>",
+      ].join("");
+
       function toDMS(decimal, posLabel, negLabel) {
         const hemi = decimal >= 0 ? posLabel : negLabel;
         const abs = Math.abs(decimal);
@@ -979,6 +997,7 @@
       let mapInstance = null,
         markerInstance = null,
         lineInstance = null,
+        kaabaMarkerInstance = null,
         satLayer = null,
         streetLayer = null,
         lastBearing = 0;
@@ -1150,12 +1169,46 @@
         const path = greatCirclePoints(lat, lon, KAABA.lat, KAABA.lon, 150);
         if (lineInstance) {
           mapInstance.removeLayer(lineInstance);
+          lineInstance = null;
         }
-        lineInstance = L.polyline(path, {
-          color: "#f45b5b",
-          weight: 4,
-          opacity: 0.9,
-        }).addTo(mapInstance);
+        if (kaabaMarkerInstance) {
+          mapInstance.removeLayer(kaabaMarkerInstance);
+          kaabaMarkerInstance = null;
+        }
+
+        // خط اتجاه القبلة: طبقتان — هالة داكنة تحته ليظل واضحاً فوق صور
+        // الأقمار الصناعية الفاتحة، ثم الخط الأخضر فوقها
+        lineInstance = L.featureGroup([
+          L.polyline(path, {
+            color: "#0b3d2e",
+            weight: 8,
+            opacity: 0.45,
+            lineCap: "round",
+          }),
+          L.polyline(path, {
+            color: QIBLA_LINE_COLOR,
+            weight: 4,
+            opacity: 0.95,
+            lineCap: "round",
+          }),
+        ]).addTo(mapInstance);
+
+        // علامة الكعبة على الخط في اتجاه القبلة، على مسافة قصيرة من الموقع
+        // حتى تبقى ظاهرة مهما كان تقريب الخريطة
+        const markerPoint = path[Math.min(6, path.length - 1)];
+        kaabaMarkerInstance = L.marker(markerPoint, {
+          icon: L.divIcon({
+            className: "qibla-kaaba-icon",
+            html: KAABA_ICON_HTML,
+            iconSize: [46, 46],
+            iconAnchor: [23, 23],
+          }),
+          interactive: true,
+          keyboard: false,
+          zIndexOffset: 1000,
+        })
+          .addTo(mapInstance)
+          .bindPopup("اتجاه القبلة نحو الكعبة المشرّفة");
       }
 
       let governorateAutoFillEnabled = true;
