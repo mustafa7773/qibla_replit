@@ -10,7 +10,7 @@
       // صورة الخريطة لإدراجها في تقرير Word لا تتعامل بثبات مع تدرّجات SVG
       // المعرَّفة بمعرّفات، فقد تظهر العلامة مشوّهة أو فارغة في الملف النهائي.
       const KAABA_ICON_HTML = [
-        '<svg viewBox="0 0 52 52" width="52" height="52" aria-label="الكعبة المشرفة">',
+        '<svg viewBox="0 0 52 52" width="38" height="38" aria-label="الكعبة المشرفة">',
         '  <circle cx="26" cy="26" r="23" fill="#ffffff"/>',
         '  <circle cx="26" cy="26" r="20.5" fill="#22c55e"/>',
         '  <circle cx="26" cy="26" r="20.5" fill="none" stroke="#0b3d2e" stroke-width="1.2" opacity="0.4"/>',
@@ -1207,8 +1207,8 @@
           icon: L.divIcon({
             className: "qibla-kaaba-icon",
             html: KAABA_ICON_HTML,
-            iconSize: [52, 52],
-            iconAnchor: [26, 26],
+            iconSize: [38, 38],
+            iconAnchor: [19, 19],
           }),
           interactive: true,
           keyboard: false,
