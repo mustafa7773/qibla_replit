@@ -3,28 +3,40 @@
       // لون خط اتجاه القبلة على الخريطة
       const QIBLA_LINE_COLOR = "#22c55e";
 
-      // علامة الكعبة: قرص أخضر بحلقة بيضاء وداخله الكعبة بكسوتها السوداء
-      // وحزامها وبابها الذهبيين.
+      // علامة الكعبة مع سهم الاتجاه في رسم واحد.
       //
-      // ملاحظة مقصودة: ألوان مصمتة بلا <defs> ولا تدرّجات. المكتبة التي تلتقط
-      // صورة الخريطة لإدراجها في تقرير Word لا تتعامل بثبات مع تدرّجات SVG
-      // المعرَّفة بمعرّفات، فقد تظهر العلامة مشوّهة أو فارغة في الملف النهائي.
-      const KAABA_ICON_HTML = [
-        '<svg viewBox="0 0 52 52" width="38" height="38" aria-label="الكعبة المشرفة">',
-        '  <circle cx="26" cy="26" r="23" fill="#ffffff"/>',
-        '  <circle cx="26" cy="26" r="20.5" fill="#22c55e"/>',
-        '  <circle cx="26" cy="26" r="20.5" fill="none" stroke="#0b3d2e" stroke-width="1.2" opacity="0.4"/>',
-        '  <g transform="translate(26 27)">',
-        '    <rect x="-10" y="-9.5" width="20" height="19" rx="1.4" fill="#111827"/>',
-        '    <rect x="-10" y="-2.2" width="20" height="3.4" fill="#e8c473"/>',
-        '    <rect x="-10" y="-2.2" width="20" height="1" fill="#f7e3ae"/>',
-        '    <rect x="-10" y="-9.5" width="20" height="1.8" fill="#d4af37"/>',
-        '    <rect x="3.2" y="1.9" width="3.4" height="7.6" rx="0.4" fill="#e8c473"/>',
-        '    <rect x="3.2" y="1.9" width="3.4" height="1" fill="#f7e3ae"/>',
-        '    <rect x="-10" y="-9.5" width="20" height="19" rx="1.4" fill="none" stroke="#0b3d2e" stroke-width="0.9" opacity="0.6"/>',
-        "  </g>",
-        "</svg>",
-      ].join("");
+      // لماذا رسم واحد؟ وضعهما كعلامتين منفصلتين يجعل مجموع امتدادهما أطول من
+      // نصف ارتفاع الصورة المقصوصة في تقرير Word، فيخرج السهم من الإطار.
+      // وبدمجهما تصير لهما إزاحة واحدة يسهل ضبطها والتحقق منها.
+      //
+      // السهم وحده يدور بزاوية القبلة؛ قرص الكعبة يبقى قائماً دائماً.
+      // وألوان مصمتة بلا تدرّجات، لأن مكتبة التقاط صورة الخريطة لا تتعامل
+      // بثبات مع تدرّجات SVG فقد تظهر العلامة مشوّهة في الملف النهائي.
+      const KAABA_ICON_SIZE = 76;
+      const KAABA_ICON_RADIUS = 38;
+
+      function kaabaIconHtml(bearingDeg) {
+        const deg = Number(bearingDeg || 0).toFixed(2);
+        return [
+          '<svg viewBox="0 0 76 76" width="76" height="76" aria-label="اتجاه القبلة">',
+          '  <g transform="rotate(' + deg + ' 38 38)">',
+          '    <path d="M38 4 L48 21 L38 16 L28 21 Z" fill="#22c55e"',
+          '          stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>',
+          "  </g>",
+          '  <circle cx="38" cy="38" r="17" fill="#ffffff"/>',
+          '  <circle cx="38" cy="38" r="15" fill="#22c55e"/>',
+          '  <circle cx="38" cy="38" r="15" fill="none" stroke="#0b3d2e" stroke-width="1" opacity="0.4"/>',
+          '  <g transform="translate(38 38.7)">',
+          '    <rect x="-7.3" y="-7" width="14.6" height="14" rx="1" fill="#111827"/>',
+          '    <rect x="-7.3" y="-1.6" width="14.6" height="2.5" fill="#e8c473"/>',
+          '    <rect x="-7.3" y="-1.6" width="14.6" height="0.7" fill="#f7e3ae"/>',
+          '    <rect x="-7.3" y="-7" width="14.6" height="1.3" fill="#d4af37"/>',
+          '    <rect x="2.3" y="1.4" width="2.5" height="5.6" rx="0.3" fill="#e8c473"/>',
+          '    <rect x="-7.3" y="-7" width="14.6" height="14" rx="1" fill="none" stroke="#0b3d2e" stroke-width="0.7" opacity="0.6"/>',
+          "  </g>",
+          "</svg>",
+        ].join("");
+      }
 
       function toDMS(decimal, posLabel, negLabel) {
         const hemi = decimal >= 0 ? posLabel : negLabel;
@@ -1206,9 +1218,9 @@
         kaabaMarkerInstance = L.marker(kaabaMarkerLatLng(lat, lon, q.bearing), {
           icon: L.divIcon({
             className: "qibla-kaaba-icon",
-            html: KAABA_ICON_HTML,
-            iconSize: [38, 38],
-            iconAnchor: [19, 19],
+            html: kaabaIconHtml(q.bearing),
+            iconSize: [KAABA_ICON_SIZE, KAABA_ICON_SIZE],
+            iconAnchor: [KAABA_ICON_RADIUS, KAABA_ICON_RADIUS],
           }),
           interactive: true,
           keyboard: false,
@@ -1235,7 +1247,32 @@
        */
       const KAABA_MARKER_OFFSET_RATIO = 0.13;
 
-      function kaabaMarkerLatLng(lat, lon, bearingDeg) {
+      // نسبة صورة القالب: عريضة ومنخفضة، والارتفاع هو القيد الأضيق عند القصّ
+      const TEMPLATE_CROP_RATIO = 4072255 / 1999615;
+
+      // وردة البوصلة نصف قطرها 55 بكسل وحرف W على بُعد ~47، ونصف قرص الكعبة 17.
+      // نبدأ من 72 بكسل حتى لا يغطي القرص أحرف الجهات.
+      const KAABA_MIN_CLEARANCE_PX = 72;
+
+      /**
+       * إزاحة العلامة بالبكسل.
+       *
+       * قيدان يتعارضان أحياناً: تجاوز وردة البوصلة، والبقاء داخل الصورة
+       * المقصوصة لتقرير Word. عند تعذّر إرضائهما معاً (خرائط قصيرة) نُقدّم
+       * البقاء داخل الصورة — تداخل بسيط أهون من علامة لا تظهر في التقرير.
+       */
+      function kaabaOffsetPixels(size) {
+        const minSide = Math.min(size.x, size.y);
+        const cropHalfHeight = minSide / TEMPLATE_CROP_RATIO / 2;
+
+        const wanted = Math.max(KAABA_MIN_CLEARANCE_PX, minSide * KAABA_MARKER_OFFSET_RATIO);
+        const maxAllowed = cropHalfHeight * 0.95 - KAABA_ICON_RADIUS;
+
+        if (maxAllowed <= 0) return wanted;
+        return Math.min(wanted, maxAllowed);
+      }
+
+      function kaabaMarkerLatLng(lat, lon, bearingDeg, extraPixels) {
         let distance = 120; // احتياطي إن لم تكن الخريطة جاهزة
         try {
           const size = mapInstance.getSize();
@@ -1244,7 +1281,7 @@
 
           if (isFinite(spanMeters) && spanMeters > 0 && size.x > 0) {
             const metersPerPixel = spanMeters / size.x;
-            const offsetPixels = Math.min(size.x, size.y) * KAABA_MARKER_OFFSET_RATIO;
+            const offsetPixels = kaabaOffsetPixels(size) + (extraPixels || 0);
             distance = offsetPixels * metersPerPixel;
           }
         } catch (e) {
@@ -1252,6 +1289,7 @@
         }
         return destinationPoint(lat, lon, bearingDeg, distance);
       }
+
 
       /** نقطة تبعد مسافة معينة باتجاه محدد (الصيغة المباشرة على كرة الأرض) */
       function destinationPoint(lat, lon, bearingDeg, distanceMeters) {
