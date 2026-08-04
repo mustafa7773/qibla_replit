@@ -1226,19 +1226,27 @@
       let kaabaFollowBound = false;
 
       /**
-       * نقطة على خط القبلة تبعد عن الموقع بنحو ثلث عرض الشاشة المرئي،
-       * فتظهر العلامة دائماً داخل الإطار مهما كان مستوى التقريب.
+       * نقطة على خط القبلة قريبة من الموقع بحيث تبقى العلامة داخل الإطار.
+       *
+       * مهم: صورة تقرير Word لا تُنسخ كما تظهر على الشاشة، بل تُقصّ حول المسجد
+       * بنسبة القالب (عريضة ومنخفضة). أضيق بُعد في المقصوص هو الارتفاع، ويساوي
+       * تقريباً ربع أصغر ضلع من الخريطة. لذلك نضع العلامة على بُعد جزء صغير من
+       * ذلك الضلع، فتظهر داخل الصورة مهما كان اتجاه القبلة — رأسياً أو أفقياً.
        */
+      const KAABA_MARKER_OFFSET_RATIO = 0.13;
+
       function kaabaMarkerLatLng(lat, lon, bearingDeg) {
-        let distance = 300; // احتياطي إن لم تكن الخريطة جاهزة
+        let distance = 120; // احتياطي إن لم تكن الخريطة جاهزة
         try {
+          const size = mapInstance.getSize();
           const b = mapInstance.getBounds();
-          // عرض المنطقة المرئية بالأمتار
-          const spanMeters = mapInstance.distance(
-            b.getNorthWest(),
-            b.getNorthEast(),
-          );
-          if (isFinite(spanMeters) && spanMeters > 0) distance = spanMeters * 0.33;
+          const spanMeters = mapInstance.distance(b.getNorthWest(), b.getNorthEast());
+
+          if (isFinite(spanMeters) && spanMeters > 0 && size.x > 0) {
+            const metersPerPixel = spanMeters / size.x;
+            const offsetPixels = Math.min(size.x, size.y) * KAABA_MARKER_OFFSET_RATIO;
+            distance = offsetPixels * metersPerPixel;
+          }
         } catch (e) {
           // نُبقي المسافة الاحتياطية
         }
