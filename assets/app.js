@@ -3,17 +3,25 @@
       // لون خط اتجاه القبلة على الخريطة
       const QIBLA_LINE_COLOR = "#22c55e";
 
-      // علامة الكعبة: قرص أخضر بحلقة بيضاء وداخله رسم الكعبة بكسوتها وحزامها الذهبي
+      // علامة الكعبة: قرص أخضر بحلقة بيضاء وداخله الكعبة بكسوتها السوداء
+      // وحزامها وبابها الذهبيين.
+      //
+      // ملاحظة مقصودة: ألوان مصمتة بلا <defs> ولا تدرّجات. المكتبة التي تلتقط
+      // صورة الخريطة لإدراجها في تقرير Word لا تتعامل بثبات مع تدرّجات SVG
+      // المعرَّفة بمعرّفات، فقد تظهر العلامة مشوّهة أو فارغة في الملف النهائي.
       const KAABA_ICON_HTML = [
-        '<svg viewBox="0 0 46 46" width="46" height="46" aria-label="الكعبة">',
-        '  <circle cx="23" cy="23" r="20" fill="#22c55e" stroke="#ffffff" stroke-width="3"/>',
-        '  <circle cx="23" cy="23" r="20" fill="none" stroke="#0b3d2e" stroke-width="1" opacity="0.35"/>',
-        '  <g transform="translate(23 24)">',
-        '    <rect x="-9" y="-8" width="18" height="16" rx="1.2" fill="#111827"/>',
-        '    <rect x="-9" y="-1.6" width="18" height="3" fill="#d4af37"/>',
-        '    <rect x="-9" y="-8" width="18" height="2" fill="#d4af37" opacity="0.9"/>',
-        '    <rect x="3.4" y="1.4" width="2.6" height="6.6" fill="#d4af37"/>',
-        '    <rect x="-9" y="-8" width="18" height="16" rx="1.2" fill="none" stroke="#0b3d2e" stroke-width="0.8"/>',
+        '<svg viewBox="0 0 52 52" width="52" height="52" aria-label="الكعبة المشرفة">',
+        '  <circle cx="26" cy="26" r="23" fill="#ffffff"/>',
+        '  <circle cx="26" cy="26" r="20.5" fill="#22c55e"/>',
+        '  <circle cx="26" cy="26" r="20.5" fill="none" stroke="#0b3d2e" stroke-width="1.2" opacity="0.4"/>',
+        '  <g transform="translate(26 27)">',
+        '    <rect x="-10" y="-9.5" width="20" height="19" rx="1.4" fill="#111827"/>',
+        '    <rect x="-10" y="-2.2" width="20" height="3.4" fill="#e8c473"/>',
+        '    <rect x="-10" y="-2.2" width="20" height="1" fill="#f7e3ae"/>',
+        '    <rect x="-10" y="-9.5" width="20" height="1.8" fill="#d4af37"/>',
+        '    <rect x="3.2" y="1.9" width="3.4" height="7.6" rx="0.4" fill="#e8c473"/>',
+        '    <rect x="3.2" y="1.9" width="3.4" height="1" fill="#f7e3ae"/>',
+        '    <rect x="-10" y="-9.5" width="20" height="19" rx="1.4" fill="none" stroke="#0b3d2e" stroke-width="0.9" opacity="0.6"/>',
         "  </g>",
         "</svg>",
       ].join("");
@@ -1193,15 +1201,14 @@
           }),
         ]).addTo(mapInstance);
 
-        // علامة الكعبة على الخط في اتجاه القبلة، على مسافة قصيرة من الموقع
-        // حتى تبقى ظاهرة مهما كان تقريب الخريطة
-        const markerPoint = path[Math.min(6, path.length - 1)];
-        kaabaMarkerInstance = L.marker(markerPoint, {
+        // علامة الكعبة على خط القبلة. موضعها يُحسب من امتداد الشاشة الحالي لا
+        // بمسافة ثابتة، وإلا وقعت خارج حدود العرض (الكعبة على بُعد ٢٤٠٠ كم).
+        kaabaMarkerInstance = L.marker(kaabaMarkerLatLng(lat, lon, q.bearing), {
           icon: L.divIcon({
             className: "qibla-kaaba-icon",
             html: KAABA_ICON_HTML,
-            iconSize: [46, 46],
-            iconAnchor: [23, 23],
+            iconSize: [52, 52],
+            iconAnchor: [26, 26],
           }),
           interactive: true,
           keyboard: false,
@@ -1209,6 +1216,69 @@
         })
           .addTo(mapInstance)
           .bindPopup("اتجاه القبلة نحو الكعبة المشرّفة");
+
+        lastQibla = { lat: lat, lon: lon, bearing: q.bearing };
+        bindKaabaFollow();
+      }
+
+      // آخر نتيجة محسوبة، لإعادة وضع العلامة عند تغيّر تقريب الخريطة
+      let lastQibla = null;
+      let kaabaFollowBound = false;
+
+      /**
+       * نقطة على خط القبلة تبعد عن الموقع بنحو ثلث عرض الشاشة المرئي،
+       * فتظهر العلامة دائماً داخل الإطار مهما كان مستوى التقريب.
+       */
+      function kaabaMarkerLatLng(lat, lon, bearingDeg) {
+        let distance = 300; // احتياطي إن لم تكن الخريطة جاهزة
+        try {
+          const b = mapInstance.getBounds();
+          // عرض المنطقة المرئية بالأمتار
+          const spanMeters = mapInstance.distance(
+            b.getNorthWest(),
+            b.getNorthEast(),
+          );
+          if (isFinite(spanMeters) && spanMeters > 0) distance = spanMeters * 0.33;
+        } catch (e) {
+          // نُبقي المسافة الاحتياطية
+        }
+        return destinationPoint(lat, lon, bearingDeg, distance);
+      }
+
+      /** نقطة تبعد مسافة معينة باتجاه محدد (الصيغة المباشرة على كرة الأرض) */
+      function destinationPoint(lat, lon, bearingDeg, distanceMeters) {
+        const R = 6371008.8;
+        const toRad = (d) => (d * Math.PI) / 180;
+        const toDeg = (r) => (r * 180) / Math.PI;
+
+        const d = distanceMeters / R;
+        const br = toRad(bearingDeg);
+        const p1 = toRad(lat);
+        const l1 = toRad(lon);
+
+        const p2 = Math.asin(
+          Math.sin(p1) * Math.cos(d) + Math.cos(p1) * Math.sin(d) * Math.cos(br),
+        );
+        const l2 =
+          l1 +
+          Math.atan2(
+            Math.sin(br) * Math.sin(d) * Math.cos(p1),
+            Math.cos(d) - Math.sin(p1) * Math.sin(p2),
+          );
+
+        return [toDeg(p2), ((toDeg(l2) + 540) % 360) - 180];
+      }
+
+      /** يُعيد وضع العلامة كلما تغيّر تقريب الخريطة أو حدودها */
+      function bindKaabaFollow() {
+        if (kaabaFollowBound || !mapInstance) return;
+        kaabaFollowBound = true;
+        mapInstance.on("zoomend moveend", () => {
+          if (!kaabaMarkerInstance || !lastQibla) return;
+          kaabaMarkerInstance.setLatLng(
+            kaabaMarkerLatLng(lastQibla.lat, lastQibla.lon, lastQibla.bearing),
+          );
+        });
       }
 
       let governorateAutoFillEnabled = true;
