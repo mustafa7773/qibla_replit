@@ -147,7 +147,11 @@
           hijri_date: getHijriDateString(nowForDates),
           mosque_request_no: document.getElementById("mosqueRequestNo").value.trim(),
           company_request_no: document.getElementById("companyRequestNo").value.trim(),
-          agent_info: document.getElementById("agentInfo").value.trim(),
+          // نص الوكلاء: سطر لكل وكيل. القالب يعرضه كأسطر لأن linebreaks مفعّلة
+          agent_info:
+            typeof collectAgents === "function"
+              ? collectAgents()
+              : (document.getElementById("agentInfo") || { value: "" }).value.trim(),
           governorate: document.getElementById("governorateInput").value.trim(),
           village_plot: document.getElementById("villagePlotInput").value.trim(),
           map_angle: document.getElementById("mapAngleInput").value.trim(),

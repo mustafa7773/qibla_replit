@@ -1281,3 +1281,80 @@ button.primary.subtle:hover {
     padding: var(--sp-3) var(--sp-4);
   }
 }
+
+/* --------------------------------------------------------------------------
+   19. وكلاء المسجد — صفوف قابلة للإضافة
+   -------------------------------------------------------------------------- */
+.agents-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+/* الاسم يأخذ المساحة، والهاتف خانة أصغر بجانبه */
+.agent-row {
+  display: grid;
+  grid-template-columns: 1fr 170px auto;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.agent-row input {
+  width: 100%;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--paper);
+  padding: 11px var(--sp-3);
+  font-size: var(--fs-body);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  transition: border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.agent-row input.agent-phone {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  direction: ltr;
+}
+
+.agent-row input::placeholder {
+  color: rgba(150, 163, 185, 0.55);
+}
+
+.agent-row input:hover {
+  border-color: var(--line-strong);
+}
+
+.agent-row input:focus {
+  outline: none;
+  border-color: var(--gold);
+  background: rgba(4, 8, 15, 0.9);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+@media (max-width: 560px) {
+  .agent-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "name   remove"
+      "phone  phone";
+    row-gap: var(--sp-2);
+  }
+
+  .agent-row .agent-name {
+    grid-area: name;
+  }
+
+  .agent-row .agent-phone {
+    grid-area: phone;
+  }
+
+  .agent-row .agent-remove {
+    grid-area: remove;
+  }
+}

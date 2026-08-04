@@ -1289,6 +1289,78 @@
         });
       }
 
+
+      // ======================================================================
+      // وكلاء المسجد: صفوف قابلة للإضافة والحذف — كل صف اسم وهاتف مستقلان
+      // ======================================================================
+
+      function agentRowTemplate() {
+        const row = document.createElement("div");
+        row.className = "agent-row";
+        row.innerHTML =
+          '<input type="text" class="agent-name" placeholder="اسم الوكيل أو نائبه" />' +
+          '<input type="tel" class="agent-phone textarea-mono" inputmode="tel" placeholder="رقم الهاتف" />' +
+          '<button type="button" class="icon-btn danger agent-remove" title="حذف هذا الوكيل">🗑</button>';
+        return row;
+      }
+
+      // يُبقي زر الحذف مخفياً عند وجود صف واحد فقط، فلا يُفرَّغ الحقل بالكامل
+      function refreshAgentRows() {
+        const list = document.getElementById("agentsList");
+        if (!list) return;
+        const rows = list.querySelectorAll(".agent-row");
+        rows.forEach((r) => {
+          const btn = r.querySelector(".agent-remove");
+          if (btn) btn.style.visibility = rows.length > 1 ? "visible" : "hidden";
+        });
+      }
+
+      /** يجمع الوكلاء في نص واحد، سطر لكل وكيل: "الاسم - الهاتف" */
+      function collectAgents() {
+        const list = document.getElementById("agentsList");
+        if (!list) {
+          // توافق مع النسخة القديمة ذات الحقل المفرد
+          const legacy = document.getElementById("agentInfo");
+          return legacy ? legacy.value.trim() : "";
+        }
+
+        const lines = [];
+        list.querySelectorAll(".agent-row").forEach((row) => {
+          const name = (row.querySelector(".agent-name") || {}).value || "";
+          const phone = (row.querySelector(".agent-phone") || {}).value || "";
+          const n = name.trim();
+          const p = phone.trim();
+          if (!n && !p) return;
+          lines.push(n && p ? n + " - " + p : n || p);
+        });
+        return lines.join("\n");
+      }
+
+      (function initAgents() {
+        const list = document.getElementById("agentsList");
+        const addBtn = document.getElementById("addAgentBtn");
+        if (!list || !addBtn) return;
+
+        addBtn.addEventListener("click", () => {
+          list.appendChild(agentRowTemplate());
+          refreshAgentRows();
+          const rows = list.querySelectorAll(".agent-row");
+          const last = rows[rows.length - 1].querySelector(".agent-name");
+          if (last) last.focus();
+        });
+
+        list.addEventListener("click", (e) => {
+          const btn = e.target.closest(".agent-remove");
+          if (!btn) return;
+          const rows = list.querySelectorAll(".agent-row");
+          if (rows.length <= 1) return;
+          btn.closest(".agent-row").remove();
+          refreshAgentRows();
+        });
+
+        refreshAgentRows();
+      })();
+
       let governorateAutoFillEnabled = true;
       document.getElementById("governorateInput").addEventListener("input", () => {
         governorateAutoFillEnabled = false;
