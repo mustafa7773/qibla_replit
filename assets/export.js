@@ -283,7 +283,9 @@
         const btn = document.getElementById("downloadWordBtn");
         const status = document.getElementById("wordStatus");
         if (!mapInstance || document.getElementById("resultPanel").classList.contains("hidden")) {
-          alert("يرجى حساب اتجاه القبلة أولاً قبل تحميل التقرير.");
+          // نستخدم شريط الحالة الموجود أصلاً تحت الزر بدل نافذة المتصفح
+          status.style.display = "block";
+          status.textContent = "يرجى حساب اتجاه القبلة أولاً قبل تحميل التقرير.";
           return;
         }
         status.style.display = "block";

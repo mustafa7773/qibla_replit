@@ -225,7 +225,7 @@
     // جدول ثانٍ في نفس الورقة: توزيع المساجد على المحافظات
     const byGov = {};
     records.forEach((r) => {
-      const g = r.governorate || "غير محددة";
+      const g = r.governorate || "غير محدد";
       (byGov[g] = byGov[g] || []).push(r);
     });
 

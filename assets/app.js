@@ -1521,7 +1521,7 @@
         row.innerHTML =
           '<input type="text" class="agent-name" placeholder="اسم الوكيل أو نائبه" />' +
           '<input type="tel" class="agent-phone textarea-mono" inputmode="tel" placeholder="رقم الهاتف" />' +
-          '<button type="button" class="icon-btn danger agent-remove" title="حذف هذا الوكيل">🗑</button>';
+          '<button type="button" class="icon-btn danger agent-remove" aria-label="حذف هذا الوكيل" title="حذف هذا الوكيل"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>';
         return row;
       }
 
@@ -1656,7 +1656,13 @@
         let zone = parseInt(document.getElementById("zone").value) || 40;
         const datum = document.getElementById("datum").value;
         if (rawPoints.length === 0) {
-          alert("يرجى إدخال نقطة واحدة على الأقل بصيغة Easting, Northing");
+          // صندوق الخطأ داخل الصفحة بدل alert(): لا يُجمّد الواجهة، ويتبع
+          // هوية الموقع، ويبقى ظاهراً بجوار الحقل الذي يجب تصحيحه
+          errorBox.textContent =
+            "يرجى إدخال نقطة واحدة على الأقل بصيغة Easting, Northing";
+          errorBox.classList.add("show");
+          const box = document.getElementById("pointsInput");
+          if (box) box.focus();
           return;
         }
 

@@ -22,6 +22,10 @@
 }
 
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
   padding: var(--sp-8) var(--sp-5);
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius-sm);
@@ -30,6 +34,27 @@
   font-size: var(--fs-body);
   text-align: center;
   line-height: 1.8;
+}
+
+.empty-state svg {
+  color: var(--gold);
+  opacity: 0.55;
+}
+
+.empty-state h3 {
+  margin: 0;
+  color: var(--paper);
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.empty-state p {
+  max-width: 34ch;
+  margin: 0;
+}
+
+.empty-state button {
+  margin-top: var(--sp-2);
 }
 
 /* ------------------------------------------------------------------ فلاتر */
@@ -515,4 +540,156 @@ button.primary.danger {
   word-break: break-all;
   direction: ltr;
   text-align: left;
+}
+
+/* ==========================================================================
+   الجدول على الجوال — بطاقات بدل تمرير أفقي
+   ==========================================================================
+   ثمانية أعمدة على شاشة ٣٧٥ بكسل تعني تمريراً أفقياً داخل تمرير عمودي،
+   ويقع عمود "إجراءات" في الطرف البعيد فلا يُرى أبداً. والعمل هنا ميداني
+   بالهاتف، فالجوال ليس حالة هامشية.
+
+   الحل: تحت 720 بكسل يتحوّل كل صف إلى بطاقة مستقلة. اسم التسمية يأتي من
+   data-label الذي يضعه completed.js على كل خلية، فلا يحتاج CSS معرفة ترتيب
+   الأعمدة ولا يتكسّر إن أُضيف عمود جديد.
+*/
+@media (max-width: 720px) {
+  .table-scroll {
+    overflow: visible;
+  }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  /* الرأس يختفي: كل خلية تحمل تسميتها بنفسها */
+  .data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* flex بدل block ليتقدّم اسم المسجد إلى رأس البطاقة رغم موقعه في الجدول */
+  .data-table tr {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--sp-4);
+    padding: var(--sp-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+  }
+
+  .data-table tbody tr + tr td {
+    border-top: 0;
+  }
+
+  .data-table tbody tr:hover td {
+    background: transparent;
+  }
+
+  .data-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-2) 0;
+    border: 0;
+    text-align: start;
+  }
+
+  .data-table td + td {
+    border-top: 1px solid var(--line);
+  }
+
+  .data-table td[data-label="اسم المسجد"] {
+    border-top: 0;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    font-weight: 500;
+  }
+
+  /* اسم المسجد عنوان البطاقة: بارز، بلا تسمية، بعرض السطر */
+  .data-table td[data-label="اسم المسجد"] {
+    order: -2;
+    padding-bottom: var(--sp-3);
+    color: var(--paper);
+    font-size: var(--fs-md);
+    font-weight: 600;
+  }
+
+  .data-table td[data-label="اسم المسجد"]::before {
+    content: none;
+  }
+
+  /* السعر هو الرقم الذي تبحث عنه العين أولاً */
+  .data-table td[data-label="السعر (ر.ع)"] {
+    order: -1;
+    border-top: 0;
+    color: var(--gold-light);
+    font-size: var(--fs-md);
+    font-weight: 600;
+  }
+
+  /* الإجراءات أزرار كاملة العرض: مساحة لمس مريحة بدل أيقونتين صغيرتين */
+  .data-table td.row-actions {
+    justify-content: stretch;
+    gap: var(--sp-3);
+    padding-top: var(--sp-3);
+  }
+
+  .data-table td.row-actions::before {
+    content: none;
+  }
+
+  .data-table td.row-actions .icon-btn {
+    flex: 1;
+    min-height: 42px;
+  }
+}
+
+/* -------------------------------------------------- هيكل التحميل (skeleton) */
+.data-table tr.is-skeleton td {
+  padding-block: var(--sp-4);
+}
+
+.data-table tr.is-skeleton span {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-3) 0%,
+    var(--line-strong) 50%,
+    var(--surface-3) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .data-table tr.is-skeleton td::before {
+    content: none;
+  }
 }

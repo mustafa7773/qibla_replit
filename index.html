@@ -6,11 +6,19 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#070b14" />
     <link rel="icon" href="favicon.png" />
-    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="description" content="أدوات ميدانية من شركة ابتكارات السماء: تحديد اتجاه القبلة، تخطيط وقت العمل، وتسجيل المساجد المنتهية." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="أدوات ابتكارات السماء" />
+    <meta property="og:locale" content="ar_OM" />
+    <meta property="og:title" content="أدوات ابتكارات السماء" />
+    <meta property="og:description" content="أدوات ميدانية من شركة ابتكارات السماء: تحديد اتجاه القبلة، تخطيط وقت العمل، وتسجيل المساجد المنتهية." />
+    <meta property="og:image" content="assets/icons/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
     <title>Sky Innovations Tools — أدوات ابتكارات السماء</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,10 +26,11 @@
       href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=20260803d" />
-    <link rel="stylesheet" href="assets/hub.css?v=20260803d" />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/hub.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">تخطَّ إلى المحتوى</a>
     <header class="site-header">
       <div class="site-header-inner">
         <a class="brand" href="index.html">
@@ -37,13 +46,22 @@
           </span>
         </a>
         <nav class="main-nav">
-          <a href="index.html" class="is-active">الرئيسية</a>
+          <a href="index.html" class="is-active" aria-current="page">الرئيسية</a>
           <a href="qibla.html">اتجاه القبلة</a>
           <a href="worktime.html">وقت العمل</a>
           <a href="completed.html">المساجد المنتهية</a>
         </nav>
       </div>
     </header>
+
+    <noscript>
+      <div class="noscript-note">
+        هذه الأداة تحتاج JavaScript لتعمل. فعّله في إعدادات المتصفح ثم أعد تحميل
+        الصفحة.
+      </div>
+    </noscript>
+
+    <main id="main">
 
     <section class="hero">
       <div class="star-field"></div>
@@ -115,6 +133,8 @@
         </a>
       </div>
     </div>
+    </main>
+
     <script>
       // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت
       if ("serviceWorker" in navigator) {

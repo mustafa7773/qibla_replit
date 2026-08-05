@@ -1372,3 +1372,118 @@ button.primary.subtle:hover {
   font-size: var(--fs-sm);
   line-height: 1.7;
 }
+
+/* ==========================================================================
+   رابط التخطي — أول عنصر في الصفحة، مخفي حتى يصله التركيز بلوحة المفاتيح.
+   يوفّر على مستخدم لوحة المفاتيح أو قارئ الشاشة المرور على شريط التنقل
+   في كل صفحة.
+   ========================================================================== */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  inset-inline-start: var(--sp-4);
+  z-index: 999;
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--radius-sm);
+  background: var(--gold);
+  color: #101828;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  transition: top 0.18s ease;
+}
+
+.skip-link:focus {
+  top: var(--sp-4);
+  outline: 2px solid var(--gold-light);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------- تنبيه تعطّل JavaScript */
+.noscript-note {
+  max-width: 680px;
+  margin: var(--sp-6) auto;
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--red);
+  border-radius: var(--radius-sm);
+  background: var(--red-wash);
+  color: var(--paper);
+  font-size: var(--fs-body);
+  text-align: center;
+}
+
+/* ==========================================================================
+   الطباعة
+   الأداة تُصدر تقارير رسمية تُطبع فعلاً. بلا هذا القسم تخرج الصفحة بخلفية
+   سوداء تلتهم الحبر، ومعها شريط التنقل والأزرار التي لا معنى لها على ورق.
+   ========================================================================== */
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .site-header,
+  .main-nav,
+  .hero,
+  .star-field,
+  .skip-link,
+  .table-toolbar,
+  .pagination,
+  .row-actions,
+  .filter-bar,
+  .ocr-modal-overlay,
+  button,
+  .tool-go,
+  #cmSyncStatus {
+    display: none !important;
+  }
+
+  body {
+    font-size: 11pt;
+  }
+
+  .wrap,
+  main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .panel,
+  .chart-card,
+  .kpi-card {
+    border: 1px solid #999 !important;
+    border-radius: 0;
+    page-break-inside: avoid;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .data-table th,
+  .data-table td {
+    border: 1px solid #999 !important;
+    padding: 4pt 6pt;
+  }
+
+  .data-table thead {
+    display: table-header-group; /* يتكرر الرأس في كل صفحة */
+  }
+
+  .data-table tr {
+    page-break-inside: avoid;
+  }
+
+  /* الروابط على الورق بلا عنوان لا فائدة منها */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+  }
+}

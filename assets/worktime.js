@@ -40,6 +40,52 @@
     return document.getElementById(id);
   }
 
+  // ------------------------------------------------------------ تأكيد الحذف
+  //
+  // بديل confirm() الأصلي، الذي يُجمّد الصفحة، ويظهر بخط النظام لا بهوية
+  // الموقع، ويجعل زر التدمير مطابقاً لزر الإلغاء تماماً.
+  // هنا: زر أحمر واضح، وEsc للإلغاء، والتركيز يبدأ على "إلغاء" لا على الحذف.
+  let pendingConfirm = null;
+
+  function askConfirm(message, okLabel, onConfirm) {
+    const box = el("wtConfirm");
+    if (!box) {
+      // احتياط: إن غاب الحوار لأي سبب لا نحذف بصمت
+      if (window.confirm(message)) onConfirm();
+      return;
+    }
+    pendingConfirm = onConfirm;
+    el("wtConfirmText").textContent = message;
+    el("wtConfirmOk").textContent = okLabel || "حذف";
+    box.classList.remove("hidden");
+    el("wtConfirmCancel").focus();
+  }
+
+  function closeConfirm() {
+    pendingConfirm = null;
+    const box = el("wtConfirm");
+    if (box) box.classList.add("hidden");
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const box = el("wtConfirm");
+    if (!box) return;
+
+    el("wtConfirmCancel").addEventListener("click", closeConfirm);
+    el("wtConfirmOk").addEventListener("click", function () {
+      const fn = pendingConfirm;
+      closeConfirm();
+      if (fn) fn();
+    });
+    // النقر خارج الصندوق يُلغي، كما هو متوقّع في أي حوار
+    box.addEventListener("click", function (e) {
+      if (e.target === box) closeConfirm();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !box.classList.contains("hidden")) closeConfirm();
+    });
+  });
+
   function showError(message) {
     const box = el("errorBox");
     box.textContent = message;
@@ -560,7 +606,7 @@
         if (dateStr && subParts.indexOf(dateStr) === -1) subParts.push(dateStr);
 
         const hasGov = !!(m.governorate || segments.length > 2);
-        if (!hasGov) subParts.push("بلا ولاية — اضغط ✎");
+        if (!hasGov) subParts.push("بلا ولاية — اضغط زر التعديل");
         const subtitle = subParts.join(" · ");
 
         return (
@@ -580,10 +626,10 @@
           m.northing.toFixed(0) +
           '</span><button type="button" class="icon-btn" data-edit="' +
           m.id +
-          '" title="تعديل الاسم والولاية">✎</button>' +
+          '" aria-label="تعديل الاسم والولاية" title="تعديل الاسم والولاية"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
           '<button type="button" class="icon-btn danger" data-delete="' +
           m.id +
-          '" title="حذف هذا المسجد">🗑</button></div>'
+          '" aria-label="حذف هذا المسجد" title="حذف هذا المسجد"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></div>'
         );
       })
       .join("");
@@ -868,9 +914,10 @@
       if (!store) return;
       const item = store.loadAll().find((m) => m.id === id);
       const label = item ? String(item.name).split(" — ")[0] : "هذا المسجد";
-      if (!confirm("حذف «" + label + "» من القائمة؟")) return;
-      store.removeById(id);
-      renderSavedMosques();
+      askConfirm("سيُحذف «" + label + "» من القائمة.", "حذف المسجد", function () {
+        store.removeById(id);
+        renderSavedMosques();
+      });
     }
   });
 
@@ -882,9 +929,16 @@
 
   el("clearSaved").addEventListener("click", function () {
     if (!window.MosqueStore) return;
-    if (!confirm("سيتم مسح كل المساجد المحفوظة. هل تريد المتابعة؟")) return;
-    window.MosqueStore.clearAll();
-    renderSavedMosques();
+    const total = window.MosqueStore.loadAll().length;
+    if (!total) return;
+    askConfirm(
+      "سيُمسح " + total + " مسجداً من القائمة المحفوظة، ولا يمكن التراجع.",
+      "امسح الكل",
+      function () {
+        window.MosqueStore.clearAll();
+        renderSavedMosques();
+      },
+    );
   });
 
   // ملاحظة: window.open مع وسيط خصائص (مثل "noopener") تعامله بعض المتصفحات

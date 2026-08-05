@@ -79,9 +79,16 @@
     const opts = options || {};
     const url = method === "GET" ? API + "?type=" + encodeURIComponent(opts.type) : API;
 
+    // المفتاح المشترك اختياري: يُرسل فقط إن ضُبط في config.js، ويجب أن يطابق
+    // SKY_API_KEY في متغيرات بيئة Vercel
+    const headers = {};
+    if (method !== "GET") headers["Content-Type"] = "application/json";
+    const key = window.SkyConfig && window.SkyConfig.apiKey;
+    if (key) headers["X-Sky-Key"] = key;
+
     const res = await fetch(url, {
       method,
-      headers: method === "GET" ? undefined : { "Content-Type": "application/json" },
+      headers: Object.keys(headers).length ? headers : undefined,
       body: method === "GET" ? undefined : JSON.stringify(opts.body),
     });
 

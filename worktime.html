@@ -6,11 +6,19 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#070b14" />
     <link rel="icon" href="favicon.png" />
-    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="description" content="خطّط يوم عملك الميداني بأقصر مسار بين المساجد، مع حساب أزمنة التنقل والعمل." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="أدوات ابتكارات السماء" />
+    <meta property="og:locale" content="ar_OM" />
+    <meta property="og:title" content="أداة حساب وقت العمل — أدوات ابتكارات السماء" />
+    <meta property="og:description" content="خطّط يوم عملك الميداني بأقصر مسار بين المساجد، مع حساب أزمنة التنقل والعمل." />
+    <meta property="og:image" content="assets/icons/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
     <title>أداة حساب وقت العمل — Sky Innovations Tools</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,11 +27,12 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="assets/style.css?v=20260803d" />
-    <link rel="stylesheet" href="assets/hub.css?v=20260803d" />
-    <link rel="stylesheet" href="assets/worktime.css?v=20260803d" />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/hub.css" />
+    <link rel="stylesheet" href="assets/worktime.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">تخطَّ إلى المحتوى</a>
     <header class="site-header">
       <div class="site-header-inner">
         <a class="brand" href="index.html">
@@ -41,11 +50,20 @@
         <nav class="main-nav">
           <a href="index.html">الرئيسية</a>
           <a href="qibla.html">اتجاه القبلة</a>
-          <a href="worktime.html" class="is-active">وقت العمل</a>
+          <a href="worktime.html" class="is-active" aria-current="page">وقت العمل</a>
           <a href="completed.html">المساجد المنتهية</a>
         </nav>
       </div>
     </header>
+
+    <noscript>
+      <div class="noscript-note">
+        هذه الأداة تحتاج JavaScript لتعمل. فعّله في إعدادات المتصفح ثم أعد تحميل
+        الصفحة.
+      </div>
+    </noscript>
+
+    <main id="main">
 
     <section class="hero">
       <div class="star-field"></div>
@@ -202,13 +220,27 @@
     </div>
 
     <!-- Scripts -->
+    <!-- تأكيد الحذف -->
+    <div class="ocr-modal-overlay hidden" id="wtConfirm" role="dialog" aria-modal="true" aria-labelledby="wtConfirmTitle">
+      <div class="ocr-modal-box">
+        <h3 id="wtConfirmTitle">تأكيد الحذف</h3>
+        <p class="sub" id="wtConfirmText"></p>
+        <div class="toolbar">
+          <button type="button" class="ghost" id="wtConfirmCancel">إلغاء</button>
+          <button type="button" class="primary danger" id="wtConfirmOk">حذف</button>
+        </div>
+      </div>
+    </div>
+
+    </main>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="assets/data-api.js?v=20260803d"></script>
-    <script src="assets/config.js?v=20260803d"></script>
-    <script src="assets/geo.js?v=20260803d"></script>
-    <script src="assets/mosque-store.js?v=20260803d" defer></script>
-    <script src="assets/cloud-sync.js?v=20260803d" defer></script>
-    <script src="assets/worktime.js?v=20260803d" defer></script>
+    <script src="assets/data-api.js"></script>
+    <script src="assets/config.js"></script>
+    <script src="assets/geo.js"></script>
+    <script src="assets/mosque-store.js" defer></script>
+    <script src="assets/cloud-sync.js" defer></script>
+    <script src="assets/worktime.js" defer></script>
     <script>
       // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت
       if ("serviceWorker" in navigator) {

@@ -14,6 +14,20 @@
   const store = window.CompletedStore;
   const PAGE_SIZE = 10;
 
+  // أيقونات SVG بدل الرموز التعبيرية ✎ و 🗑 — الرموز التعبيرية يرسمها نظام
+  // التشغيل فتختلف بين iOS و Windows و Android، ولا تتبع currentColor فلا
+  // يتغيّر لونها عند التحويم أو في حالة الخطر
+  const ICON_EDIT =
+    '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg>';
+
+  const ICON_TRASH =
+    '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/>' +
+    '<path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+
   const MONTHS = [
     "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
@@ -67,6 +81,7 @@
   // ------------------------------------------------------------- notifications
 
   let successTimer = null;
+  let undoTimer = null;
 
   function showError(msgs) {
     const box = el("cmError");
@@ -80,11 +95,57 @@
     el("cmError").classList.remove("show");
   }
 
-  function showSuccess(msg) {
+  // ----------------------------------------------------------- التراجع
+  //
+  // الحذف نهائي على الخادم، فنمنح المستخدم عشر ثوانٍ لاسترجاع السجل بإعادة
+  // إضافته بنفس بياناته. معرّف السجل الجديد يختلف عن القديم — وهذا مقبول:
+  // المهم أن البيانات لا تضيع.
+  function offerUndo(snapshot, message) {
     const box = el("cmSuccess");
-    box.textContent = msg;
+    box.innerHTML = "";
+    box.appendChild(document.createTextNode(message + " "));
+
+    if (snapshot) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "link-btn";
+      btn.textContent = "تراجع";
+      btn.addEventListener("click", function () {
+        const res = store.add({
+          completionDate: snapshot.completionDate,
+          governorate: snapshot.governorate,
+          price: snapshot.price,
+          mosqueName: snapshot.mosqueName,
+          requestNo: snapshot.requestNo,
+          agentPhone: snapshot.agentPhone,
+          notes: snapshot.notes,
+        });
+        if (!res.ok) {
+          showError("تعذّر استرجاع السجل: " + res.errors.join(" "));
+          return;
+        }
+        clearTimeout(undoTimer);
+        box.classList.remove("show");
+        render();
+        if (res.promise) res.promise.then(render);
+        showSuccess("استُرجع السجل.");
+      });
+      box.appendChild(btn);
+    }
+
     box.classList.add("show");
     clearError();
+    clearTimeout(undoTimer);
+    clearTimeout(successTimer);
+    undoTimer = setTimeout(() => box.classList.remove("show"), 10000);
+  }
+
+  function showSuccess(msg) {
+    const box = el("cmSuccess");
+    box.textContent = msg; // يمسح زر التراجع إن كان معروضاً
+    box.classList.add("show");
+    clearError();
+    clearTimeout(undoTimer);
     clearTimeout(successTimer);
     successTimer = setTimeout(() => box.classList.remove("show"), 5000);
   }
@@ -475,19 +536,21 @@
     el("cmTableBody").innerHTML = slice
       .map((r) => {
         const synced = r.syncState === "synced";
+        // data-label يغذّي بطاقات الجوال: تحت 640 بكسل يتحوّل كل صف إلى
+        // بطاقة، وتُقرأ هذه التسميات كعناوين للقيم عبر ::before في CSS
         return (
           "<tr>" +
-          '<td class="num">' + formatDate(r.completionDate) + "</td>" +
-          '<td class="num">' + escapeHtml(r.requestNo || "—") + "</td>" +
-          "<td>" + escapeHtml(r.governorate) + "</td>" +
-          "<td>" + escapeHtml(r.mosqueName || "—") + "</td>" +
-          '<td class="num">' + escapeHtml(r.agentPhone || "—") + "</td>" +
-          '<td class="num">' + formatMoney(r.price) + "</td>" +
-          '<td><span class="pill ' + (synced ? "is-ok" : "is-wait") + '">' +
+          '<td class="num" data-label="تاريخ الإنجاز">' + formatDate(r.completionDate) + "</td>" +
+          '<td class="num" data-label="رقم الطلب">' + escapeHtml(r.requestNo || "—") + "</td>" +
+          '<td data-label="المحافظة">' + escapeHtml(r.governorate) + "</td>" +
+          '<td data-label="اسم المسجد">' + escapeHtml(r.mosqueName || "—") + "</td>" +
+          '<td class="num" data-label="هاتف الوكيل">' + escapeHtml(r.agentPhone || "—") + "</td>" +
+          '<td class="num" data-label="السعر (ر.ع)">' + formatMoney(r.price) + "</td>" +
+          '<td data-label="الحالة"><span class="pill ' + (synced ? "is-ok" : "is-wait") + '">' +
           (synced ? "مُزامَن" : "بانتظار المزامنة") + "</span></td>" +
-          '<td class="row-actions">' +
-          '<button type="button" class="icon-btn" data-edit="' + r.id + '" title="تعديل">✎</button>' +
-          '<button type="button" class="icon-btn danger" data-del="' + r.id + '" title="حذف">🗑</button>' +
+          '<td class="row-actions" data-label="إجراءات">' +
+          '<button type="button" class="icon-btn" data-edit="' + r.id + '" aria-label="تعديل السجل" title="تعديل">' + ICON_EDIT + "</button>" +
+          '<button type="button" class="icon-btn danger" data-del="' + r.id + '" aria-label="حذف السجل" title="حذف">' + ICON_TRASH + "</button>" +
           "</td></tr>"
         );
       })
@@ -591,6 +654,16 @@
     el("cmAddBtn").addEventListener("click", submitForm);
     el("cmExport").addEventListener("click", exportToExcel);
 
+    // زر الحالة الفارغة: يمرّر إلى النموذج ويضع التركيز على أول حقل،
+    // فالحالة الفارغة ترشد بدل أن تعتذر
+    const emptyAdd = el("cmEmptyAdd");
+    if (emptyAdd) {
+      emptyAdd.addEventListener("click", function () {
+        el("cmDate").scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => el("cmDate").focus(), 300);
+      });
+    }
+
     document.addEventListener("mosques:updated", fillQiblaPicker);
 
     el("cmFromQibla").addEventListener("change", function () {
@@ -673,6 +746,9 @@
 
     el("cmConfirmOk").addEventListener("click", () => {
       if (view.pendingDeleteId) {
+        // نحتفظ بنسخة كاملة قبل الحذف: مساح متعب في الميدان قد يضغط الحذف
+        // على الصف الخطأ، وبلا هذه النسخة لا سبيل لاسترجاعه
+        const snapshot = store.getById(view.pendingDeleteId);
         const out = store.remove(view.pendingDeleteId);
         if (view.editingId === view.pendingDeleteId) resetForm();
         view.pendingDeleteId = null;
@@ -680,11 +756,11 @@
         if (out && out.promise) {
           out.promise.then((r) => {
             render();
-            if (r.synced) showSuccess("تم حذف السجل من الخادم.");
+            if (r.synced) offerUndo(snapshot, "تم حذف السجل من الخادم.");
             else showError("حُذف محلياً، لكن تعذّر الوصول للخادم: " + r.error);
           });
         } else {
-          showSuccess("تم حذف السجل.");
+          offerUndo(snapshot, "تم حذف السجل.");
         }
       }
       el("cmConfirm").classList.add("hidden");
@@ -807,6 +883,32 @@
 
   // ------------------------------------------------------------- init
 
+  // ------------------------------------------------------------- التحميل
+  //
+  // بلا هذا يبقى الجدول فارغاً أثناء الجلب ثم يظهر فجأة، فتبدو الصفحة معطّلة
+  // على شبكة ميدانية بطيئة — فيضغط المستخدم تحديث ويعيد الدورة.
+  // نعرض هيكل ثلاثة صفوف بدل الفراغ: لا شاشة فارغة أبداً.
+  function showSkeleton() {
+    if (store.loadAll().length) return; // عندنا نسخة محفوظة — نعرضها بدل الهيكل
+    el("cmEmpty").classList.add("hidden");
+    el("cmTable").classList.remove("hidden");
+    el("cmTableBody").innerHTML = Array.from({ length: 3 })
+      .map(
+        () =>
+          '<tr class="is-skeleton" aria-hidden="true">' +
+          Array.from({ length: 8 })
+            .map(() => "<td><span></span></td>")
+            .join("") +
+          "</tr>",
+      )
+      .join("");
+    el("cmTableBody").setAttribute("aria-busy", "true");
+  }
+
+  function hideSkeleton() {
+    el("cmTableBody").removeAttribute("aria-busy");
+  }
+
   function init() {
     if (!store) return;
     const cfg0 = store.getSyncConfig();
@@ -820,7 +922,9 @@
     // فتح الصفحة على أي جهاز يجلب أحدث السجلات من الجدول تلقائياً
     // البيانات تُجلب من الخادم، وهو المصدر الوحيد للحقيقة
     el("cmSyncStatus").textContent = "جاري التحميل من الخادم...";
+    showSkeleton();
     store.refresh().then((r) => {
+      hideSkeleton();
       render();
       if (r.ok) {
         el("cmSyncStatus").textContent = "متصل بالخادم — " + r.total + " سجل.";

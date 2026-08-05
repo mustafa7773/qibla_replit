@@ -6,11 +6,19 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#070b14" />
     <link rel="icon" href="favicon.png" />
-    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="description" content="سجّل المساجد المنتهية، وتابع الإيراد شهرياً وسنوياً، وصدّر التقارير إلى Excel." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="أدوات ابتكارات السماء" />
+    <meta property="og:locale" content="ar_OM" />
+    <meta property="og:title" content="المساجد المنتهية — أدوات ابتكارات السماء" />
+    <meta property="og:description" content="سجّل المساجد المنتهية، وتابع الإيراد شهرياً وسنوياً، وصدّر التقارير إلى Excel." />
+    <meta property="og:image" content="assets/icons/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
     <title>المساجد المنتهية — Sky Innovations Tools</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,11 +26,12 @@
       href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=20260805b" />
-    <link rel="stylesheet" href="assets/hub.css?v=20260805b" />
-    <link rel="stylesheet" href="assets/completed.css?v=20260805b" />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/hub.css" />
+    <link rel="stylesheet" href="assets/completed.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">تخطَّ إلى المحتوى</a>
     <header class="site-header">
       <div class="site-header-inner">
         <a class="brand" href="index.html">
@@ -41,10 +50,19 @@
           <a href="index.html">الرئيسية</a>
           <a href="qibla.html">اتجاه القبلة</a>
           <a href="worktime.html">وقت العمل</a>
-          <a href="completed.html" class="is-active">المساجد المنتهية</a>
+          <a href="completed.html" class="is-active" aria-current="page">المساجد المنتهية</a>
         </nav>
       </div>
     </header>
+
+    <noscript>
+      <div class="noscript-note">
+        هذه الأداة تحتاج JavaScript لتعمل. فعّله في إعدادات المتصفح ثم أعد تحميل
+        الصفحة.
+      </div>
+    </noscript>
+
+    <main id="main">
 
     <section class="hero">
       <div class="star-field"></div>
@@ -154,19 +172,19 @@
         <div class="chart-grid">
           <div class="chart-card">
             <h3>الإيراد الشهري</h3>
-            <div class="chart-body" id="chartRevenue"></div>
+            <div class="chart-body" id="chartRevenue" role="img" aria-label="رسم بياني لإجمالي الإيراد في كل شهر"></div>
           </div>
           <div class="chart-card">
             <h3>المساجد المنتهية شهرياً</h3>
-            <div class="chart-body" id="chartCount"></div>
+            <div class="chart-body" id="chartCount" role="img" aria-label="رسم بياني لعدد المساجد المنتهية في كل شهر"></div>
           </div>
           <div class="chart-card">
             <h3>التوزيع حسب المحافظة</h3>
-            <div class="chart-body" id="chartGov"></div>
+            <div class="chart-body" id="chartGov" role="img" aria-label="رسم بياني لتوزيع المساجد على المحافظات"></div>
           </div>
           <div class="chart-card" id="chartYearCard">
             <h3>مقارنة السنوات</h3>
-            <div class="chart-body" id="chartYear"></div>
+            <div class="chart-body" id="chartYear" role="img" aria-label="رسم بياني لمقارنة الإيراد بين السنوات"></div>
           </div>
         </div>
       </div>
@@ -207,7 +225,14 @@
         </div>
 
         <div class="empty-state hidden" id="cmEmpty">
-          لا توجد سجلات بعد. أضف أول مسجد منتهٍ من النموذج أعلاه.
+          <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 10l9-7 9 7v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/>
+            <path d="M9 21v-6h6v6"/>
+          </svg>
+          <h3>لا توجد سجلات بعد</h3>
+          <p>سجّل أول مسجد منتهٍ لتبدأ لوحة الإحصاءات في العمل.</p>
+          <button type="button" class="primary" id="cmEmptyAdd">إضافة أول مسجد</button>
         </div>
 
         <div class="pagination" id="cmPagination"></div>
@@ -260,15 +285,17 @@
     </div>
 
     <!-- Scripts -->
+    </main>
+
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.2.0/dist/pizzip.js"></script>
-    <script src="assets/xlsx-export.js?v=20260805b"></script>
-    <script src="assets/data-api.js?v=20260805b"></script>
-    <script src="assets/config.js?v=20260805b"></script>
-    <script src="assets/mosque-store.js?v=20260805b" defer></script>
-    <script src="assets/cloud-sync.js?v=20260805b" defer></script>
-    <script src="assets/governorates.js?v=20260805b" defer></script>
-    <script src="assets/completed-store.js?v=20260805b" defer></script>
-    <script src="assets/completed.js?v=20260805b" defer></script>
+    <script src="assets/xlsx-export.js"></script>
+    <script src="assets/data-api.js"></script>
+    <script src="assets/config.js"></script>
+    <script src="assets/mosque-store.js" defer></script>
+    <script src="assets/cloud-sync.js" defer></script>
+    <script src="assets/governorates.js" defer></script>
+    <script src="assets/completed-store.js" defer></script>
+    <script src="assets/completed.js" defer></script>
     <script>
       // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت
       if ("serviceWorker" in navigator) {

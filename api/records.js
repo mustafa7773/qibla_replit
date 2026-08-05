@@ -111,13 +111,52 @@ function parseHash(flat) {
   return out;
 }
 
+// ---------------------------------------------------------------- الحماية
+//
+// طبقتان، وكلتاهما ليستا بديلاً عن قفل الموقع نفسه:
+//
+//   1) قائمة الأصول المسموحة — تمنع موقعاً آخر من قراءة بياناتك عبر متصفح
+//      زائرك. لا تمنع curl أو أي أداة خارج المتصفح.
+//   2) مفتاح مشترك اختياري (SKY_API_KEY) — يمنع الفضولي العابر. المفتاح يصل
+//      المتصفح فيراه من يفتح أدوات المطوّر، فهو تأخير لا حماية.
+//
+// الحماية الحقيقية الوحيدة: Vercel → Settings → Deployment Protection.
+// فعّلها، وستصبح الطبقتان أدناه دفاعاً في العمق لا خط الدفاع الأول.
+
+const ALLOWED_ORIGINS = [
+  "https://qibla-replit.vercel.app",
+  "http://localhost:3000",
+];
+
+function resolveOrigin(req) {
+  const origin = String((req.headers && req.headers.origin) || "");
+  if (!origin) return null; // طلب ليس من متصفح (curl، خادم آخر)
+  return ALLOWED_ORIGINS.includes(origin) ? origin : false;
+}
+
 module.exports = async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = resolveOrigin(req);
+
+  if (origin === false) {
+    return res.status(403).json({ ok: false, error: "أصل غير مصرّح به." });
+  }
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Sky-Key");
   res.setHeader("Cache-Control", "no-store");
 
   if (req.method === "OPTIONS") return res.status(204).end();
+
+  // المفتاح المشترك يعمل فقط إن ضُبط SKY_API_KEY في متغيرات بيئة Vercel،
+  // فلا ينكسر الموقع إن لم تضبطه بعد
+  const apiKey = process.env.SKY_API_KEY;
+  if (apiKey && String(req.headers["x-sky-key"] || "") !== apiKey) {
+    return res.status(401).json({ ok: false, error: "غير مصرّح." });
+  }
 
   try {
     if (req.method === "GET") {

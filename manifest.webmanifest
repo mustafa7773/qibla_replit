@@ -1,0 +1,38 @@
+{
+  "name": "أدوات ابتكارات السماء",
+  "short_name": "أدوات السماء",
+  "description": "أدوات ميدانية لتحديد اتجاه القبلة، تخطيط وقت العمل، وتسجيل المساجد المنتهية.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070b14",
+  "theme_color": "#070b14",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "اتجاه القبلة", "url": "./qibla.html" },
+    { "name": "وقت العمل", "url": "./worktime.html" },
+    { "name": "المساجد المنتهية", "url": "./completed.html" }
+  ]
+}
