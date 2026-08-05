@@ -1145,6 +1145,101 @@
         .getElementById("declination")
         .addEventListener("input", updateCompassField);
 
+      // ---------- اقتراح حالة الخرائط تلقائياً ----------
+      //
+      // CW هي الزاوية المعروضة مع اتجاه القبلة أعلى الصفحة، وقيمتها
+      // (360 - زاوية القبلة) % 360. فإن اختلفت الزاوية المكتوبة في خانة
+      // "الزاوية بالخرائط" عن CW بأكثر من درجة واحدة، فاتجاه المبنى في
+      // الخرائط لا يطابق القبلة، ونقترح تعديله.
+      //
+      // الاختيار يُضبط تلقائياً كلما تغيّرت الزاوية بالخرائط أو أُعيد حساب
+      // القبلة، لكن يبقى بإمكانك تغييره يدوياً — وحينها تنبّهك الملاحظة
+      // إلى أن اختيارك يخالف المقترح.
+      const MAPS_TOLERANCE_DEG = 1;
+      let qiblaComputed = false;
+
+      // فرق الزاويتين بأقصر اتجاه (يعالج الالتفاف حول 360°)
+      function angleGap(a, b) {
+        let d = Math.abs(a - b) % 360;
+        if (d > 180) d = 360 - d;
+        return d;
+      }
+
+      // يقبل "90" و "90°" و "90 درجة"
+      function parseAngleText(text) {
+        const n = parseFloat(String(text || "").replace(/[^\d.\-]/g, ""));
+        if (!isFinite(n)) return null;
+        return ((n % 360) + 360) % 360;
+      }
+
+      function updateMapsStatus(applyToSelect) {
+        const sel = document.getElementById("mapsStatusInput");
+        const hint = document.getElementById("mapsStatusHint");
+        const input = document.getElementById("mapAngleInput");
+        if (!sel || !hint || !input) return;
+
+        if (!qiblaComputed) {
+          hint.textContent =
+            "احسب اتجاه القبلة أولاً، ثم اكتب الزاوية بالخرائط ليُختار الحقل تلقائياً.";
+          return;
+        }
+
+        const cw = (360 - lastBearing) % 360;
+        const mapAngle = parseAngleText(input.value);
+
+        if (mapAngle === null) {
+          hint.textContent =
+            "اكتب الزاوية بالخرائط لتُقارَن مع CW = " +
+            cw.toFixed(2) +
+            "° فيُختار الحقل تلقائياً.";
+          return;
+        }
+
+        const gap = angleGap(mapAngle, cw);
+        const recommended = gap > MAPS_TOLERANCE_DEG ? "adjust" : "feasible";
+
+        if (applyToSelect) sel.value = recommended;
+
+        const numbers =
+          "الزاوية بالخرائط " +
+          mapAngle.toFixed(2) +
+          "° و CW " +
+          cw.toFixed(2) +
+          "° — الفرق " +
+          gap.toFixed(2) +
+          "°";
+
+        let text;
+        if (recommended === "adjust") {
+          text =
+            numbers +
+            "، أي أكبر من درجة، لذلك نقترح تعديل اتجاه المبنى بالخرائط وفق زاوية القبلة.";
+        } else {
+          text =
+            numbers +
+            "، أي درجة أو أقل، لذلك اتجاه المبنى مطابق للقبلة وقابل للتنفيذ ميدانيا كما هو.";
+        }
+
+        if (sel.value !== recommended) {
+          text +=
+            " ⚠ اخترت خلاف المقترح يدوياً — سيُعتمد اختيارك في التقرير.";
+        }
+
+        hint.textContent = text;
+      }
+
+      document
+        .getElementById("mapAngleInput")
+        .addEventListener("input", function () {
+          updateMapsStatus(true);
+        });
+
+      document
+        .getElementById("mapsStatusInput")
+        .addEventListener("change", function () {
+          updateMapsStatus(false);
+        });
+
       function compassIcon() {
         const svg = `
   <svg width="110" height="110" viewBox="0 0 250 250" xmlns="http://www.w3.org/2000/svg">
@@ -1271,6 +1366,8 @@
             "rotate(" + q.bearing.toFixed(2) + ",120,120)",
           );
         updateCompassField();
+        qiblaComputed = true;
+        updateMapsStatus(true);
 
         const path = greatCirclePoints(lat, lon, KAABA.lat, KAABA.lon, 150);
         if (lineInstance) {
