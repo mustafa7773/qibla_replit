@@ -156,6 +156,9 @@
           village_plot: document.getElementById("villagePlotInput").value.trim(),
           map_angle: document.getElementById("mapAngleInput").value.trim(),
           request_status: document.getElementById("requestStatusInput").value.trim(),
+          maps_status: (
+            document.getElementById("mapsStatusInput") || { value: "feasible" }
+          ).value,
           notes: document.getElementById("notesInput").value.trim(),
         };
       }
@@ -218,6 +221,9 @@
           status_box_awali: fields.request_status === "أولي" ? CHECKED_BOX : UNCHECKED_BOX,
           status_box_jahiz: fields.request_status === "جاهز" ? CHECKED_BOX : UNCHECKED_BOX,
           status_box_muktamil: fields.request_status === "مكتمل" ? CHECKED_BOX : UNCHECKED_BOX,
+          // خانتا الخرائط: واحدة فقط تُعلَّم حسب الاختيار
+          maps_box_feasible: fields.maps_status === "feasible" ? CHECKED_BOX : UNCHECKED_BOX,
+          maps_box_adjust: fields.maps_status === "adjust" ? CHECKED_BOX : UNCHECKED_BOX,
         });
 
         const outZip = docTemplate.getZip();
