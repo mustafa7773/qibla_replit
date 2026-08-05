@@ -344,11 +344,8 @@
         if (pairs.length > 0)
           document.getElementById("pointsInput").value = pairs.join("\n");
 
-        const zoneM = text.match(/\b(\d{1,2})\s*N\b/i);
-        if (zoneM) {
-          const z = parseInt(zoneM[1]);
-          if (z >= 1 && z <= 60) document.getElementById("zone").value = z;
-        }
+        const detectedZone = detectZone(text);
+        if (detectedZone) document.getElementById("zone").value = detectedZone;
 
         // اكتشاف نظام الإسناد تلقائياً من نص الكروكي
         document.getElementById("datum").value = detectDatum(text);
@@ -911,6 +908,95 @@
         ];
       }
 
+
+
+      // ملاحظة تظهر أسفل اختيار النطاق عند تصحيحه تلقائياً
+      function showZoneNote(message) {
+        let el = document.getElementById("zoneNote");
+        if (!el) {
+          const zoneField = document.getElementById("zone");
+          if (!zoneField) return;
+          el = document.createElement("p");
+          el.id = "zoneNote";
+          el.className = "zone-note";
+          zoneField.parentNode.appendChild(el);
+        }
+        el.textContent = message;
+        el.style.display = "block";
+      }
+
+      function hideZoneNote() {
+        const el = document.getElementById("zoneNote");
+        if (el) el.style.display = "none";
+      }
+
+      // ======================================================================
+      // نطاق UTM
+      //
+      // عُمان تقع على نطاقين: 39 غرباً (خط الطول 48–54) و 40 شرقاً (54–60).
+      // محافظة ظفار وحدها هي التي تقع في النطاق 39، وبقية المحافظات في 40.
+      // ======================================================================
+
+      // أسماء تدل على ظفار في الكروكي (المحافظة وولاياتها)
+      const DHOFAR_HINTS =
+        /ظفار|صلالة|رخيوت|ضلكوت|مرباط|طاقة|ثمريت|شليم|سدح|مقشن|المزيونة|الحلانيات|dhofar|zufar|salalah|rakhyut|dalkut|mirbat|taqah|thumrait|shalim|sadah|muqshin|mazyunah/i;
+
+      /**
+       * يستنتج نطاق UTM من نص الكروكي.
+       * الأولوية لما هو مكتوب صراحةً (مثل "40N")، ثم لاسم المنطقة.
+       */
+      function detectZone(text) {
+        const raw = String(text || "");
+
+        // نقبل 39 أو 40 فقط — أي رقم آخر متبوع بحرف N هو مطابقة خاطئة غالباً
+        const explicit = raw.match(/\b(39|40)\s*N\b/i);
+        if (explicit) return parseInt(explicit[1], 10);
+
+        if (DHOFAR_HINTS.test(raw)) return 39;
+
+        return null;
+      }
+
+      // الحدود التقريبية لسلطنة عُمان — للتحقق من صحة النطاق المختار
+      const OMAN_BOUNDS = { minLat: 16.4, maxLat: 26.6, minLon: 51.8, maxLon: 60.0 };
+
+      function insideOman(p) {
+        if (
+          p.lat < OMAN_BOUNDS.minLat ||
+          p.lat > OMAN_BOUNDS.maxLat ||
+          p.lon < OMAN_BOUNDS.minLon ||
+          p.lon > OMAN_BOUNDS.maxLon
+        ) {
+          return false;
+        }
+
+        // جنوب عُمان (ظفار) لا يمتد شرقاً بعد ~56.6 — ما بعدها بحر عربي.
+        // هذا القيد هو ما يكشف كروكيات ظفار المقروءة بالنطاق 40 خطأً، إذ
+        // توقعها في البحر بينما تبدو ضمن الإطار العام للسلطنة.
+        if (p.lat < 19.5 && p.lon > 56.6) return false;
+
+        return true;
+      }
+
+      /**
+       * يتحقق من النطاق المختار: إن أوقع الإحداثيات خارج عُمان بينما النطاق
+       * الآخر يوقعها داخلها، فالنطاق المختار خاطئ ويُصحَّح تلقائياً.
+       * هذه أقوى إشارة متاحة، لأنها مبنية على الأرقام نفسها لا على النص.
+       */
+      function resolveZone(rawPoints, zone, datum) {
+        if (!rawPoints.length) return { zone, corrected: false };
+
+        const [E, N] = rawPoints[0];
+        const current = convertToWGS84(E, N, zone, datum);
+        if (insideOman(current)) return { zone, corrected: false };
+
+        const other = zone === 39 ? 40 : 39;
+        const alt = convertToWGS84(E, N, other, datum);
+        if (insideOman(alt)) return { zone: other, corrected: true, from: zone };
+
+        return { zone, corrected: false };
+      }
+
       function convertToWGS84(E, N, zone, datum) {
         const CLARKE_A = 6378249.145,
           CLARKE_INVF = 293.465;
@@ -1470,11 +1556,24 @@
       document.getElementById("computeBtn").addEventListener("click", () => {
         errorBox.classList.remove("show");
         const rawPoints = parsePoints();
-        const zone = parseInt(document.getElementById("zone").value) || 40;
+        let zone = parseInt(document.getElementById("zone").value) || 40;
         const datum = document.getElementById("datum").value;
         if (rawPoints.length === 0) {
           alert("يرجى إدخال نقطة واحدة على الأقل بصيغة Easting, Northing");
           return;
+        }
+
+        // تصحيح تلقائي للنطاق إن كان يوقع الأرض خارج عُمان
+        const zoneCheck = resolveZone(rawPoints, zone, datum);
+        if (zoneCheck.corrected) {
+          zone = zoneCheck.zone;
+          document.getElementById("zone").value = String(zone);
+          showZoneNote(
+            "صُحّح نطاق UTM تلقائياً من " + zoneCheck.from + " إلى " + zone +
+              " — النطاق السابق يوقع القطعة خارج حدود عُمان.",
+          );
+        } else {
+          hideZoneNote();
         }
 
         const wgsPoints = rawPoints.map(([E, N]) =>

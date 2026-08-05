@@ -1358,3 +1358,17 @@ button.primary.subtle:hover {
     grid-area: remove;
   }
 }
+
+/* ملاحظة تصحيح نطاق UTM */
+.zone-note {
+  display: none;
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid rgba(223, 182, 104, 0.35);
+  border-inline-start: 2px solid var(--gold);
+  border-radius: var(--radius-xs);
+  background: var(--gold-wash);
+  color: var(--gold-light);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+}
