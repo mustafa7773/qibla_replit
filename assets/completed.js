@@ -103,21 +103,30 @@
 
   // ------------------------------------------------------------- from tool #1
 
-  // يعرض المساجد المحفوظة في أداة القبلة، ويميّز ما أُضيف منها هنا سابقاً
+  // يعرض المساجد المحفوظة في أداة القبلة، ويميّز ما أُضيف منها هنا سابقاً.
+  //
+  // نكتفي بأحدث عشرة: القائمة تُخزَّن بالأحدث أولاً (MosqueStore.upsert يضع كل
+  // مسجد جديد في مقدمتها)، فالاقتطاع من رأسها يعطي آخر ما عُمل عليه. بهذا لا
+  // تطول القائمة بلا حد مع تراكم المساجد. والبقية تبقى محفوظة ويمكن كتابة
+  // اسمها يدوياً في حقل الاسم.
+  const RECENT_QIBLA_LIMIT = 10;
+
   function fillQiblaPicker() {
     const block = el("cmFromQiblaBlock");
     const sel = el("cmFromQibla");
 
-    const saved =
+    const all =
       window.MosqueStore && typeof window.MosqueStore.loadAll === "function"
         ? window.MosqueStore.loadAll()
         : [];
 
-    if (!saved.length) {
+    if (!all.length) {
       block.classList.add("hidden");
       return;
     }
     block.classList.remove("hidden");
+
+    const saved = all.slice(0, RECENT_QIBLA_LIMIT);
 
     // أسماء المساجد المسجّلة هنا بالفعل، لتمييزها في القائمة
     const already = new Set(
@@ -137,6 +146,22 @@
           return '<option value="' + escapeHtml(m.id) + '">' + escapeHtml(label) + "</option>";
         })
         .join("");
+
+    // نوضّح أن المعروض جزء من المحفوظ حتى لا يظن المستخدم أن الباقي ضاع
+    const hint = el("cmFromQiblaHint");
+    if (hint) {
+      const base =
+        "يملأ اسم المسجد والمحافظة تلقائياً، فلا يبقى عليك سوى تاريخ الإنجاز والسعر.";
+      hint.textContent =
+        all.length > RECENT_QIBLA_LIMIT
+          ? base +
+            " تعرض القائمة آخر " +
+            RECENT_QIBLA_LIMIT +
+            " مساجد فقط من أصل " +
+            all.length +
+            " محفوظة."
+          : base;
+    }
   }
 
   function applyQiblaSelection(id) {
