@@ -6,8 +6,11 @@
 // عادي — على عكس CSV الذي لا يحمل تنسيقاً ولا يدعم أوراقاً متعددة.
 //
 // بنية الملف:
-//   • ورقة "الملخص"  : إجمالي كل شهر وعدد مساجده، ثم المجموع الكلي.
+//   • ورقة "الملخص"  : إجمالي كل شهر وعدد مساجده، ثم المجموع الكلي، ويليه
+//                      جدول توزيع المحافظات في نفس الورقة.
 //   • ورقة لكل شهر    : تفاصيل مساجده مع صف مجموع في نهايتها.
+//
+// الأوراق للأشهر فقط — لا ورقة مستقلة لكل محافظة.
 //
 // التنسيق: رأس ملوّن مثبّت، حدود، عرض أعمدة مضبوط، تنسيق عملة، واتجاه RTL.
 // ============================================================================
@@ -270,8 +273,10 @@
       rows.push([{ v: k === "غير محدد" ? k : monthLabel(k), style: S.TITLE }]);
       rows.push([
         { v: "اسم المسجد", style: S.HEADER },
+        { v: "رقم الطلب بنظام المساجد", style: S.HEADER },
         { v: "تاريخ الإنجاز", style: S.HEADER },
         { v: "المحافظة", style: S.HEADER },
+        { v: "هاتف الوكيل", style: S.HEADER },
         { v: "السعر (ر.ع)", style: S.HEADER },
         { v: "ملاحظات", style: S.HEADER },
       ]);
@@ -281,8 +286,12 @@
         sum += Number(r.price) || 0;
         rows.push([
           { v: r.mosqueName || "—", style: S.TEXT },
+          // رقم الطلب والهاتف نصّان لا رقمان: الأصفار البادئة تُحفظ،
+          // ولا يحوّلهما Excel لصيغة علمية
+          { v: r.requestNo || "", style: S.COUNT },
           { v: r.completionDate || "", style: S.COUNT },
           { v: r.governorate || "", style: S.TEXT },
+          { v: r.agentPhone || "", style: S.COUNT },
           { v: Number(r.price) || 0, style: S.MONEY, num: true },
           { v: r.notes || "", style: S.TEXT },
         ]);
@@ -290,6 +299,8 @@
 
       rows.push([
         { v: "المجموع (" + list.length + " مسجد)", style: S.TOTAL_LABEL },
+        { v: "", style: S.TOTAL_LABEL },
+        { v: "", style: S.TOTAL_LABEL },
         { v: "", style: S.TOTAL_LABEL },
         { v: "", style: S.TOTAL_LABEL },
         { v: sum, style: S.TOTAL_MONEY, num: true },
@@ -298,49 +309,12 @@
 
       sheets.push({
         name: safeSheetName(k === "غير محدد" ? k : monthLabel(k), used),
-        xml: buildSheet(rows, [30, 15, 26, 15, 30]),
+        xml: buildSheet(rows, [30, 20, 15, 26, 16, 15, 30]),
       });
     });
 
-    // ---------------------------------------------------- ورقة لكل محافظة
-    // كل مسجد يظهر باسمه وسعره تحت محافظته، فيسهل معرفة نصيب كل محافظة
-    govKeys.forEach((g) => {
-      const list = byGov[g].slice().sort((a, b) =>
-        String(a.completionDate) < String(b.completionDate) ? -1 : 1,
-      );
-
-      const rows = [];
-      rows.push([{ v: g, style: S.TITLE }]);
-      rows.push([
-        { v: "اسم المسجد", style: S.HEADER },
-        { v: "تاريخ الإنجاز", style: S.HEADER },
-        { v: "السعر (ر.ع)", style: S.HEADER },
-        { v: "ملاحظات", style: S.HEADER },
-      ]);
-
-      let sum = 0;
-      list.forEach((r) => {
-        sum += Number(r.price) || 0;
-        rows.push([
-          { v: r.mosqueName || "—", style: S.TEXT },
-          { v: r.completionDate || "", style: S.COUNT },
-          { v: Number(r.price) || 0, style: S.MONEY, num: true },
-          { v: r.notes || "", style: S.TEXT },
-        ]);
-      });
-
-      rows.push([
-        { v: "المجموع (" + list.length + " مسجد)", style: S.TOTAL_LABEL },
-        { v: "", style: S.TOTAL_LABEL },
-        { v: sum, style: S.TOTAL_MONEY, num: true },
-        { v: "", style: S.TOTAL_LABEL },
-      ]);
-
-      sheets.push({
-        name: safeSheetName(g, used),
-        xml: buildSheet(rows, [30, 15, 15, 30]),
-      });
-    });
+    // ملاحظة: لا نُنشئ ورقة مستقلة لكل محافظة — الأوراق للأشهر فقط.
+    // توزيع المحافظات يبقى كجدول ضمن ورقة "الملخص" أعلاه.
 
     // ---------------------------------------------------- تجميع الملف
     const zip = new window.PizZip();

@@ -94,6 +94,8 @@
       governorate: String(input.governorate).trim(),
       price: Math.round(Number(input.price) * 1000) / 1000,
       mosqueName: String(input.mosqueName || "").trim(),
+      requestNo: String(input.requestNo || "").trim(),
+      agentPhone: String(input.agentPhone || "").trim(),
       notes: String(input.notes || "").trim(),
     };
   }
@@ -117,6 +119,9 @@
       governorate: r.governorate || "",
       price: Number(r.price) || 0,
       mosqueName: r.mosqueName || "",
+      // السجلات القديمة لا تحمل هذين الحقلين، فتُقرأ كنص فارغ
+      requestNo: r.requestNo || "",
+      agentPhone: r.agentPhone || "",
       notes: r.notes || "",
       createdAt: r.createdAt || r.updatedAt || "",
       updatedAt: r.updatedAt || "",
@@ -131,6 +136,8 @@
       governorate: r.governorate,
       price: r.price,
       mosqueName: r.mosqueName,
+      requestNo: r.requestNo,
+      agentPhone: r.agentPhone,
       notes: r.notes,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
@@ -412,6 +419,8 @@
           governorate: String(r.governorate || "").trim(),
           price: Number(r.price) || 0,
           mosqueName: String(r.mosqueName || "").trim(),
+          requestNo: String(r.requestNo || "").trim(),
+          agentPhone: String(r.agentPhone || "").trim(),
           notes: String(r.notes || "").trim(),
           updatedAt: r.updatedAt || new Date().toISOString(),
           createdAt: (existing && existing.createdAt) || r.updatedAt || new Date().toISOString(),
@@ -461,7 +470,15 @@
       if (f.governorate && r.governorate !== f.governorate) return false;
       if (f.search) {
         const q = String(f.search).toLowerCase();
-        const hay = [r.mosqueName, r.governorate, r.notes, r.completionDate, String(r.price)]
+        const hay = [
+          r.mosqueName,
+          r.governorate,
+          r.requestNo,
+          r.agentPhone,
+          r.notes,
+          r.completionDate,
+          String(r.price),
+        ]
           .join(" ")
           .toLowerCase();
         if (hay.indexOf(q) === -1) return false;

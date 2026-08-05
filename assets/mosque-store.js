@@ -50,6 +50,7 @@
       governorate: entry.governorate || null,
       village: entry.village || null,
       requestNo: entry.requestNo || null,
+      agentPhone: entry.agentPhone || null,
       easting: entry.easting,
       northing: entry.northing,
       datum: entry.datum || null,
@@ -123,6 +124,16 @@
     return node && node.value ? node.value.trim() : "";
   }
 
+  // هاتف أول وكيل مكتوب في صفوف الوكلاء — يُنقل لاحقاً لأداة المساجد المنتهية
+  function readFirstAgentPhone() {
+    const nodes = document.querySelectorAll(".agent-phone");
+    for (let i = 0; i < nodes.length; i++) {
+      const v = String(nodes[i].value || "").trim();
+      if (v) return v;
+    }
+    return "";
+  }
+
   // "Easting 554636.62   Northing 2532743.15" -> { easting, northing }
   function parseSurveyCoords() {
     const text = surveyCoordsEl.textContent || "";
@@ -174,6 +185,7 @@
       governorate: readValue("governorateInput"),
       village: readValue("villagePlotInput"),
       requestNo: readValue("mosqueRequestNo"),
+      agentPhone: readFirstAgentPhone(),
       easting: coords.easting,
       northing: coords.northing,
       datum,
@@ -216,6 +228,13 @@
     node.addEventListener("change", saveCurrentMosque);
     node.addEventListener("blur", saveCurrentMosque);
   });
+
+  // صفوف الوكلاء تُضاف ديناميكياً، فنستمع على الحاوية بدل كل حقل على حدة
+  const agentsList = document.getElementById("agentsList");
+  if (agentsList) {
+    agentsList.addEventListener("change", saveCurrentMosque);
+    agentsList.addEventListener("blur", saveCurrentMosque, true);
+  }
 
   // نحفظ/نحدّث أيضاً عند تنزيل تقرير Word
   const wordBtn = document.getElementById("downloadWordBtn");

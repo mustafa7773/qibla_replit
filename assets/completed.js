@@ -172,6 +172,10 @@
     const title = String(m.name || "").split(" — ")[0].trim();
     if (title) el("cmName").value = title;
 
+    // رقم الطلب محفوظ أصلاً مع مسجد أداة القبلة، فنملؤه هنا تلقائياً
+    if (m.requestNo) el("cmRequestNo").value = String(m.requestNo).trim();
+    if (m.agentPhone) el("cmAgentPhone").value = String(m.agentPhone).trim();
+
     const gov = window.Governorates
       ? window.Governorates.governorateOf(m.governorate)
       : m.governorate || "";
@@ -237,6 +241,8 @@
       governorate: el("cmGovernorate").value,
       price: el("cmPrice").value,
       mosqueName: el("cmName").value,
+      requestNo: el("cmRequestNo").value,
+      agentPhone: el("cmAgentPhone").value,
       notes: el("cmNotes").value,
     };
   }
@@ -246,6 +252,8 @@
     el("cmGovernorate").value = "";
     el("cmPrice").value = "";
     el("cmName").value = "";
+    el("cmRequestNo").value = "";
+    el("cmAgentPhone").value = "";
     el("cmNotes").value = "";
     const picker = el("cmFromQibla");
     if (picker) picker.value = "";
@@ -260,6 +268,8 @@
     el("cmGovernorate").value = record.governorate;
     el("cmPrice").value = record.price;
     el("cmName").value = record.mosqueName || "";
+    el("cmRequestNo").value = record.requestNo || "";
+    el("cmAgentPhone").value = record.agentPhone || "";
     el("cmNotes").value = record.notes || "";
     view.editingId = record.id;
     el("cmAddBtn").innerHTML =
@@ -468,8 +478,10 @@
         return (
           "<tr>" +
           '<td class="num">' + formatDate(r.completionDate) + "</td>" +
+          '<td class="num">' + escapeHtml(r.requestNo || "—") + "</td>" +
           "<td>" + escapeHtml(r.governorate) + "</td>" +
           "<td>" + escapeHtml(r.mosqueName || "—") + "</td>" +
+          '<td class="num">' + escapeHtml(r.agentPhone || "—") + "</td>" +
           '<td class="num">' + formatMoney(r.price) + "</td>" +
           '<td><span class="pill ' + (synced ? "is-ok" : "is-wait") + '">' +
           (synced ? "مُزامَن" : "بانتظار المزامنة") + "</span></td>" +
