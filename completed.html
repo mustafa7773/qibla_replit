@@ -100,6 +100,17 @@
           </div>
         </div>
 
+        <div class="grid2">
+          <div class="field">
+            <label for="cmRequestNo">رقم الطلب بنظام المساجد <span class="muted-inline">(اختياري)</span></label>
+            <input type="text" id="cmRequestNo" class="textarea-mono" placeholder="مثال: 4457" />
+          </div>
+          <div class="field">
+            <label for="cmAgentPhone">رقم هاتف الوكيل <span class="muted-inline">(اختياري)</span></label>
+            <input type="tel" id="cmAgentPhone" class="textarea-mono" inputmode="tel" placeholder="مثال: 91234567" />
+          </div>
+        </div>
+
         <div class="field">
           <label for="cmNotes">ملاحظات <span class="muted-inline">(اختياري)</span></label>
           <input type="text" id="cmNotes" placeholder="أي تفاصيل تريد حفظها مع السجل" />
@@ -173,7 +184,7 @@
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
             تصدير Excel
           </button>
-          <input type="search" id="cmSearch" class="table-search" placeholder="ابحث باسم المسجد أو المحافظة أو الملاحظات" />
+          <input type="search" id="cmSearch" class="table-search" placeholder="ابحث بالاسم أو المحافظة أو رقم الطلب أو هاتف الوكيل" />
           <span class="table-count" id="cmCount"></span>
         </div>
 
@@ -182,8 +193,10 @@
             <thead>
               <tr>
                 <th data-sort="completionDate" class="is-sortable">تاريخ الإنجاز</th>
+                <th data-sort="requestNo" class="is-sortable">رقم الطلب</th>
                 <th data-sort="governorate" class="is-sortable">المحافظة</th>
                 <th data-sort="mosqueName" class="is-sortable">اسم المسجد</th>
+                <th>هاتف الوكيل</th>
                 <th data-sort="price" class="is-sortable">السعر (ر.ع)</th>
                 <th>الحالة</th>
                 <th>إجراءات</th>
