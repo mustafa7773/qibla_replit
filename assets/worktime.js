@@ -1164,8 +1164,17 @@
     return escapeHtml(t == null ? "" : String(t));
   }
 
-  // صفحة بيضاء مستقلة للطباعة — لا نصوّر الواجهة الداكنة: الخلفية السوداء
-  // تلتهم الحبر، والألوان الخافتة تصير غير مقروءة على ورق
+  // مكدّس خطوط كل واحد فيه حروف عربية كاملة.
+  //
+  // هذا سبب تكسّر الحروف في النسخة السابقة: كان عمود "المدة" يستخدم
+  // IBM Plex Mono، وهو خط لاتيني بلا حرف عربي واحد. فيسقط المتصفح إلى خط
+  // بديل حرفاً حرفاً، فتنفصل "ساعة واحدة" إلى "س ا ع ة  و ا ح د ة".
+  // القاعدة: لا خط لاتيني على نص عربي أبداً — ولو لرقم بجواره.
+  const PDF_FONT =
+    "'IBM Plex Sans Arabic','Noto Sans Arabic','Segoe UI',Tahoma,'Geeza Pro',Arial,sans-serif";
+
+  // صفحة بيضاء مستقلة — لا نصوّر الواجهة الداكنة: خلفيتها تلتهم الحبر
+  // وألوانها الخافتة تصير غير مقروءة على ورق
   function buildPdfSheet(result) {
     const today = new Date();
     const dateStr =
@@ -1177,80 +1186,133 @@
     let n = 0;
 
     result.schedule.forEach((stop) => {
+      // ساق التنقل صف ممتد بلون خافت: تفصل المحطات بصرياً وتحمل رقميها
       if (stop.legMinutes != null) {
         rows.push(
-          '<tr class="leg-row"><td colspan="4">تنقّل ' +
-            pdfEsc(formatDuration(stop.legMinutes)) +
-            " · " + stop.legKm.toFixed(1) + " كم</td></tr>",
+          '<tr class="leg"><td colspan="5">' +
+            "تنقّل " + pdfEsc(formatDuration(stop.legMinutes)) +
+            "  ·  " + stop.legKm.toFixed(1) + " كم" +
+            "</td></tr>",
         );
       }
 
-      let label = "";
-      let badge = "";
+      let order = "";
+      let cls = "";
       if (stop.isBreak) {
-        label = pdfEsc(stop.name);
-        badge = "استراحة";
+        order = "استراحة";
+        cls = " class=\"rest\"";
       } else if (stop.label === "الانطلاق") {
-        label = pdfEsc(String(stop.name).split(" — ")[0]);
-        badge = "الانطلاق";
+        order = "الانطلاق";
+        cls = " class=\"edge\"";
       } else if (stop.label === "العودة") {
-        label = pdfEsc(String(stop.name).split(" — ")[0]);
-        badge = "نهاية اليوم";
+        order = "نهاية اليوم";
+        cls = " class=\"edge\"";
       } else {
         n++;
-        label = pdfEsc(String(stop.name).split(" — ")[0]);
-        badge = "محطة " + n;
+        order = String(n);
       }
 
-      const from = stop.arrival != null ? formatClock(stop.arrival) : "—";
-      const to = stop.departure != null ? formatClock(stop.departure) : "—";
+      const name = pdfEsc(String(stop.name).split(" — ")[0]);
+      const arrive = stop.arrival != null ? formatClock(stop.arrival) : "—";
+      const depart = stop.departure != null ? formatClock(stop.departure) : "—";
       const dur = stop.workMinutes ? formatDuration(stop.workMinutes) : "—";
 
+      // فصل الوصول عن المغادرة في عمودين: كان دمجهما بشرطة يخلط الاتجاه
+      // فيظهر "٠٨:٠٠ ص - -" بلا معنى
       rows.push(
-        "<tr><td>" + pdfEsc(badge) + "</td><td>" + label +
-          '</td><td class="mono">' + from + " – " + to +
-          '</td><td class="mono">' + pdfEsc(dur) + "</td></tr>",
+        "<tr" + cls + '><td class="ord">' + pdfEsc(order) + "</td>" +
+          '<td class="nm">' + name + "</td>" +
+          '<td class="t">' + pdfEsc(arrive) + "</td>" +
+          '<td class="t">' + pdfEsc(depart) + "</td>" +
+          '<td class="t">' + pdfEsc(dur) + "</td></tr>",
       );
     });
 
     const box = document.createElement("div");
     box.setAttribute("dir", "rtl");
+    box.setAttribute("lang", "ar");
     box.style.cssText =
       "position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;" +
-      "color:#111827;font-family:'IBM Plex Sans Arabic',sans-serif;padding:40px;";
+      "color:#111827;font-family:" + PDF_FONT + ";";
 
     box.innerHTML =
-      '<style>' +
-      ".pdfsheet h1{margin:0 0 4px;font-size:24px;color:#111827}" +
-      ".pdfsheet .meta{margin:0 0 20px;font-size:12px;color:#6b7280}" +
-      ".pdfsheet .lead{margin:0 0 18px;padding:12px 14px;background:#faf6ec;" +
-      "border-right:3px solid #b8862b;font-size:13px;line-height:1.9;color:#374151}" +
-      ".pdfsheet .cards{display:flex;gap:10px;margin-bottom:20px}" +
-      ".pdfsheet .c{flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px}" +
-      ".pdfsheet .c b{display:block;font-size:17px;color:#111827}" +
-      ".pdfsheet .c span{font-size:11px;color:#6b7280}" +
-      ".pdfsheet table{width:100%;border-collapse:collapse;font-size:12px}" +
-      ".pdfsheet th{background:#f3f4f6;color:#374151;font-weight:600;" +
-      "padding:8px 10px;text-align:right;border:1px solid #e5e7eb}" +
-      ".pdfsheet td{padding:8px 10px;border:1px solid #e5e7eb;color:#111827}" +
-      ".pdfsheet .leg-row td{background:#fafafa;color:#6b7280;font-size:11px}" +
-      ".pdfsheet .mono{font-family:'IBM Plex Mono',monospace;direction:ltr;text-align:center}" +
+      "<style>" +
+      ".sheet,.sheet *{font-family:" + PDF_FONT + ";letter-spacing:normal;box-sizing:border-box}" +
+      ".sheet{padding:44px 46px}" +
+
+      /* ترويسة بشريط ذهبي رفيع — هوية بلا ضجيج */
+      ".sheet .hd{display:flex;align-items:flex-end;justify-content:space-between;" +
+      "padding-bottom:14px;border-bottom:2px solid #c9a227;margin-bottom:22px}" +
+      ".sheet .hd h1{margin:0;font-size:26px;font-weight:700;color:#0f172a;line-height:1.5}" +
+      ".sheet .hd .brand{font-size:12px;color:#8a6d1f;font-weight:600;line-height:1.9}" +
+      ".sheet .hd .date{font-size:11px;color:#9ca3af;line-height:1.9}" +
+
+      ".sheet .lead{margin:0 0 22px;padding:13px 16px;background:#fbf7ec;" +
+      "border-radius:6px;font-size:13px;line-height:2;color:#3f3f46}" +
+
+      /* بطاقات الأرقام */
+      ".sheet .cards{display:flex;gap:10px;margin-bottom:24px}" +
+      ".sheet .c{flex:1;border:1px solid #e8e8ec;border-radius:8px;padding:12px 14px;" +
+      "background:#fcfcfd}" +
+      ".sheet .c b{display:block;font-size:18px;font-weight:700;color:#0f172a;line-height:1.7}" +
+      ".sheet .c span{display:block;font-size:10.5px;color:#8b8b96;line-height:1.8}" +
+
+      /* الجدول: بلا حدود رأسية، خطوط أفقية خفيفة فقط — أهدأ للعين */
+      ".sheet table{width:100%;border-collapse:collapse;font-size:12.5px}" +
+      ".sheet th{padding:9px 10px;text-align:right;font-weight:600;font-size:11px;" +
+      "color:#6b7280;border-bottom:1.5px solid #d8d8de;line-height:1.9}" +
+      ".sheet td{padding:10px;border-bottom:1px solid #eeeef2;color:#1f2937;line-height:1.9}" +
+      ".sheet tbody tr:nth-child(even):not(.leg) td{background:#fcfcfd}" +
+
+      ".sheet .ord{width:72px;color:#8b8b96;font-size:11.5px}" +
+      ".sheet .nm{font-weight:600;color:#0f172a}" +
+      /* الأوقات وسط الخانة بأرقام متساوية العرض، وبنفس الخط العربي */
+      ".sheet .t{width:78px;text-align:center;font-variant-numeric:tabular-nums;" +
+      "font-size:12px;color:#3f3f46}" +
+
+      ".sheet tr.edge .nm{color:#8a6d1f}" +
+      ".sheet tr.edge .ord{color:#8a6d1f;font-weight:600}" +
+      ".sheet tr.rest td{background:#fafafa;color:#6b7280}" +
+      ".sheet tr.leg td{padding:6px 10px;background:#ffffff;border-bottom:1px solid #eeeef2;" +
+      "color:#9ca3af;font-size:11px;text-align:center;line-height:1.9}" +
       "</style>" +
-      '<div class="pdfsheet">' +
-      "<h1>خطة يوم العمل</h1>" +
-      '<p class="meta">ابتكارات السماء · صدر بتاريخ ' + dateStr + "</p>" +
-      '<p class="lead">' + el("summaryHeadline").textContent + "</p>" +
+
+      '<div class="sheet">' +
+      '<div class="hd"><div><h1>خطة يوم العمل</h1>' +
+      '<div class="date">صدر بتاريخ ' + dateStr + "</div></div>" +
+      '<div class="brand">ابتكارات السماء</div></div>' +
+
+      '<p class="lead">' + pdfEsc(el("summaryHeadline").textContent) + "</p>" +
+
       '<div class="cards">' +
       '<div class="c"><b>' + result.mosqueCount + "</b><span>عدد المساجد</span></div>" +
       '<div class="c"><b>' + pdfEsc(formatDurationShort(result.drivingMinutes)) + "</b><span>زمن التنقل</span></div>" +
       '<div class="c"><b>' + pdfEsc(formatDurationShort(result.workMinutes)) + "</b><span>العمل بالمواقع</span></div>" +
       '<div class="c"><b>' + pdfEsc(formatDurationShort(result.totalMinutes)) + "</b><span>إجمالي اليوم</span></div>" +
       "</div>" +
-      "<table><thead><tr><th>الترتيب</th><th>الموقع</th><th>التوقيت</th><th>المدة</th></tr></thead>" +
-      "<tbody>" + rows.join("") + "</tbody></table>" +
+
+      "<table><thead><tr>" +
+      "<th>الترتيب</th><th>الموقع</th><th>الوصول</th><th>المغادرة</th><th>المدة</th>" +
+      "</tr></thead><tbody>" + rows.join("") + "</tbody></table>" +
       "</div>";
 
     return box;
+  }
+
+  // الخطوط تُجلب من الشبكة، والتصوير قبل وصولها يعني التقاط خط بديل —
+  // وهو ما كسر عنوان النسخة السابقة. ننتظرها صراحةً لا بمهلة تخمينية.
+  async function ensurePdfFonts() {
+    if (!document.fonts || !document.fonts.load) return;
+    try {
+      await Promise.all([
+        document.fonts.load("700 26px 'IBM Plex Sans Arabic'", "خطة يوم العمل"),
+        document.fonts.load("600 13px 'IBM Plex Sans Arabic'", "الموقع"),
+        document.fonts.load("400 13px 'IBM Plex Sans Arabic'", "ساعة واحدة"),
+      ]);
+      await document.fonts.ready;
+    } catch (e) {
+      // تعذّر تحميل الخط: نُكمل بالخط البديل من المكدّس، وكلها عربية سليمة
+    }
   }
 
   async function downloadPlanPdf() {
@@ -1272,13 +1334,16 @@
       sheet = buildPdfSheet(lastResult);
       document.body.appendChild(sheet);
 
-      // مهلة قصيرة تضمن أن الخطوط طُبّقت قبل التصوير، وإلا خرج النص بخط بديل
-      await new Promise((r) => setTimeout(r, 120));
+      // ننتظر وصول الخطوط فعلياً — لا بمهلة تخمينية
+      await ensurePdfFonts();
+      await new Promise((r) => setTimeout(r, 80));
 
       const canvas = await window.html2canvas(sheet, {
-        scale: 2,
+        scale: 2.4, // دقة أعلى: النص العربي الدقيق يحتاجها ليخرج حاداً
         backgroundColor: "#ffffff",
         logging: false,
+        useCORS: true,
+        letterRendering: true,
       });
 
       const { jsPDF } = window.jspdf;
@@ -1304,18 +1369,22 @@
         doc.setFillColor(255, 255, 255);
         doc.rect(0, usableH, pageW, footerH, "F");
 
-        doc.setDrawColor(229, 231, 235);
-        doc.line(12, usableH + 3, pageW - 12, usableH + 3);
+        doc.setDrawColor(201, 162, 39); // ذهبي رفيع يطابق ترويسة الصفحة
+        doc.setLineWidth(0.4);
+        doc.line(14, usableH + 3, pageW - 14, usableH + 3);
+
+        // الرابط بحروف لاتينية فيُكتب نصاً حقيقياً قابلاً للنقر داخل الملف،
+        // لا صورة ميتة. النقر عليه يفتح المسار كاملاً في خرائط Google.
+        doc.setFontSize(8.5);
+        doc.setTextColor(150, 150, 158);
+        doc.text("SKY INNOVATIONS", 14, usableH + 9);
+        doc.text(String(p + 1) + " / " + String(pages), pageW - 14, usableH + 9, { align: "right" });
 
         // الرابط بحروف لاتينية فيُكتب نصاً حقيقياً قابلاً للنقر داخل الملف،
         // لا صورة ميتة. النقر عليه يفتح المسار كاملاً في خرائط Google.
         doc.setFontSize(9);
-        doc.setTextColor(120, 120, 120);
-        doc.text("Sky Innovations — Route plan", 12, usableH + 9);
-        doc.text(String(p + 1) + " / " + String(pages), pageW - 12, usableH + 9, { align: "right" });
-
-        doc.setTextColor(30, 90, 190);
-        doc.textWithLink("Open the full route in Google Maps", 12, usableH + 14, { url: mapsUrl });
+        doc.setTextColor(28, 92, 196);
+        doc.textWithLink("Open the full route in Google Maps", 14, usableH + 14, { url: mapsUrl });
       }
 
       const stamp = new Date().toISOString().slice(0, 10);
