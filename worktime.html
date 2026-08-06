@@ -121,19 +121,19 @@
 
               <div class="pane hidden" id="paneManual" role="tabpanel">
                 <div class="field">
+                  <label for="coordFormat">صيغة الإحداثيات</label>
+                  <select id="coordFormat">
+                    <option value="auto" selected>تلقائي — يميّز الصيغة بنفسه</option>
+                    <option value="utm">UTM بالأمتار</option>
+                    <option value="dd">درجات عشرية</option>
+                    <option value="dms">درجات ودقائق وثوانٍ</option>
+                  </select>
+                </div>
+
+                <div class="field">
                   <label for="mosquesInput">إحداثيات المساجد</label>
-                  <textarea
-                    id="mosquesInput"
-                    class="textarea-mono"
-                    rows="6"
-                    placeholder="مسجد النور, 554636.62, 2532743.15&#10;مسجد عبري, 23.375456, 56.697578&#10;552408.95, 2535491.37"
-                  ></textarea>
-                  <p class="hint">
-                    سطر لكل مسجد بصيغة <b>الاسم، ثم الإحداثيتين</b> (أو الإحداثيتين وحدهما).
-                    تُقبل الصيغتان وتُميَّزان تلقائياً:
-                    <br />• <b>UTM بالأمتار</b> — مثل <code>554636.62, 2532743.15</code>
-                    <br />• <b>درجات جغرافية</b> من خرائط Google — مثل <code>23.375456, 56.697578</code>
-                  </p>
+                  <textarea id="mosquesInput" class="textarea-mono" rows="6"></textarea>
+                  <p class="hint" id="coordHint"></p>
                 </div>
               </div>
 
