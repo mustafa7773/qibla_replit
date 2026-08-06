@@ -123,18 +123,42 @@
                 <div class="field">
                   <label for="coordFormat">صيغة الإحداثيات</label>
                   <select id="coordFormat">
-                    <option value="auto" selected>تلقائي — يميّز الصيغة بنفسه</option>
-                    <option value="utm">UTM بالأمتار</option>
-                    <option value="dd">درجات عشرية</option>
+                    <option value="utm" selected>UTM بالأمتار (الرسم المساحي)</option>
+                    <option value="dd">درجات عشرية (خرائط Google)</option>
                     <option value="dms">درجات ودقائق وثوانٍ</option>
                   </select>
                 </div>
 
                 <div class="field">
-                  <label for="mosquesInput">إحداثيات المساجد</label>
-                  <textarea id="mosquesInput" class="textarea-mono" rows="6"></textarea>
-                  <p class="hint" id="coordHint"></p>
+                  <label for="cfName">اسم المسجد <span class="muted-inline">(اختياري)</span></label>
+                  <input type="text" id="cfName" placeholder="مثال: مسجد النور" />
                 </div>
+
+                <!-- الخانات تُبنى حسب الصيغة المختارة -->
+                <div id="coordFields"></div>
+
+                <p class="hint" id="coordHint"></p>
+                <p class="field-error hidden" id="coordError"></p>
+
+                <button type="button" class="primary subtle" id="cfAdd">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                       viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"/></svg>
+                  إضافة المحطة
+                </button>
+
+                <details class="bulk-paste">
+                  <summary>أو الصق عدة مساجد دفعة واحدة</summary>
+                  <div class="field">
+                    <label for="bulkInput">سطر لكل مسجد</label>
+                    <textarea id="bulkInput" class="textarea-mono" rows="5"
+                      placeholder="مسجد النور, 554636.62, 2532743.15&#10;مسجد عبري, 23.375456, 56.697578&#10;مسجد الرحمة, 23 32 31.6 N, 58 1 17.98 E"></textarea>
+                    <p class="hint">تُقبل الصيغ الثلاث معاً وتُميَّز تلقائياً.</p>
+                  </div>
+                  <button type="button" class="primary subtle" id="bulkAdd">إضافة الكل</button>
+                </details>
+
+                <!-- مصدر الحقيقة: يحمل كل المحطات بصيغة موحّدة، ومخفي عن العين -->
+                <textarea id="mosquesInput" class="sr-only" tabindex="-1" aria-hidden="true"></textarea>
               </div>
 
               <!-- محطات المسار: قابلة للسحب لإعادة الترتيب -->

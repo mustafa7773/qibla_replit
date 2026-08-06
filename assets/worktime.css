@@ -1009,3 +1009,74 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
   overflow-y: auto;
   padding-inline-end: 2px;
 }
+
+/* ==========================================================================
+   نموذج إدخال المحطة
+   خانات مسمّاة بمثال داخل كل واحدة، بدل مربع نص حر يطلب تذكّر الترتيب
+   والفواصل والصيغة معاً.
+   ========================================================================== */
+#coordFields { margin-bottom: var(--sp-3); }
+
+.dms-group + .dms-group { margin-top: var(--sp-4); }
+
+.dms-group h4 {
+  margin: 0 0 var(--sp-2);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+/* درجات ودقائق وثوانٍ والجهة في صف واحد: الجهة أضيق لأنها حرف واحد */
+.dms-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 64px;
+  gap: var(--sp-2);
+}
+
+.dms-row .field label {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.dms-row input,
+.dms-row select {
+  text-align: center;
+}
+
+#cfAdd,
+#bulkAdd {
+  width: 100%;
+  justify-content: center;
+  margin-top: var(--sp-2);
+}
+
+.field-error {
+  display: block;
+  margin: var(--sp-2) 0 0;
+  color: var(--red);
+  font-size: var(--fs-caption);
+  line-height: 1.7;
+}
+
+.bulk-paste {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.bulk-paste > summary {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  cursor: pointer;
+  list-style: none;
+}
+
+.bulk-paste > summary::-webkit-details-marker { display: none; }
+.bulk-paste > summary::before { content: "＋ "; color: var(--gold); }
+.bulk-paste[open] > summary::before { content: "－ "; }
+.bulk-paste > summary:hover { color: var(--paper); }
+.bulk-paste[open] > summary { margin-bottom: var(--sp-3); }
+
+@media (max-width: 480px) {
+  .dms-row { grid-template-columns: 1fr 1fr; }
+}

@@ -161,6 +161,14 @@
   //
   // سبب وجود هذه الدالة: من ينسخ إحداثيات من خرائط Google يحصل على درجات،
   // وكانت الأداة تعاملها كأمتار فتضع المسجد في المحيط على بعد آلاف الكيلومترات.
+  // هامش ٤ درجات حول عُمان: يسمح بالحدود ويرفض الأخطاء الفادحة
+  function withinOman(lat, lon) {
+    return (
+      lat >= OMAN_BOUNDS.latMin - 4 && lat <= OMAN_BOUNDS.latMax + 4 &&
+      lon >= OMAN_BOUNDS.lonMin - 4 && lon <= OMAN_BOUNDS.lonMax + 4
+    );
+  }
+
   function looksLikeLatLon(a, b) {
     return Math.abs(a) <= 1000 && Math.abs(b) <= 1000;
   }
@@ -224,8 +232,6 @@
 
     const datum = el("datum").value;
     const zone = parseInt(el("zone").value, 10);
-    const fmtEl = el("coordFormat");
-    const format = fmtEl ? fmtEl.value : "auto";
 
     const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
     const mosques = [];
@@ -257,10 +263,10 @@
       let easting = null;
       let northing = null;
 
-      // الصيغة المختارة صراحةً تفوز على التخمين؛ و"تلقائي" يفحص العلامات
-      const wantDms =
-        format === "dms" ||
-        (format === "auto" && looksLikeDms(rawA) && looksLikeDms(rawB));
+      // التمييز تلقائي دائماً: قائمة الصيغة تتحكم بشكل خانات الإدخال، لا
+      // بتفسير النص المخزَّن. وهو إما مكتوب بصيغة موحّدة من النموذج، أو
+      // ملصوقاً بصيغة يحسمها شكله.
+      const wantDms = looksLikeDms(rawA) && looksLikeDms(rawB);
 
       if (wantDms) {
         const A = parseDms(rawA);
@@ -292,8 +298,7 @@
           throw new Error("السطر رقم " + no + " لا يحتوي على إحداثيتين صالحتين.");
         }
 
-        const asDegrees =
-          format === "dd" || (format !== "utm" && looksLikeLatLon(first, second));
+        const asDegrees = looksLikeLatLon(first, second);
 
         if (asDegrees) {
           const ll = orderLatLon(first, second);
@@ -314,10 +319,7 @@
 
       // حارس أخير: موقع خارج عُمان بمسافات شاسعة يعني غالباً صيغة أُسيء
       // قراءتها، لا مسجداً في المحيط. نُخبر المستخدم بدل أن نحسب مساراً بلا معنى.
-      if (
-        lat < OMAN_BOUNDS.latMin - 4 || lat > OMAN_BOUNDS.latMax + 4 ||
-        lon < OMAN_BOUNDS.lonMin - 4 || lon > OMAN_BOUNDS.lonMax + 4
-      ) {
+      if (!withinOman(lat, lon)) {
         throw new Error(
           "إحداثيات السطر رقم " + no + " تقع خارج عُمان (" +
             lat.toFixed(4) + ", " + lon.toFixed(4) +
@@ -1181,52 +1183,221 @@
       .forEach((r) => r.classList.remove("is-dragging", "is-over"));
   });
 
-  // ------------------------------------------------ إرشاد صيغة الإحداثيات
+  // ==========================================================================
+  //                     نموذج إدخال محطة واحدة
+  // ==========================================================================
   //
-  // المثال المعروض يتغيّر مع الصيغة المختارة: رؤية الشكل المطلوب أنفع من
-  // وصفه بالكلام، وتمنع أشيع خطأ — لصق درجات في حقل يتوقّع أمتاراً.
-  const COORD_FORMATS = {
-    auto: {
-      hint:
-        "تُقبل الصيغ الثلاث معاً وتُميَّز تلقائياً: UTM بالأمتار، أو درجات عشرية، " +
-        "أو درجات ودقائق وثوانٍ. يمكن خلطها في نفس المربع.",
-      ph:
-        "مسجد النور, 554636.62, 2532743.15\n" +
-        "مسجد عبري, 23.375456, 56.697578\n" +
-        "مسجد الرحمة, 23 32 31.6 N, 58 1 17.98 E",
-    },
+  // مربع النص الحر كان يطلب من المستخدم تذكّر الترتيب والفواصل والصيغة معاً.
+  // الخانات المنفصلة تُزيل هذا الحمل: كل خانة تحمل اسمها ومثالها، والصيغة
+  // المختارة تُبدّل شكل الخانات لا شكل الكتابة.
+  //
+  // كل ما يُضاف يُحوَّل فوراً إلى درجات عشرية ويُكتب في mosquesInput المخفي —
+  // مصدر حقيقة واحد يبقى كما هو مهما تغيّرت صيغة الإدخال، فلا يتناقض العرض
+  // مع الحساب.
+
+  const COORD_FORMS = {
     utm: {
-      hint: "إحداثيات الرسم المساحي بالأمتار: Easting ثم Northing، وفق نطاق UTM المختار في الإعدادات.",
-      ph: "مسجد النور, 554636.62, 2532743.15\n551248.12, 2633719.21",
+      hint: "إحداثيات الرسم المساحي بالأمتار، وفق نطاق UTM المختار في الإعدادات.",
+      fields: [
+        { id: "cfE", label: "Easting (شرقاً)", ph: "554636.62", w: "half" },
+        { id: "cfN", label: "Northing (شمالاً)", ph: "2532743.15", w: "half" },
+      ],
     },
     dd: {
-      hint: "درجات عشرية كما تُنسخ من خرائط Google: خط العرض ثم خط الطول.",
-      ph: "مسجد عبري, 23.375456, 56.697578\n23.588000, 58.408600",
+      hint: "الأرقام كما تُنسخ من خرائط Google: خط العرض أولاً ثم خط الطول.",
+      fields: [
+        { id: "cfLat", label: "خط العرض (Latitude)", ph: "23.375456", w: "half" },
+        { id: "cfLon", label: "خط الطول (Longitude)", ph: "56.697578", w: "half" },
+      ],
     },
     dms: {
-      hint:
-        "درجات ودقائق وثوانٍ. تُقبل الفواصل ° ' \" أو المسافات، وحرف الجهة " +
-        "(N/S/E/W) اختياري ويحسم ترتيب الإحداثيتين إن وُجد.",
-      ph:
-        "مسجد الرحمة, 23 32 31.6 N, 58 1 17.98 E\n" +
-        "23° 35' 16.8\" N, 58° 24' 30.9\" E",
+      hint: "اترك خانة الثواني فارغة إن لم تكن لديك — تُحسب صفراً.",
+      groups: [
+        {
+          title: "خط العرض (Latitude)",
+          fields: [
+            { id: "cfLatD", label: "درجات", ph: "23" },
+            { id: "cfLatM", label: "دقائق", ph: "32" },
+            { id: "cfLatS", label: "ثوانٍ", ph: "31.6" },
+            { id: "cfLatH", label: "الجهة", opts: ["N", "S"] },
+          ],
+        },
+        {
+          title: "خط الطول (Longitude)",
+          fields: [
+            { id: "cfLonD", label: "درجات", ph: "58" },
+            { id: "cfLonM", label: "دقائق", ph: "1" },
+            { id: "cfLonS", label: "ثوانٍ", ph: "17.98" },
+            { id: "cfLonH", label: "الجهة", opts: ["E", "W"] },
+          ],
+        },
+      ],
     },
   };
 
-  function applyCoordFormat() {
-    const sel = el("coordFormat");
-    if (!sel) return;
-    const cfg = COORD_FORMATS[sel.value] || COORD_FORMATS.auto;
-    el("coordHint").textContent = cfg.hint;
-    el("mosquesInput").setAttribute("placeholder", cfg.ph);
-    // الصيغة تُغيّر تفسير الأرقام نفسها، فنُعيد قراءة المحطات فوراً
-    renderStopsList();
+  function fieldHtml(f) {
+    if (f.opts) {
+      return (
+        '<div class="field"><label for="' + f.id + '">' + f.label + "</label>" +
+        '<select id="' + f.id + '">' +
+        f.opts.map((o) => '<option value="' + o + '">' + o + "</option>").join("") +
+        "</select></div>"
+      );
+    }
+    return (
+      '<div class="field"><label for="' + f.id + '">' + f.label + "</label>" +
+      '<input type="text" inputmode="decimal" id="' + f.id +
+      '" class="textarea-mono" placeholder="' + f.ph + '" /></div>'
+    );
   }
 
-  if (el("coordFormat")) {
-    el("coordFormat").addEventListener("change", applyCoordFormat);
-    applyCoordFormat();
+  function renderCoordFields() {
+    const fmt = el("coordFormat").value;
+    const cfg = COORD_FORMS[fmt] || COORD_FORMS.utm;
+    const box = el("coordFields");
+
+    if (cfg.groups) {
+      box.innerHTML = cfg.groups
+        .map(
+          (g) =>
+            '<div class="dms-group"><h4>' + g.title + "</h4>" +
+            '<div class="dms-row">' + g.fields.map(fieldHtml).join("") + "</div></div>",
+        )
+        .join("");
+    } else {
+      box.innerHTML = '<div class="grid2">' + cfg.fields.map(fieldHtml).join("") + "</div>";
+    }
+
+    el("coordHint").textContent = cfg.hint;
+    hideCoordError();
   }
+
+  function showCoordError(msg) {
+    const box = el("coordError");
+    box.textContent = msg;
+    box.classList.remove("hidden");
+  }
+
+  function hideCoordError() {
+    el("coordError").classList.add("hidden");
+  }
+
+  function numOf(id) {
+    const v = String((el(id) || { value: "" }).value)
+      .trim()
+      .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+      .replace(/[^\d.\-]/g, "");
+    return v === "" ? NaN : parseFloat(v);
+  }
+
+  // يقرأ الخانات ويُرجع { lat, lon } أو رسالة خطأ تشرح الخانة الناقصة تحديداً
+  function readCoordForm() {
+    const fmt = el("coordFormat").value;
+
+    if (fmt === "utm") {
+      const e = numOf("cfE");
+      const n = numOf("cfN");
+      if (!isFinite(e) || !isFinite(n)) return { error: "أدخل قيمتي Easting و Northing." };
+      const zone = parseInt(el("zone").value, 10);
+      const wgs = convertToWGS84(e, n, zone, el("datum").value);
+      if (!isFinite(wgs.lat) || !isFinite(wgs.lon)) return { error: "تعذّر تحويل الإحداثيات." };
+      return { lat: wgs.lat, lon: wgs.lon };
+    }
+
+    if (fmt === "dd") {
+      const lat = numOf("cfLat");
+      const lon = numOf("cfLon");
+      if (!isFinite(lat) || !isFinite(lon)) return { error: "أدخل خط العرض وخط الطول." };
+      return { lat, lon };
+    }
+
+    // درجات ودقائق وثوانٍ
+    const parts = [
+      ["cfLatD", "درجات خط العرض"],
+      ["cfLonD", "درجات خط الطول"],
+    ];
+    for (const [id, label] of parts) {
+      if (!isFinite(numOf(id))) return { error: "أدخل " + label + "." };
+    }
+
+    function assemble(dId, mId, sId, hId) {
+      const d = numOf(dId);
+      const m = isFinite(numOf(mId)) ? numOf(mId) : 0;
+      const sec = isFinite(numOf(sId)) ? numOf(sId) : 0;
+      if (m >= 60 || sec >= 60) return NaN;
+      const v = Math.abs(d) + m / 60 + sec / 3600;
+      const h = el(hId).value;
+      return h === "S" || h === "W" ? -v : v;
+    }
+
+    const lat = assemble("cfLatD", "cfLatM", "cfLatS", "cfLatH");
+    const lon = assemble("cfLonD", "cfLonM", "cfLonS", "cfLonH");
+    if (!isFinite(lat) || !isFinite(lon)) {
+      return { error: "الدقائق والثواني يجب أن تكون أقل من ٦٠." };
+    }
+    return { lat, lon };
+  }
+
+  function clearCoordForm() {
+    el("cfName").value = "";
+    el("coordFields")
+      .querySelectorAll("input")
+      .forEach((i) => (i.value = ""));
+    el("cfName").focus();
+  }
+
+  // يُلحق محطة بمصدر الحقيقة بصيغة موحّدة: الاسم، ثم درجتان عشريتان
+  function appendStop(name, lat, lon) {
+    const ta = el("mosquesInput");
+    const line = (name || "").trim()
+      ? name.trim() + ", " + lat.toFixed(6) + ", " + lon.toFixed(6)
+      : lat.toFixed(6) + ", " + lon.toFixed(6);
+    const cur = ta.value.trim();
+    ta.value = cur ? cur + "\n" + line : line;
+  }
+
+  el("coordFormat").addEventListener("change", renderCoordFields);
+  renderCoordFields();
+
+  el("cfAdd").addEventListener("click", function () {
+    const res = readCoordForm();
+    if (res.error) {
+      showCoordError(res.error);
+      return;
+    }
+    if (!withinOman(res.lat, res.lon)) {
+      showCoordError(
+        "الموقع الناتج (" + res.lat.toFixed(4) + ", " + res.lon.toFixed(4) +
+          ") خارج عُمان — تحقّق من الصيغة المختارة ومن نطاق UTM.",
+      );
+      return;
+    }
+    hideCoordError();
+    appendStop(el("cfName").value, res.lat, res.lon);
+    renderStopsList();
+    clearCoordForm();
+    toast("أُضيفت المحطة.", "ok");
+  });
+
+  // اللصق الجماعي يبقى متاحاً لمن ينسخ قائمة جاهزة — يمرّ على نفس المحلّل
+  el("bulkAdd").addEventListener("click", function () {
+    const text = el("bulkInput").value.trim();
+    if (!text) return;
+    const ta = el("mosquesInput");
+    const cur = ta.value.trim();
+    const before = cur ? cur.split("\n").filter(Boolean).length : 0;
+    ta.value = cur ? cur + "\n" + text : text;
+
+    try {
+      const after = parseMosques().length;
+      renderStopsList();
+      el("bulkInput").value = "";
+      toast("أُضيفت " + (after - before) + " محطة.", "ok");
+    } catch (err) {
+      ta.value = cur; // نتراجع كاملاً: سطر واحد فاسد لا يُفسد القائمة
+      showCoordError(err.message);
+    }
+  });
 
   el("mosquesInput").addEventListener("input", renderStopsList);
 
