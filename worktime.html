@@ -81,11 +81,9 @@
 
         <div class="error-box" id="errorBox"></div>
 
-        <!-- ═══ لوحتان: المحطات على اليمين، الخريطة لاصقة على اليسار ═══ -->
-        <div class="route-layout">
-          <!-- ─────────────── عمود المحطات ─────────────── -->
-          <div class="route-col">
-            <section class="route-panel">
+        <!-- ═══ مرحلة الإعداد: عمود واحد بعرض مريح للقراءة ═══ -->
+        <div class="setup-stage">
+<section class="route-panel">
               <div class="route-panel-head">
                 <h2>محطات اليوم</h2>
                 <button type="button" class="chip-btn" id="wtAddToggle" aria-expanded="false" aria-controls="wtAddBody">
@@ -155,8 +153,7 @@
               </div>
             </section>
 
-            <!-- الإعدادات: تُضبط مرة وتُنسى، فلا تستحق مساحة دائمة -->
-            <details class="route-settings" id="wtSettings">
+<details class="route-settings" id="wtSettings">
               <summary>
                 <svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
                      stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
@@ -210,20 +207,25 @@
                 </p>
               </div>
             </details>
+        </div>
 
-            <!-- ═══ خطة اليوم ═══ -->
-            <section class="route-panel hidden" id="resultPanel">
-              <div class="route-panel-head">
-                <h2>الخطة</h2>
-                <div class="plan-actions">
-                  <button type="button" class="chip-btn" id="wtCopyPlan">نسخ كنص</button>
-                  <button type="button" class="chip-btn" id="wtPrint">طباعة</button>
-                </div>
-              </div>
+        <!-- ═══ الخطة: لا تظهر قبل الحساب، فلا مساحة فارغة تنتظر ═══ -->
+        <section class="result-stage hidden" id="resultPanel">
+          <div class="result-head">
+            <h2>خطة اليوم</h2>
+            <div class="plan-actions">
+              <button type="button" class="chip-btn" id="wtCopyPlan">نسخ كنص</button>
+              <button type="button" class="chip-btn" id="wtPrint">طباعة</button>
+            </div>
+          </div>
 
-              <p class="summary-headline" id="summaryHeadline"></p>
-              <div class="summary-grid" id="summaryGrid"></div>
+          <p class="summary-headline" id="summaryHeadline"></p>
+          <div class="summary-grid" id="summaryGrid"></div>
 
+          <!-- الخريطة تظهر هنا مع الخط الزمني: كلاهما ثمرة الحساب، فلا يبقى
+               نصف الشاشة أسود فارغاً قبل أن يضغط المستخدم "احسب" -->
+          <div class="result-split">
+            <div class="result-col">
               <div class="break-block">
                 <h3 class="break-title">استراحات اليوم</h3>
                 <p class="break-sub">اختر بعد أي محطة تضيف كل استراحة. تُحدَّث الخطة فوراً.</p>
@@ -231,16 +233,12 @@
               </div>
 
               <div class="timeline" id="timeline"></div>
-
               <p class="hint" id="routeSourceNote"></p>
-            </section>
-          </div>
+            </div>
 
-          <!-- ─────────────── عمود الخريطة ─────────────── -->
-          <div class="map-col">
-            <div class="map-sticky">
-              <div id="map" class="worktime-map"></div>
-              <div class="map-actions">
+            <div class="map-col">
+              <div class="map-sticky">
+                <div id="map" class="worktime-map"></div>
                 <button class="primary" id="openMapsBtn">
                   <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
                        viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
@@ -249,7 +247,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </section>
       </div>
 
       <!-- تأكيد الحذف -->

@@ -53,15 +53,49 @@
   color: var(--gold-light);
 }
 
-/* ============================================================== العمودان */
-.route-layout {
+/* ======================================================= مرحلتا الصفحة
+
+   قبل الحساب لا خريطة ولا خطة — فلا معنى لتقسيم الشاشة نصفين ويبقى نصفها
+   أسود فارغاً. مرحلة الإعداد عمود واحد بعرض مريح للقراءة، والخريطة تظهر
+   مع الخطة لأن كليهما ثمرة الحساب.
+*/
+.setup-stage {
+  max-width: 780px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.result-stage { margin-top: var(--sp-6); }
+
+.result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+
+.result-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  color: var(--paper);
+}
+
+/* بعد الحساب فقط: الخط الزمني والخريطة جنباً إلى جنب */
+.result-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--sp-5);
   align-items: start;
+  margin-top: var(--sp-5);
 }
 
-.route-col { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.result-col { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
 .map-col { min-width: 0; }
 
 /* الخريطة تبقى في مجال النظر مهما طال الخط الزمني — هي المرساة البصرية */
@@ -73,7 +107,7 @@
   gap: var(--sp-3);
 }
 
-.map-actions .primary { width: 100%; justify-content: center; }
+.map-sticky .primary { width: 100%; justify-content: center; }
 
 /* ================================================================ اللوحات */
 .route-panel {
@@ -298,11 +332,12 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
 
 /* ================================================================ الجوال */
 @media (max-width: 1000px) {
-  .route-layout { grid-template-columns: 1fr; }
+  .result-split { grid-template-columns: 1fr; }
 
-  /* الخريطة تصعد فوق الخطة على الشاشات الضيقة: رؤية المسار قبل تفاصيله */
+  /* الخريطة تصعد فوق التفاصيل على الشاشات الضيقة: يُرى المسار أولاً */
   .map-col { order: -1; }
   .map-sticky { position: static; }
+  .worktime-map { height: 380px; }
 }
 
 @media (max-width: 720px) {
@@ -316,8 +351,9 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
 /* ================================================================ الطباعة
    الخطة تُطبع وتُحمل ميدانياً، فنُخفي كل ما لا معنى له على ورق */
 @media print {
-  .route-layout { display: block; }
-  .route-panel:not(#resultPanel),
+  .result-split { display: block; }
+  .result-stage { margin: 0; }
+  .setup-stage,
   .route-settings,
   .map-actions,
   .plan-actions,
@@ -539,7 +575,7 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
 }
 
 .worktime-map {
-  height: 420px;
+  height: 480px;
   width: 100%;
   border-radius: var(--radius);
   border: 1px solid var(--line);
@@ -880,3 +916,38 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
     width: 100%;
     max-width: none;
   }
+/* ==========================================================================
+   تقوية صف المسجد المحفوظ
+   في عمود ضيّق كانت العناصر الأربعة (الاختيار، النص، الإحداثيات، الأزرار)
+   تلتفّ فوق بعضها فتصير البطاقة طويلة وفارغة الوسط. الشبكة تثبّت مواضعها:
+   النص يتمدّد ويُقصّ عند الحاجة، والأزرار لا تغادر مكانها أبداً.
+   ========================================================================== */
+.saved-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  column-gap: var(--sp-3);
+}
+
+.saved-item.is-editing { display: block; }
+
+.saved-pick { min-width: 0; }
+.saved-text { min-width: 0; }
+
+.saved-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-coords { white-space: nowrap; }
+
+.saved-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* الإحداثيات تختفي أولاً عند الضيق — الاسم والأزرار أهم منها */
+@media (max-width: 560px) {
+  .saved-coords { display: none; }
+}
