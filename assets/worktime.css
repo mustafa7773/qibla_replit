@@ -705,94 +705,17 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
   gap: var(--sp-4);
 }
 
-.saved-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  max-height: 300px;
-  overflow-y: auto;
-  margin-bottom: var(--sp-4);
-}
 
-.saved-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  background: var(--surface-1);
-  transition: border-color var(--dur-fast) var(--ease);
-}
 
-.saved-item:hover {
-  border-color: var(--line-strong);
-}
 
-.saved-item:focus-within {
-  border-color: var(--gold);
-}
 
-.saved-pick {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  cursor: pointer;
-  padding: var(--sp-1) 0;
-  min-height: 30px;
-}
 
-.saved-pick input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--gold);
-  flex: 0 0 auto;
-  cursor: pointer;
-}
 
-.saved-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
 
-.saved-name {
-  color: var(--paper);
-  font-size: var(--fs-body);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.saved-sub {
-  color: var(--muted);
-  font-size: var(--fs-caption);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.saved-sub.is-missing {
-  color: var(--gold);
-}
 
-.saved-coords {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: var(--fs-caption);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
 
-.saved-item.is-editing {
-  border-color: var(--gold);
-  background: var(--surface-2);
-}
 
 .saved-edit {
   width: 100%;
@@ -856,21 +779,6 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
 
   .saved-block {
     padding: var(--sp-4);
-  }
-
-  .saved-item {
-    flex-wrap: wrap;
-    row-gap: var(--sp-2);
-  }
-
-  .saved-pick {
-    flex: 1 1 100%;
-    order: 1;
-  }
-
-  .saved-coords {
-    order: 2;
-    padding-inline-start: 28px;
   }
 
 .break-block {
@@ -1011,36 +919,42 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
 
 
 /* ==========================================================================
-   صف المسجد المحفوظ — تخطيط نهائي
+   صف المسجد المحفوظ — التعريف الوحيد
 
-   ما كان يسبّب تراكب الأزرار: ثلاث قواعد متعارضة لـ .saved-item في نفس
-   الملف (flex ثم شبكة بثلاثة أعمدة ثم شبكة بأربعة)، والأخيرة تفوز — فتحجز
-   أربعة مسارات لثلاثة أبناء، ويقع زر التعديل فوق زر الحذف.
+   سبب اختفاء الأسماء وتراكب الأزرار: تراكمت ٢٢ قاعدة متعارضة لهذه العناصر
+   عبر إعادات البناء المتتالية — flex هنا، وشبكة هناك، و flex-wrap مع order
+   داخل استعلام وسائط. كل واحدة تُلغي جزءاً من سابقتها فينهار الصف.
 
-   الآن قاعدة واحدة فقط، وأعمدتها بعدد الأبناء الفعلي:
-     [ الاختيار + النص ] [ تعديل ] [ حذف ]
-   .saved-coords مخفي في هذا العرض الضيّق، فلا يحجز مساراً.
+   العلاج: مصدر واحد لا غير. وأستخدم flex لا grid عمداً، لأن الشبكة تربط
+   التخطيط بعدد الأبناء — فإخفاء الإحداثيات وحده كان يُزيح كل شيء.
    ========================================================================== */
 .saved-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px 30px;
-  align-items: center;
+  display: flex;
+  align-items: flex-start;
   gap: var(--sp-2);
   padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  transition: border-color var(--dur-fast) var(--ease);
 }
+
+.saved-item:hover { border-color: var(--line-strong); }
+.saved-item:focus-within { border-color: var(--gold); }
 
 .saved-item.is-editing {
   display: block;
-  padding: var(--sp-3);
+  border-color: var(--gold);
+  background: var(--surface-2);
 }
 
-/* الاختيار والنص كتلة واحدة: مربع الاختيار أولاً (يمين في RTL) ثم النص */
+/* النص يبتلع كل المساحة المتبقية، والأزرار تحتفظ بعرضها الثابت */
 .saved-pick {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   gap: var(--sp-3);
-  min-width: 0;
-  padding: 0;
   cursor: pointer;
 }
 
@@ -1048,20 +962,23 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
-  margin-top: 2px;
+  margin-top: 3px;
   accent-color: var(--gold);
   cursor: pointer;
 }
 
 .saved-text {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
 }
 
 .saved-name {
+  color: var(--paper);
   font-size: var(--fs-sm);
+  font-weight: 500;
   line-height: 1.6;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1069,6 +986,7 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
 }
 
 .saved-sub {
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.6;
   overflow: hidden;
@@ -1076,15 +994,12 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
   white-space: nowrap;
 }
 
+.saved-sub.is-missing { color: var(--gold); }
+
 /* الإحداثيات تفصيل ثانوي في عمود ضيّق — الاسم والأزرار أهم */
 .saved-coords { display: none; }
 
-/* الأزرار في مساريهما الخاصين، فلا يتراكبان مهما طال الاسم */
-.saved-item > .icon-btn {
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-}
+.saved-item > .icon-btn { flex: 0 0 28px; width: 28px; height: 28px; }
 
 .saved-list {
   display: flex;
