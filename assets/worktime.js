@@ -19,8 +19,8 @@
 
   // الاستراحات الاختيارية: تُضاف بعد محطة يختارها المستخدم، بمدة ثابتة لكل نوع
   const BREAKS = {
-    prayer: { name: "وقت الصلاة", minutes: 20, icon: "🕌" },
-    dinner: { name: "وقت العشاء", minutes: 30, icon: "🍽️" },
+    prayer: { name: "وقت الصلاة", minutes: 20, icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c2.5 2 4 3.6 4 5.5A4 4 0 018 8.5C8 6.6 9.5 5 12 3z"/><path d="M4 21v-6a2 2 0 012-2h12a2 2 0 012 2v6"/><path d="M4 21h16"/></svg>' },
+    dinner: { name: "وقت العشاء", minutes: 30, icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a2 2 0 004 0V3M8 11v10"/><path d="M16 3c-1.5 1.5-2 3-2 5s.7 3 2 3v10"/></svg>' },
   };
 
   const OSRM_BASE = "https://router.project-osrm.org/trip/v1/driving/";
@@ -384,8 +384,10 @@
   function renderSummary(result) {
     // جملة تلخيصية واضحة أعلى البطاقات
     const endTime = result.schedule[result.schedule.length - 1].arrival;
+    // كانت الساعة مكتوبة نصاً ثابتاً فتناقض حقل "بداية الدوام" إن غيّره المستخدم
+    const startLabel = formatClock(result.schedule[0].departure);
     el("summaryHeadline").innerHTML =
-      "تبدأ ٨:٠٠ صباحاً وتزور <b>" +
+      "تبدأ " + startLabel + " وتزور <b>" +
       arabicUnit(result.mosqueCount, "مسجداً واحداً", "مسجدين", "مساجد", "مسجداً") +
       "</b>، وتعود إلى " + ORIGIN_NAME + " الساعة <b>" +
       formatClock(endTime) +
@@ -430,7 +432,7 @@
       // ساق التنقل تُعرض بين المحطتين لتكون العلاقة واضحة
       if (stop.legMinutes != null) {
         rows.push(
-          '<li class="leg"><span class="leg-icon">🚗</span>' +
+          '<li class="leg"><span class="leg-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M6.5 17V9.5L8 6h8l1.5 3.5V17"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/></svg></span>' +
             '<span class="leg-text">تنقّل ' +
             formatDuration(stop.legMinutes) +
             " · " +
@@ -713,13 +715,22 @@
       if (m.datum === "psd93" || m.datum === "wgs84utm") el("datum").value = m.datum;
     });
 
-    if (!lines.length) return;
+    if (!lines.length) {
+      toast("المساجد المحددة مضافة بالفعل إلى المسار.");
+      return;
+    }
 
     ta.value = existing ? existing + "\n" + lines.join("\n") : lines.join("\n");
 
     el("savedList")
       .querySelectorAll('input[type="checkbox"]:checked')
       .forEach((cb) => (cb.checked = false));
+
+    renderStopsList();
+    toast(
+      "أُضيفت " + arabicUnit(lines.length, "محطة واحدة", "محطتان", "محطات", "محطة") + " إلى المسار.",
+      "ok",
+    );
   }
 
   // ---------- الاستراحات ----------
@@ -727,6 +738,7 @@
   // المحطة المختارة لكل استراحة: "" (بدون) أو "start" أو رقم المحطة
   const chosenBreaks = { prayer: "", dinner: "" };
   let lastRouteForBreaks = null;
+  let lastResult = null; // آخر خطة محسوبة — تغذّي "نسخ كنص"
 
   // ترتيب عربي لمواقع العمل: الأول، الثاني، الثالث...
   const ORDINALS = [
@@ -805,6 +817,7 @@
     const stopMinutes = Math.max(0, parseFloat(el("stopMinutes").value) || 0);
     const startTime = el("startTime").value || "08:00";
     const result = buildSchedule(lastRouteForBreaks, stopMinutes, startTime, chosenBreaks);
+    lastResult = result;
     renderSummary(result);
     renderTimeline(result);
   }
@@ -836,11 +849,11 @@
       try {
         route = await solveRouteViaOsrm(stops);
         noteText =
-          "🛣️ الأزمنة والمسافات محسوبة على الطرق الفعلية عبر خدمة OSRM المفتوحة، ولا تشمل الازدحام المروري.";
+          "الأزمنة والمسافات محسوبة على الطرق الفعلية عبر خدمة OSRM المفتوحة، ولا تشمل الازدحام المروري.";
       } catch (osrmErr) {
         route = solveRouteFallback(stops);
         noteText =
-          "⚠️ تعذّر الوصول لخدمة المسارات، فاستُخدم تقدير تقريبي بمسافة الخط المستقيم بمتوسط سرعة " +
+          "تعذّر الوصول لخدمة المسارات، فاستُخدم تقدير تقريبي بمسافة الخط المستقيم بمتوسط سرعة " +
           FALLBACK_SPEED_KMH +
           " كم/س. الأرقام إرشادية فقط.";
       }
@@ -849,6 +862,7 @@
       const startTime = el("startTime").value || "08:00";
 
       const result = buildSchedule(route, stopMinutes, startTime, chosenBreaks);
+      lastResult = result;
       lastRoute = route;
       lastRouteForBreaks = route;
       renderBreakPicker(route);
@@ -875,6 +889,147 @@
     }
   }
 
+  // ==========================================================================
+  //                        واجهة الترتيب الجديد
+  // ==========================================================================
+
+  function toast(message, kind) {
+    const box = el("wtToast");
+    box.className = "toast" + (kind ? " is-" + kind : "");
+    box.textContent = message;
+    box.classList.remove("hidden");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => box.classList.add("hidden"), 4000);
+  }
+
+  const ICON_TRASH_SM =
+    '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/>' +
+    '<path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>';
+
+  // قائمة المحطات المختارة: قبل هذا كان مربع النص هو التمثيل الوحيد، فلا يرى
+  // المستخدم كم محطة عنده إلا بعدّ الأسطر بعينه
+  function renderStopsList() {
+    const list = el("wtStopsList");
+    const empty = el("wtStopsEmpty");
+    const badge = el("wtStopsBadge");
+
+    let stops = [];
+    try {
+      stops = parseMosques();
+    } catch (e) {
+      stops = [];
+    }
+
+    badge.textContent = stops.length
+      ? arabicUnit(stops.length, "محطة واحدة", "محطتان", "محطات", "محطة")
+      : "لا محطات بعد";
+    badge.classList.toggle("is-set", stops.length > 0);
+
+    empty.classList.toggle("hidden", stops.length > 0);
+
+    list.innerHTML = stops
+      .map(
+        (m, i) =>
+          '<li><span class="stop-index">' + (i + 1) + "</span>" +
+          '<span class="stop-label">' + escapeHtml(m.name) +
+          '<span class="stop-coords">' + m.lat.toFixed(5) + ", " + m.lon.toFixed(5) +
+          "</span></span>" +
+          '<button type="button" class="icon-btn danger" data-drop="' + i + '" ' +
+          'aria-label="إزالة هذه المحطة" title="إزالة">' + ICON_TRASH_SM + "</button></li>",
+      )
+      .join("");
+  }
+
+  // إزالة محطة تعني حذف سطرها من مربع النص — مصدر الحقيقة الوحيد
+  el("wtStopsList").addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-drop]");
+    if (!btn) return;
+    const idx = parseInt(btn.getAttribute("data-drop"), 10);
+    const lines = el("mosquesInput").value.split("\n").map((l) => l.trim()).filter(Boolean);
+    lines.splice(idx, 1);
+    el("mosquesInput").value = lines.join("\n");
+    renderStopsList();
+  });
+
+  el("mosquesInput").addEventListener("input", renderStopsList);
+
+  // ----- إضافة المحطات: زر واحد بتبويبين بدل طريقتين معروضتين معاً -----
+  el("wtAddToggle").addEventListener("click", function () {
+    const body = el("wtAddBody");
+    const open = body.classList.toggle("hidden") === false;
+    this.setAttribute("aria-expanded", String(open));
+  });
+
+  document.querySelectorAll(".add-tab").forEach((tab) => {
+    tab.addEventListener("click", function () {
+      const target = this.getAttribute("data-tab");
+      document.querySelectorAll(".add-tab").forEach((t) => {
+        const on = t === this;
+        t.classList.toggle("is-active", on);
+        t.setAttribute("aria-selected", String(on));
+      });
+      el("paneSaved").classList.toggle("hidden", target !== "saved");
+      el("paneManual").classList.toggle("hidden", target !== "manual");
+    });
+  });
+
+  // ----- ملخّص الإعدادات في العنوان: تعرف قيمها بلا فتح -----
+  function updateSettingsSummary() {
+    const start = el("startTime").value || "08:00";
+    const mins = el("stopMinutes").value || "60";
+    el("wtSettingsSummary").textContent = "تبدأ " + start + " · " + mins + " دقيقة بكل مسجد";
+  }
+
+  ["startTime", "stopMinutes", "datum", "zone"].forEach((id) => {
+    el(id).addEventListener("change", updateSettingsSummary);
+  });
+  updateSettingsSummary();
+
+  // ----- نسخ الخطة كنص: تُرسل في واتساب للفريق قبل الخروج للميدان -----
+  el("wtCopyPlan").addEventListener("click", async function () {
+    const text = planAsText();
+    if (!text) {
+      toast("احسب المسار أولاً.", "error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("نُسخت الخطة.", "ok");
+    } catch (e) {
+      // الحافظة محجوبة (اتصال غير آمن أو رفض المستخدم) — نعرض النص لينسخه يدوياً
+      window.prompt("انسخ الخطة يدوياً:", text);
+    }
+  });
+
+  function planAsText() {
+    if (!lastResult) return "";
+    const lines = ["خطة يوم العمل", ""];
+    let n = 0;
+    lastResult.schedule.forEach((stop) => {
+      if (stop.isBreak) {
+        lines.push("• " + stop.name + " — " + formatClock(stop.arrival) + " إلى " + formatClock(stop.departure));
+        return;
+      }
+      if (stop.isOrigin && n > 0) {
+        lines.push("العودة إلى " + stop.name + " — " + formatClock(stop.arrival));
+        return;
+      }
+      if (stop.isOrigin) {
+        lines.push("الانطلاق من " + stop.name + " — " + formatClock(stop.departure));
+        return;
+      }
+      n++;
+      lines.push(n + ". " + stop.name + " — " + formatClock(stop.arrival) + " إلى " + formatClock(stop.departure));
+    });
+    lines.push("");
+    lines.push("الإجمالي: " + formatDuration(lastResult.totalMinutes));
+    return lines.join("\n");
+  }
+
+  el("wtPrint").addEventListener("click", () => window.print());
+
   el("computeBtn").addEventListener("click", compute);
 
   // تغيير أي استراحة يُعيد بناء خطة اليوم فوراً (بلا إعادة حساب المسار)
@@ -897,7 +1052,7 @@
 
   el("addSelectedBtn").addEventListener("click", addSelectedSaved);
 
-  // أزرار التعديل (✎) والحذف (🗑) داخل كل صف
+  // أزرار التعديل والحذف داخل كل صف
   el("savedList").addEventListener("click", function (e) {
     const editBtn = e.target.closest("[data-edit]");
     if (editBtn) {
@@ -953,6 +1108,9 @@
     a.click();
     a.remove();
   }
+
+  // أول رسم لقائمة المحطات (مربع النص قد يحمل قيمة محفوظة من المتصفح)
+  renderStopsList();
 
   el("openMapsBtn").addEventListener("click", function () {
     if (!lastRoute) {
