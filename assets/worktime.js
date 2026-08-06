@@ -177,68 +177,139 @@
     return { lat: a, lon: b };
   }
 
+  // ---------------------------------------------------- صيغ الإحداثيات
+  //
+  // ثلاث صيغ تُستخدم فعلياً في العمل الميداني:
+  //   UTM  : 554636.62, 2532743.15      (الرسم المساحي)
+  //   DD   : 23.375456, 56.697578        (نسخ من خرائط Google)
+  //   DMS  : 23 32 31.6 N, 58 1 17.98 E  (أجهزة GPS والوثائق الرسمية)
+  //
+  // "تلقائي" يميّزها بلا لبس، والاختيار الصريح متاح لمن يريد ضماناً.
+
+  // درجات ودقائق وثوانٍ ← رقم عشري.
+  // يقبل الفواصل: ° ' " ′ ″ : ومسافة، ويقبل النقص (درجات ودقائق بلا ثوانٍ).
+  function parseDms(text) {
+    const t = String(text)
+      .trim()
+      .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)); // أرقام عربية
+
+    const m = t.match(
+      /^([NSEWnsew])?\s*(-?\d{1,3})\s*(?:[°ºd:]|\s)\s*(\d{1,2}(?:\.\d+)?)?\s*(?:['′m:]|\s)?\s*(\d{1,2}(?:\.\d+)?)?\s*(?:["″s])?\s*([NSEWnsew])?$/,
+    );
+    if (!m) return { value: NaN, hemi: "" };
+
+    const hemi = (m[1] || m[5] || "").toUpperCase();
+    const deg = parseFloat(m[2]);
+    const min = m[3] ? parseFloat(m[3]) : 0;
+    const sec = m[4] ? parseFloat(m[4]) : 0;
+    if (!isFinite(deg) || min >= 60 || sec >= 60) return { value: NaN, hemi };
+
+    let val = Math.abs(deg) + min / 60 + sec / 3600;
+    if (deg < 0 || hemi === "S" || hemi === "W") val = -val;
+    return { value: val, hemi };
+  }
+
+  // هل يبدو هذا النص بصيغة الدرجات والدقائق؟ علامات قاطعة: رمز درجة أو
+  // دقيقة أو ثانية، أو حرف جهة، أو ثلاث مجموعات رقمية مفصولة بمسافات
+  function looksLikeDms(text) {
+    const t = String(text).trim();
+    if (/[°º'′"″]/.test(t)) return true;
+    if (/[NSEWnsew]\s*$/.test(t) || /^[NSEWnsew]/.test(t)) return true;
+    return /^\d{1,3}\s+\d{1,2}(\.\d+)?(\s+\d{1,2}(\.\d+)?)?$/.test(t);
+  }
+
   function parseMosques() {
     const raw = el("mosquesInput").value.trim();
     if (!raw) throw new Error("أدخل موقع مسجد واحد على الأقل.");
 
     const datum = el("datum").value;
     const zone = parseInt(el("zone").value, 10);
+    const fmtEl = el("coordFormat");
+    const format = fmtEl ? fmtEl.value : "auto";
 
     const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
     const mosques = [];
 
     lines.forEach((line, idx) => {
+      const no = idx + 1;
+
       // الحقول مفصولة بفاصلة (عربية أو إنجليزية) أو فاصلة منقوطة أو Tab.
       // آخر حقلين هما الإحداثيتان، وما قبلهما هو الاسم — بهذا الترتيب يبقى
       // الاسم سليماً حتى لو احتوى أرقاماً مثل "ص-24-103".
       let parts = line.split(/[,،;\t]+/).map((p) => p.trim()).filter(Boolean);
 
-      // سطر بلا فواصل: نقبل الفصل بالمسافات (إحداثيتان فقط)
-      if (parts.length < 2) {
+      // سطر بلا فواصل: نقبل الفصل بالمسافات (إحداثيتان فقط).
+      // لا نفعل هذا مع الدرجات والدقائق لأن مسافاتها جزء من الرقم نفسه.
+      if (parts.length < 2 && !looksLikeDms(line)) {
         parts = line.split(/\s+/).map((p) => p.trim()).filter(Boolean);
       }
 
       if (parts.length < 2) {
-        throw new Error(
-          "السطر رقم " + (idx + 1) + " لا يحتوي على إحداثيتين صالحتين.",
-        );
+        throw new Error("السطر رقم " + no + " لا يحتوي على إحداثيتين صالحتين.");
       }
 
-      const second = parseFloat(parts[parts.length - 1].replace(/[^\d.\-]/g, ""));
-      const first = parseFloat(parts[parts.length - 2].replace(/[^\d.\-]/g, ""));
-
-      if (!isFinite(first) || !isFinite(second)) {
-        throw new Error(
-          "السطر رقم " + (idx + 1) + " لا يحتوي على إحداثيتين صالحتين.",
-        );
-      }
-
-      const name = parts.slice(0, -2).join(", ").trim() || "مسجد " + (idx + 1);
+      const rawA = parts[parts.length - 2];
+      const rawB = parts[parts.length - 1];
+      const name = parts.slice(0, -2).join(", ").trim() || "مسجد " + no;
 
       let lat;
       let lon;
-      let easting;
-      let northing;
+      let easting = null;
+      let northing = null;
 
-      if (looksLikeLatLon(first, second)) {
-        // درجات جغرافية: تُستخدم مباشرة، ونشتق UTM منها للعرض فقط
-        const ll = orderLatLon(first, second);
-        lat = ll.lat;
-        lon = ll.lon;
-        // لا نشتق UTM من الدرجات: لا حاجة له في الحساب (المسار يعمل بالدرجات)،
-        // وإضافة تحويل عكسي تعني كوداً جديداً بلا فائدة تُذكر
-        easting = null;
-        northing = null;
+      // الصيغة المختارة صراحةً تفوز على التخمين؛ و"تلقائي" يفحص العلامات
+      const wantDms =
+        format === "dms" ||
+        (format === "auto" && looksLikeDms(rawA) && looksLikeDms(rawB));
+
+      if (wantDms) {
+        const A = parseDms(rawA);
+        const B = parseDms(rawB);
+        if (!isFinite(A.value) || !isFinite(B.value)) {
+          throw new Error(
+            "السطر رقم " + no +
+              " غير مقروء بصيغة الدرجات والدقائق. المتوقّع مثل: " +
+              "23 32 31.6 N, 58 1 17.98 E",
+          );
+        }
+        // حرف الجهة يحسم أيّهما العرض وأيّهما الطول، وبلا حرف نعتمد النطاق
+        if (A.hemi === "N" || A.hemi === "S" || B.hemi === "E" || B.hemi === "W") {
+          lat = A.value;
+          lon = B.value;
+        } else if (A.hemi === "E" || A.hemi === "W" || B.hemi === "N" || B.hemi === "S") {
+          lat = B.value;
+          lon = A.value;
+        } else {
+          const ll = orderLatLon(A.value, B.value);
+          lat = ll.lat;
+          lon = ll.lon;
+        }
       } else {
-        easting = first;
-        northing = second;
-        const wgs = convertToWGS84(easting, northing, zone, datum);
-        lat = wgs.lat;
-        lon = wgs.lon;
+        const first = parseFloat(String(rawA).replace(/[^\d.\-]/g, ""));
+        const second = parseFloat(String(rawB).replace(/[^\d.\-]/g, ""));
+
+        if (!isFinite(first) || !isFinite(second)) {
+          throw new Error("السطر رقم " + no + " لا يحتوي على إحداثيتين صالحتين.");
+        }
+
+        const asDegrees =
+          format === "dd" || (format !== "utm" && looksLikeLatLon(first, second));
+
+        if (asDegrees) {
+          const ll = orderLatLon(first, second);
+          lat = ll.lat;
+          lon = ll.lon;
+        } else {
+          easting = first;
+          northing = second;
+          const wgs = convertToWGS84(easting, northing, zone, datum);
+          lat = wgs.lat;
+          lon = wgs.lon;
+        }
       }
 
       if (!isFinite(lat) || !isFinite(lon)) {
-        throw new Error("تعذّر تحويل إحداثيات السطر رقم " + (idx + 1) + ".");
+        throw new Error("تعذّر تحويل إحداثيات السطر رقم " + no + ".");
       }
 
       // حارس أخير: موقع خارج عُمان بمسافات شاسعة يعني غالباً صيغة أُسيء
@@ -248,20 +319,13 @@
         lon < OMAN_BOUNDS.lonMin - 4 || lon > OMAN_BOUNDS.lonMax + 4
       ) {
         throw new Error(
-          "إحداثيات السطر رقم " + (idx + 1) + " تقع خارج عُمان (" +
+          "إحداثيات السطر رقم " + no + " تقع خارج عُمان (" +
             lat.toFixed(4) + ", " + lon.toFixed(4) +
-            "). تحقّق من الصيغة: الدرجات مثل 23.375456, 56.697578 — " +
-            "أو UTM بالأمتار مثل 570123, 2586470، ومن نطاق UTM المختار.",
+            "). تحقّق من صيغة الإدخال المختارة ومن نطاق UTM.",
         );
       }
 
-      mosques.push({
-        name,
-        easting: isFinite(easting) ? easting : null,
-        northing: isFinite(northing) ? northing : null,
-        lat,
-        lon,
-      });
+      mosques.push({ name, easting, northing, lat, lon });
     });
 
     return mosques;
@@ -1116,6 +1180,53 @@
       .querySelectorAll(".stop-row")
       .forEach((r) => r.classList.remove("is-dragging", "is-over"));
   });
+
+  // ------------------------------------------------ إرشاد صيغة الإحداثيات
+  //
+  // المثال المعروض يتغيّر مع الصيغة المختارة: رؤية الشكل المطلوب أنفع من
+  // وصفه بالكلام، وتمنع أشيع خطأ — لصق درجات في حقل يتوقّع أمتاراً.
+  const COORD_FORMATS = {
+    auto: {
+      hint:
+        "تُقبل الصيغ الثلاث معاً وتُميَّز تلقائياً: UTM بالأمتار، أو درجات عشرية، " +
+        "أو درجات ودقائق وثوانٍ. يمكن خلطها في نفس المربع.",
+      ph:
+        "مسجد النور, 554636.62, 2532743.15\n" +
+        "مسجد عبري, 23.375456, 56.697578\n" +
+        "مسجد الرحمة, 23 32 31.6 N, 58 1 17.98 E",
+    },
+    utm: {
+      hint: "إحداثيات الرسم المساحي بالأمتار: Easting ثم Northing، وفق نطاق UTM المختار في الإعدادات.",
+      ph: "مسجد النور, 554636.62, 2532743.15\n551248.12, 2633719.21",
+    },
+    dd: {
+      hint: "درجات عشرية كما تُنسخ من خرائط Google: خط العرض ثم خط الطول.",
+      ph: "مسجد عبري, 23.375456, 56.697578\n23.588000, 58.408600",
+    },
+    dms: {
+      hint:
+        "درجات ودقائق وثوانٍ. تُقبل الفواصل ° ' \" أو المسافات، وحرف الجهة " +
+        "(N/S/E/W) اختياري ويحسم ترتيب الإحداثيتين إن وُجد.",
+      ph:
+        "مسجد الرحمة, 23 32 31.6 N, 58 1 17.98 E\n" +
+        "23° 35' 16.8\" N, 58° 24' 30.9\" E",
+    },
+  };
+
+  function applyCoordFormat() {
+    const sel = el("coordFormat");
+    if (!sel) return;
+    const cfg = COORD_FORMATS[sel.value] || COORD_FORMATS.auto;
+    el("coordHint").textContent = cfg.hint;
+    el("mosquesInput").setAttribute("placeholder", cfg.ph);
+    // الصيغة تُغيّر تفسير الأرقام نفسها، فنُعيد قراءة المحطات فوراً
+    renderStopsList();
+  }
+
+  if (el("coordFormat")) {
+    el("coordFormat").addEventListener("change", applyCoordFormat);
+    applyCoordFormat();
+  }
 
   el("mosquesInput").addEventListener("input", renderStopsList);
 
