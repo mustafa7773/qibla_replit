@@ -1118,7 +1118,222 @@
     return lines.join("\n");
   }
 
-  el("wtPrint").addEventListener("click", () => window.print());
+  // ==========================================================================
+  //                        تقرير PDF لخطة اليوم
+  // ==========================================================================
+  //
+  // لماذا نرسم صفحة HTML ثم نصوّرها بدل كتابة النص في PDF مباشرة؟
+  // لأن مكتبات PDF لا تُشكّل الحروف العربية: تكتب "س ل ا م" منفصلة ومقلوبة.
+  // المتصفح وحده يعرف كيف يصل الحروف ويرتّب الاتجاه، فندعه يرسم ثم نلتقط
+  // الصورة. النتيجة عربية صحيحة على كل جهاز.
+  //
+  // الرابط استثناء: نكتبه في PDF كنص حقيقي قابل للنقر (لاتيني فلا مشكلة في
+  // تشكيله)، فيبقى المسار قابلاً للفتح من داخل الملف لا صورةً ميتة.
+
+  const PDF_LIBS = [
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+  ];
+
+  let pdfLibsReady = null;
+
+  // نُحمّل المكتبتين عند أول ضغطة فقط — لا نُثقل فتح الصفحة بـ ٥٠٠ كيلوبايت
+  // لا يحتاجها أغلب الاستخدام
+  function loadPdfLibs() {
+    if (pdfLibsReady) return pdfLibsReady;
+    pdfLibsReady = Promise.all(
+      PDF_LIBS.map(
+        (src) =>
+          new Promise((resolve, reject) => {
+            const tag = document.createElement("script");
+            tag.src = src;
+            tag.onload = resolve;
+            tag.onerror = () => {
+              // تُجلب من الإنترنت، فالفشل هنا يعني غالباً انقطاع الاتصال
+              pdfLibsReady = null; // نسمح بإعادة المحاولة لاحقاً
+              reject(new Error("تعذّر تحميل مكتبة PDF — تحقّق من الاتصال بالإنترنت"));
+            };
+            document.head.appendChild(tag);
+          }),
+      ),
+    );
+    return pdfLibsReady;
+  }
+
+  function pdfEsc(t) {
+    return escapeHtml(t == null ? "" : String(t));
+  }
+
+  // صفحة بيضاء مستقلة للطباعة — لا نصوّر الواجهة الداكنة: الخلفية السوداء
+  // تلتهم الحبر، والألوان الخافتة تصير غير مقروءة على ورق
+  function buildPdfSheet(result) {
+    const today = new Date();
+    const dateStr =
+      String(today.getDate()).padStart(2, "0") + "-" +
+      String(today.getMonth() + 1).padStart(2, "0") + "-" +
+      today.getFullYear();
+
+    const rows = [];
+    let n = 0;
+
+    result.schedule.forEach((stop) => {
+      if (stop.legMinutes != null) {
+        rows.push(
+          '<tr class="leg-row"><td colspan="4">تنقّل ' +
+            pdfEsc(formatDuration(stop.legMinutes)) +
+            " · " + stop.legKm.toFixed(1) + " كم</td></tr>",
+        );
+      }
+
+      let label = "";
+      let badge = "";
+      if (stop.isBreak) {
+        label = pdfEsc(stop.name);
+        badge = "استراحة";
+      } else if (stop.label === "الانطلاق") {
+        label = pdfEsc(String(stop.name).split(" — ")[0]);
+        badge = "الانطلاق";
+      } else if (stop.label === "العودة") {
+        label = pdfEsc(String(stop.name).split(" — ")[0]);
+        badge = "نهاية اليوم";
+      } else {
+        n++;
+        label = pdfEsc(String(stop.name).split(" — ")[0]);
+        badge = "محطة " + n;
+      }
+
+      const from = stop.arrival != null ? formatClock(stop.arrival) : "—";
+      const to = stop.departure != null ? formatClock(stop.departure) : "—";
+      const dur = stop.workMinutes ? formatDuration(stop.workMinutes) : "—";
+
+      rows.push(
+        "<tr><td>" + pdfEsc(badge) + "</td><td>" + label +
+          '</td><td class="mono">' + from + " – " + to +
+          '</td><td class="mono">' + pdfEsc(dur) + "</td></tr>",
+      );
+    });
+
+    const box = document.createElement("div");
+    box.setAttribute("dir", "rtl");
+    box.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;" +
+      "color:#111827;font-family:'IBM Plex Sans Arabic',sans-serif;padding:40px;";
+
+    box.innerHTML =
+      '<style>' +
+      ".pdfsheet h1{margin:0 0 4px;font-size:24px;color:#111827}" +
+      ".pdfsheet .meta{margin:0 0 20px;font-size:12px;color:#6b7280}" +
+      ".pdfsheet .lead{margin:0 0 18px;padding:12px 14px;background:#faf6ec;" +
+      "border-right:3px solid #b8862b;font-size:13px;line-height:1.9;color:#374151}" +
+      ".pdfsheet .cards{display:flex;gap:10px;margin-bottom:20px}" +
+      ".pdfsheet .c{flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px}" +
+      ".pdfsheet .c b{display:block;font-size:17px;color:#111827}" +
+      ".pdfsheet .c span{font-size:11px;color:#6b7280}" +
+      ".pdfsheet table{width:100%;border-collapse:collapse;font-size:12px}" +
+      ".pdfsheet th{background:#f3f4f6;color:#374151;font-weight:600;" +
+      "padding:8px 10px;text-align:right;border:1px solid #e5e7eb}" +
+      ".pdfsheet td{padding:8px 10px;border:1px solid #e5e7eb;color:#111827}" +
+      ".pdfsheet .leg-row td{background:#fafafa;color:#6b7280;font-size:11px}" +
+      ".pdfsheet .mono{font-family:'IBM Plex Mono',monospace;direction:ltr;text-align:center}" +
+      "</style>" +
+      '<div class="pdfsheet">' +
+      "<h1>خطة يوم العمل</h1>" +
+      '<p class="meta">ابتكارات السماء · صدر بتاريخ ' + dateStr + "</p>" +
+      '<p class="lead">' + el("summaryHeadline").textContent + "</p>" +
+      '<div class="cards">' +
+      '<div class="c"><b>' + result.mosqueCount + "</b><span>عدد المساجد</span></div>" +
+      '<div class="c"><b>' + pdfEsc(formatDurationShort(result.drivingMinutes)) + "</b><span>زمن التنقل</span></div>" +
+      '<div class="c"><b>' + pdfEsc(formatDurationShort(result.workMinutes)) + "</b><span>العمل بالمواقع</span></div>" +
+      '<div class="c"><b>' + pdfEsc(formatDurationShort(result.totalMinutes)) + "</b><span>إجمالي اليوم</span></div>" +
+      "</div>" +
+      "<table><thead><tr><th>الترتيب</th><th>الموقع</th><th>التوقيت</th><th>المدة</th></tr></thead>" +
+      "<tbody>" + rows.join("") + "</tbody></table>" +
+      "</div>";
+
+    return box;
+  }
+
+  async function downloadPlanPdf() {
+    if (!lastResult || !lastRoute) {
+      toast("احسب المسار أولاً.", "error");
+      return;
+    }
+
+    const btn = el("wtPdf");
+    const label = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = "جارٍ التجهيز…";
+
+    let sheet = null;
+    try {
+      await loadPdfLibs();
+
+      const mapsUrl = buildGoogleMapsUrl(lastRoute);
+      sheet = buildPdfSheet(lastResult);
+      document.body.appendChild(sheet);
+
+      // مهلة قصيرة تضمن أن الخطوط طُبّقت قبل التصوير، وإلا خرج النص بخط بديل
+      await new Promise((r) => setTimeout(r, 120));
+
+      const canvas = await window.html2canvas(sheet, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const footerH = 18; // نحجز أسفل كل صفحة لرابط المسار
+      const usableH = pageH - footerH;
+
+      const imgW = pageW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+
+      // المحتوى الطويل يُقسَّم على صفحات: نزيح الصورة لأعلى في كل صفحة
+      const pages = Math.max(1, Math.ceil(imgH / usableH));
+      const img = canvas.toDataURL("image/jpeg", 0.92);
+
+      for (let p = 0; p < pages; p++) {
+        if (p > 0) doc.addPage();
+        doc.addImage(img, "JPEG", 0, -p * usableH, imgW, imgH);
+
+        // شريط أبيض يغطي ما تجاوز حدّ الصفحة قبل رسم التذييل
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, usableH, pageW, footerH, "F");
+
+        doc.setDrawColor(229, 231, 235);
+        doc.line(12, usableH + 3, pageW - 12, usableH + 3);
+
+        // الرابط بحروف لاتينية فيُكتب نصاً حقيقياً قابلاً للنقر داخل الملف،
+        // لا صورة ميتة. النقر عليه يفتح المسار كاملاً في خرائط Google.
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.text("Sky Innovations — Route plan", 12, usableH + 9);
+        doc.text(String(p + 1) + " / " + String(pages), pageW - 12, usableH + 9, { align: "right" });
+
+        doc.setTextColor(30, 90, 190);
+        doc.textWithLink("Open the full route in Google Maps", 12, usableH + 14, { url: mapsUrl });
+      }
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      doc.save("خطة يوم العمل " + stamp + ".pdf");
+      toast("نُزّل ملف الخطة.", "ok");
+    } catch (err) {
+      toast(
+        "تعذّر إنشاء الملف: " + (err && err.message ? err.message : "خطأ غير متوقع"),
+        "error",
+      );
+    } finally {
+      if (sheet && sheet.parentNode) sheet.parentNode.removeChild(sheet);
+      btn.disabled = false;
+      btn.innerHTML = label;
+    }
+  }
+
+  el("wtPdf").addEventListener("click", downloadPlanPdf);
 
   el("computeBtn").addEventListener("click", compute);
 

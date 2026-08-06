@@ -62,7 +62,9 @@ self.addEventListener("activate", (event) => {
 // هل هذا طلب لبلاطة خريطة أو خط؟ (يستحق التخزين الطويل)
 function isLongLived(url) {
   return (
-    /tile\.openstreetmap|arcgisonline|basemaps|fonts\.gstatic|fonts\.googleapis/.test(
+    // مكتبات CDN ثابتة الإصدار: تخزينها يجعل تصدير PDF يعمل بعد أول استخدام
+    // حتى على شبكة ضعيفة
+    /tile\.openstreetmap|arcgisonline|basemaps|fonts\.gstatic|fonts\.googleapis|cdnjs\.cloudflare|cdn\.jsdelivr|unpkg\.com/.test(
       url.href,
     ) || /\.(?:woff2?|ttf|png|jpg|jpeg|svg|webp)$/i.test(url.pathname)
   );
