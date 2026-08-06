@@ -150,6 +150,33 @@
 
   // ---------- قراءة المدخلات ----------
 
+  // نطاق عُمان الجغرافي — يُستخدم للتمييز بين صيغتي الإدخال والتحقق من الناتج
+  const OMAN_BOUNDS = { latMin: 16, latMax: 27.5, lonMin: 51.5, lonMax: 60.5 };
+
+  // هل هذان الرقمان درجتان جغرافيتان أم متران في نظام UTM؟
+  //
+  // الفرق قاطع بالمقدار لا بالتخمين: في عُمان تقع Easting بين ٢٠٠ ألف و٨٠٠
+  // ألف متر، وNorthing بين ١٫٨ و٣ ملايين. أما خطا الطول والعرض فأقل من ٩٠.
+  // فأي زوج تحت الألف هو درجات قطعاً، ولا التباس ممكن بين النطاقين.
+  //
+  // سبب وجود هذه الدالة: من ينسخ إحداثيات من خرائط Google يحصل على درجات،
+  // وكانت الأداة تعاملها كأمتار فتضع المسجد في المحيط على بعد آلاف الكيلومترات.
+  function looksLikeLatLon(a, b) {
+    return Math.abs(a) <= 1000 && Math.abs(b) <= 1000;
+  }
+
+  // ترتيب الدرجات قد يأتي "خط العرض ثم الطول" أو العكس. في عُمان النطاقان
+  // لا يتداخلان (العرض ١٦–٢٧٫٥ والطول ٥١٫٥–٦٠٫٥)، فنعرف أيّهما أيّ بيقين.
+  function orderLatLon(a, b) {
+    const inLat = (v) => v >= OMAN_BOUNDS.latMin && v <= OMAN_BOUNDS.latMax;
+    const inLon = (v) => v >= OMAN_BOUNDS.lonMin && v <= OMAN_BOUNDS.lonMax;
+
+    if (inLat(a) && inLon(b)) return { lat: a, lon: b };
+    if (inLon(a) && inLat(b)) return { lat: b, lon: a }; // مكتوبة بالعكس
+    // خارج عُمان: نأخذ الترتيب الشائع (العرض أولاً) ونترك التحقق لما بعده
+    return { lat: a, lon: b };
+  }
+
   function parseMosques() {
     const raw = el("mosquesInput").value.trim();
     if (!raw) throw new Error("أدخل موقع مسجد واحد على الأقل.");
@@ -162,8 +189,8 @@
 
     lines.forEach((line, idx) => {
       // الحقول مفصولة بفاصلة (عربية أو إنجليزية) أو فاصلة منقوطة أو Tab.
-      // آخر حقلين هما Easting ثم Northing، وما قبلهما هو الاسم — بهذا الترتيب
-      // يبقى الاسم سليماً حتى لو احتوى أرقاماً مثل "ص-24-103".
+      // آخر حقلين هما الإحداثيتان، وما قبلهما هو الاسم — بهذا الترتيب يبقى
+      // الاسم سليماً حتى لو احتوى أرقاماً مثل "ص-24-103".
       let parts = line.split(/[,،;\t]+/).map((p) => p.trim()).filter(Boolean);
 
       // سطر بلا فواصل: نقبل الفصل بالمسافات (إحداثيتان فقط)
@@ -173,27 +200,68 @@
 
       if (parts.length < 2) {
         throw new Error(
-          "السطر رقم " + (idx + 1) + " لا يحتوي على إحداثيتين صالحتين (Easting و Northing).",
+          "السطر رقم " + (idx + 1) + " لا يحتوي على إحداثيتين صالحتين.",
         );
       }
 
-      const northing = parseFloat(parts[parts.length - 1].replace(/[^\d.\-]/g, ""));
-      const easting = parseFloat(parts[parts.length - 2].replace(/[^\d.\-]/g, ""));
+      const second = parseFloat(parts[parts.length - 1].replace(/[^\d.\-]/g, ""));
+      const first = parseFloat(parts[parts.length - 2].replace(/[^\d.\-]/g, ""));
 
-      if (!isFinite(easting) || !isFinite(northing)) {
+      if (!isFinite(first) || !isFinite(second)) {
         throw new Error(
-          "السطر رقم " + (idx + 1) + " لا يحتوي على إحداثيتين صالحتين (Easting و Northing).",
+          "السطر رقم " + (idx + 1) + " لا يحتوي على إحداثيتين صالحتين.",
         );
       }
 
       const name = parts.slice(0, -2).join(", ").trim() || "مسجد " + (idx + 1);
 
-      const wgs = convertToWGS84(easting, northing, zone, datum);
-      if (!isFinite(wgs.lat) || !isFinite(wgs.lon)) {
+      let lat;
+      let lon;
+      let easting;
+      let northing;
+
+      if (looksLikeLatLon(first, second)) {
+        // درجات جغرافية: تُستخدم مباشرة، ونشتق UTM منها للعرض فقط
+        const ll = orderLatLon(first, second);
+        lat = ll.lat;
+        lon = ll.lon;
+        // لا نشتق UTM من الدرجات: لا حاجة له في الحساب (المسار يعمل بالدرجات)،
+        // وإضافة تحويل عكسي تعني كوداً جديداً بلا فائدة تُذكر
+        easting = null;
+        northing = null;
+      } else {
+        easting = first;
+        northing = second;
+        const wgs = convertToWGS84(easting, northing, zone, datum);
+        lat = wgs.lat;
+        lon = wgs.lon;
+      }
+
+      if (!isFinite(lat) || !isFinite(lon)) {
         throw new Error("تعذّر تحويل إحداثيات السطر رقم " + (idx + 1) + ".");
       }
 
-      mosques.push({ name, easting, northing, lat: wgs.lat, lon: wgs.lon });
+      // حارس أخير: موقع خارج عُمان بمسافات شاسعة يعني غالباً صيغة أُسيء
+      // قراءتها، لا مسجداً في المحيط. نُخبر المستخدم بدل أن نحسب مساراً بلا معنى.
+      if (
+        lat < OMAN_BOUNDS.latMin - 4 || lat > OMAN_BOUNDS.latMax + 4 ||
+        lon < OMAN_BOUNDS.lonMin - 4 || lon > OMAN_BOUNDS.lonMax + 4
+      ) {
+        throw new Error(
+          "إحداثيات السطر رقم " + (idx + 1) + " تقع خارج عُمان (" +
+            lat.toFixed(4) + ", " + lon.toFixed(4) +
+            "). تحقّق من الصيغة: الدرجات مثل 23.375456, 56.697578 — " +
+            "أو UTM بالأمتار مثل 570123, 2586470، ومن نطاق UTM المختار.",
+        );
+      }
+
+      mosques.push({
+        name,
+        easting: isFinite(easting) ? easting : null,
+        northing: isFinite(northing) ? northing : null,
+        lat,
+        lon,
+      });
     });
 
     return mosques;
