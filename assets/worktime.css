@@ -455,39 +455,7 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
 
 .leg-chip.is-dist { color: var(--muted); }
 
-/* ==========================================================================
-   صف المسجد المحفوظ — شبكة ثابتة المواضع
-   في عمود ضيّق كانت العناصر تلتفّ فوق بعضها فتصير البطاقة طويلة وفارغة
-   الوسط. الشبكة تثبّتها: النص يتمدّد ويُقصّ، والأزرار لا تغادر مكانها.
-   ========================================================================== */
-.saved-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  column-gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-}
 
-.saved-item.is-editing { display: block; }
-.saved-pick { min-width: 0; }
-.saved-text { min-width: 0; }
-
-.saved-name { font-size: var(--fs-sm); }
-
-.saved-sub {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* الإحداثيات تفصيل ثانوي في عمود ضيّق — الاسم والأزرار أهم */
-.saved-coords { display: none; }
-
-.saved-list {
-  max-height: 320px;
-  overflow-y: auto;
-  padding-inline-end: 2px;
-}
 .summary-headline {
   margin: 0 0 var(--sp-6);
   padding: var(--sp-4) var(--sp-5);
@@ -1040,38 +1008,89 @@ button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
     width: 100%;
     max-width: none;
   }
+
+
 /* ==========================================================================
-   تقوية صف المسجد المحفوظ
-   في عمود ضيّق كانت العناصر الأربعة (الاختيار، النص، الإحداثيات، الأزرار)
-   تلتفّ فوق بعضها فتصير البطاقة طويلة وفارغة الوسط. الشبكة تثبّت مواضعها:
-   النص يتمدّد ويُقصّ عند الحاجة، والأزرار لا تغادر مكانها أبداً.
+   صف المسجد المحفوظ — تخطيط نهائي
+
+   ما كان يسبّب تراكب الأزرار: ثلاث قواعد متعارضة لـ .saved-item في نفس
+   الملف (flex ثم شبكة بثلاثة أعمدة ثم شبكة بأربعة)، والأخيرة تفوز — فتحجز
+   أربعة مسارات لثلاثة أبناء، ويقع زر التعديل فوق زر الحذف.
+
+   الآن قاعدة واحدة فقط، وأعمدتها بعدد الأبناء الفعلي:
+     [ الاختيار + النص ] [ تعديل ] [ حذف ]
+   .saved-coords مخفي في هذا العرض الضيّق، فلا يحجز مساراً.
    ========================================================================== */
 .saved-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) 30px 30px;
   align-items: center;
-  column-gap: var(--sp-3);
+  gap: var(--sp-2);
+  padding: var(--sp-3);
 }
 
-.saved-item.is-editing { display: block; }
+.saved-item.is-editing {
+  display: block;
+  padding: var(--sp-3);
+}
 
-.saved-pick { min-width: 0; }
-.saved-text { min-width: 0; }
+/* الاختيار والنص كتلة واحدة: مربع الاختيار أولاً (يمين في RTL) ثم النص */
+.saved-pick {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: 0;
+  cursor: pointer;
+}
 
-.saved-sub {
+.saved-pick input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.saved-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.saved-name {
+  font-size: var(--fs-sm);
+  line-height: 1.6;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.saved-coords { white-space: nowrap; }
-
-.saved-list {
-  max-height: 340px;
-  overflow-y: auto;
+.saved-sub {
+  font-size: 11px;
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* الإحداثيات تختفي أولاً عند الضيق — الاسم والأزرار أهم منها */
-@media (max-width: 560px) {
-  .saved-coords { display: none; }
+/* الإحداثيات تفصيل ثانوي في عمود ضيّق — الاسم والأزرار أهم */
+.saved-coords { display: none; }
+
+/* الأزرار في مساريهما الخاصين، فلا يتراكبان مهما طال الاسم */
+.saved-item > .icon-btn {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+}
+
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: 320px;
+  overflow-y: auto;
+  padding-inline-end: 2px;
 }
