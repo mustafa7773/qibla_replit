@@ -68,164 +68,199 @@
       <div class="wrap page-route">
         <!-- ═══ رأس الصفحة ═══ -->
         <div class="page-head">
-          <div class="page-title">
-            <h1>خطة يوم العمل</h1>
-            <span class="stops-badge" id="wtStopsBadge">لا محطات بعد</span>
-          </div>
-          <button class="primary" id="computeBtn">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
-                 viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            احسب أقصر مسار
-          </button>
+          <h1>خطة يوم العمل</h1>
+          <p class="page-sub">
+            اختر المساجد، واحصل على أقصر مسار يمر بها جميعاً مع أزمنة التنقل والعمل.
+          </p>
         </div>
 
         <div class="error-box" id="errorBox"></div>
 
-        <!-- ═══ مرحلة الإعداد: عمود واحد بعرض مريح للقراءة ═══ -->
-        <div class="setup-stage">
-<section class="route-panel">
-              <div class="route-panel-head">
-                <h2>محطات اليوم</h2>
-                <button type="button" class="chip-btn" id="wtAddToggle" aria-expanded="false" aria-controls="wtAddBody">
-                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
-                       stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"/></svg>
-                  إضافة محطات
+        <!-- ═══════════════ لوحة رئيسية / تفصيلية ═══════════════
+             اليمين (المصدر): اختيار المحطات وترتيبها والإعدادات.
+             اليسار (النتيجة): الخريطة والخط الزمني.
+             اللوحة اليسرى لا تُترك سوداء فارغة قبل الحساب — لها حالة فارغة
+             مصمّمة تشرح الخطوة التالية.                                    -->
+        <div class="route-shell">
+          <!-- ─────────────── اللوحة الرئيسية ─────────────── -->
+          <aside class="master" aria-label="اختيار المحطات">
+            <div class="master-scroll">
+              <!-- مصدر المحطات: مفتاح مقسّم بدل تبويبات متناثرة -->
+              <div class="seg" role="tablist" aria-label="مصدر المحطات">
+                <button type="button" class="seg-btn is-active" data-tab="saved" role="tab" aria-selected="true" aria-controls="paneSaved">
+                  من أداة القبلة
+                </button>
+                <button type="button" class="seg-btn" data-tab="manual" role="tab" aria-selected="false" aria-controls="paneManual">
+                  إحداثيات يدوية
                 </button>
               </div>
 
-              <!-- طريقتا الإضافة تحت زر واحد: قبل هذا كانتا معروضتين معاً بلا
-                   علاقة واضحة، فلا يعرف المستخدم أيّهما يستخدم -->
-              <div class="add-body hidden" id="wtAddBody">
-                <div class="add-tabs" role="tablist">
-                  <button type="button" class="add-tab is-active" data-tab="saved" role="tab" aria-selected="true">من أداة القبلة</button>
-                  <button type="button" class="add-tab" data-tab="manual" role="tab" aria-selected="false">إحداثيات يدوية</button>
-                </div>
-
-                <div class="add-pane" id="paneSaved">
-                  <div class="saved-block" id="savedBlock">
-                    <div class="saved-head">
-                      <h3>المساجد المحفوظة</h3>
-                      <div class="saved-actions">
-                        <button type="button" class="link-btn" id="selectAllSaved">تحديد الكل</button>
-                        <button type="button" class="link-btn danger" id="clearSaved">مسح القائمة</button>
-                      </div>
+              <div class="pane" id="paneSaved" role="tabpanel">
+                <div class="saved-block" id="savedBlock">
+                  <div class="saved-head">
+                    <h3>المساجد المحفوظة</h3>
+                    <div class="saved-actions">
+                      <button type="button" class="link-btn" id="selectAllSaved">تحديد الكل</button>
+                      <button type="button" class="link-btn danger" id="clearSaved">مسح القائمة</button>
                     </div>
-                    <div class="saved-list" id="savedList"></div>
-                    <button type="button" class="primary subtle" id="addSelectedBtn">
-                      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
-                           viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"/></svg>
-                      إضافة المحدد إلى المسار
-                    </button>
                   </div>
-
-                  <div class="saved-empty hidden" id="savedEmpty">
-                    لا توجد مساجد محفوظة بعد. كل مسجد تحسب اتجاه قبلته في
-                    <a href="qibla.html">أداة تحديد اتجاه القبلة</a>
-                    سيظهر هنا تلقائياً.
-                  </div>
+                  <div class="saved-list" id="savedList"></div>
+                  <button type="button" class="primary subtle" id="addSelectedBtn">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                         viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"/></svg>
+                    إضافة المحدد إلى المسار
+                  </button>
                 </div>
 
-                <div class="add-pane hidden" id="paneManual">
-                  <div class="field">
-                    <label for="mosquesInput">إحداثيات المساجد</label>
-                    <textarea
-                      id="mosquesInput"
-                      class="textarea-mono"
-                      rows="6"
-                      placeholder="مسجد النور, 554636.62, 2532743.15&#10;مسجد الرحمة, 551248.12, 2633719.21&#10;552408.95, 2535491.37"
-                    ></textarea>
-                    <p class="hint">
-                      سطر لكل مسجد بصيغة: <b>الاسم، Easting، Northing</b> — أو <b>Easting، Northing</b> فقط.
-                    </p>
-                  </div>
+                <div class="saved-empty hidden" id="savedEmpty">
+                  لا توجد مساجد محفوظة بعد. كل مسجد تحسب اتجاه قبلته في
+                  <a href="qibla.html">أداة تحديد اتجاه القبلة</a>
+                  سيظهر هنا تلقائياً.
                 </div>
               </div>
 
-              <!-- قائمة المحطات المختارة -->
+              <div class="pane hidden" id="paneManual" role="tabpanel">
+                <div class="field">
+                  <label for="mosquesInput">إحداثيات المساجد</label>
+                  <textarea
+                    id="mosquesInput"
+                    class="textarea-mono"
+                    rows="6"
+                    placeholder="مسجد النور, 554636.62, 2532743.15&#10;مسجد الرحمة, 551248.12, 2633719.21&#10;552408.95, 2535491.37"
+                  ></textarea>
+                  <p class="hint">
+                    سطر لكل مسجد بصيغة: <b>الاسم، Easting، Northing</b> — أو <b>Easting، Northing</b> فقط.
+                  </p>
+                </div>
+              </div>
+
+              <!-- محطات المسار: قابلة للسحب لإعادة الترتيب -->
+              <div class="stops-head">
+                <h3>محطات المسار</h3>
+                <span class="stops-badge" id="wtStopsBadge">لا محطات</span>
+              </div>
+
               <ul class="stops-list" id="wtStopsList"></ul>
 
               <div class="stops-empty" id="wtStopsEmpty">
-                <svg width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5"
+                <svg width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"
                      stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 21s-7-5.2-7-11a7 7 0 1114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
                 </svg>
-                <p>أضف المساجد التي ستزورها اليوم، ثم احسب أقصر مسار يمر بها جميعاً.</p>
+                <p>اختر المساجد التي ستزورها اليوم من القائمة أعلاه.</p>
               </div>
-            </section>
 
-<details class="route-settings" id="wtSettings">
-              <summary>
-                <svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-                <span>إعدادات المسار</span>
-                <span class="settings-summary" id="wtSettingsSummary"></span>
-              </summary>
+              <p class="stops-hint hidden" id="wtStopsHint">
+                اسحب أي محطة لترتيبها يدوياً، أو دع الحساب يرتّبها في أقصر مسار.
+              </p>
 
-              <div class="settings-body">
-                <div class="grid2">
-                  <div class="field">
-                    <label for="startTime">بداية الدوام</label>
-                    <input type="time" id="startTime" class="textarea-mono" value="08:00" />
+              <!-- الإعدادات: تُضبط مرة وتُنسى -->
+              <details class="route-settings" id="wtSettings">
+                <summary>
+                  <svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+                  <span>الإعدادات</span>
+                  <span class="settings-summary" id="wtSettingsSummary"></span>
+                </summary>
+
+                <div class="settings-body">
+                  <div class="grid2">
+                    <div class="field">
+                      <label for="startTime">بداية الدوام</label>
+                      <input type="time" id="startTime" class="textarea-mono" value="08:00" />
+                    </div>
+                    <div class="field">
+                      <label for="stopMinutes">دقائق العمل بكل مسجد</label>
+                      <input type="number" id="stopMinutes" class="textarea-mono" value="60" min="0" step="5" />
+                    </div>
                   </div>
-                  <div class="field">
-                    <label for="stopMinutes">مدة العمل بكل مسجد (دقيقة)</label>
-                    <input type="number" id="stopMinutes" class="textarea-mono" value="60" min="0" step="5" />
+
+                  <div class="grid2">
+                    <div class="field">
+                      <label for="datum">نظام الإسناد</label>
+                      <select id="datum">
+                        <option value="wgs84utm">WGS84 UTM (قياسي دولي)</option>
+                        <option value="psd93" selected>PSD93 / Clarke 1880 (عُمان)</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="zone">نطاق UTM</label>
+                      <select id="zone">
+                        <option value="40" selected>40 (معظم عُمان)</option>
+                        <option value="39">39 (المناطق الغربية)</option>
+                      </select>
+                    </div>
                   </div>
+
+                  <h4 class="settings-sub">نقطة الانطلاق والعودة</h4>
+                  <div class="grid2">
+                    <div class="field">
+                      <label for="originLat">خط العرض</label>
+                      <input type="text" id="originLat" class="textarea-mono" value="23.614712" />
+                    </div>
+                    <div class="field">
+                      <label for="originLon">خط الطول</label>
+                      <input type="text" id="originLon" class="textarea-mono" value="58.197453" />
+                    </div>
+                  </div>
+                  <p class="hint">
+                    الافتراضي جامع المهيمن (السيب). بعد أول حساب يمكنك سحب دبوس
+                    الانطلاق على الخريطة لضبط الموقع.
+                  </p>
                 </div>
-
-                <div class="grid2">
-                  <div class="field">
-                    <label for="datum">نظام الإسناد (Datum)</label>
-                    <select id="datum">
-                      <option value="wgs84utm">WGS84 UTM (قياسي دولي)</option>
-                      <option value="psd93" selected>PSD93 / Clarke 1880 (المعتمد في عُمان)</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="zone">نطاق UTM (Zone)</label>
-                    <select id="zone">
-                      <option value="40" selected>40 (افتراضي — معظم مناطق عُمان)</option>
-                      <option value="39">39 (المناطق الغربية فقط)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <h3 class="settings-sub">نقطة الانطلاق والعودة</h3>
-                <div class="grid2">
-                  <div class="field">
-                    <label for="originLat">خط العرض</label>
-                    <input type="text" id="originLat" class="textarea-mono" value="23.614712" />
-                  </div>
-                  <div class="field">
-                    <label for="originLon">خط الطول</label>
-                    <input type="text" id="originLon" class="textarea-mono" value="58.197453" />
-                  </div>
-                </div>
-                <p class="hint">
-                  الافتراضي جامع المهيمن (السيب). بعد أول حساب يمكنك سحب دبوس الانطلاق
-                  على الخريطة لضبط الموقع بدقة.
-                </p>
-              </div>
-            </details>
-        </div>
-
-        <!-- ═══ الخطة: لا تظهر قبل الحساب، فلا مساحة فارغة تنتظر ═══ -->
-        <section class="result-stage hidden" id="resultPanel">
-          <div class="result-head">
-            <h2>خطة اليوم</h2>
-            <div class="plan-actions">
-              <button type="button" class="chip-btn" id="wtCopyPlan">نسخ كنص</button>
-              <button type="button" class="chip-btn" id="wtPrint">طباعة</button>
+              </details>
             </div>
-          </div>
 
-          <p class="summary-headline" id="summaryHeadline"></p>
-          <div class="summary-grid" id="summaryGrid"></div>
+            <!-- الفعل الأساسي في نهاية تدفق العمل: اخترتَ المحطات ← احسب -->
+            <div class="master-cta">
+              <button class="primary" id="computeBtn">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                     viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                احسب أقصر مسار
+              </button>
+            </div>
+          </aside>
 
-          <!-- الخريطة تظهر هنا مع الخط الزمني: كلاهما ثمرة الحساب، فلا يبقى
-               نصف الشاشة أسود فارغاً قبل أن يضغط المستخدم "احسب" -->
-          <div class="result-split">
-            <div class="result-col">
+          <!-- ─────────────── اللوحة التفصيلية ─────────────── -->
+          <section class="detail" aria-label="خطة اليوم">
+            <!-- حالة فارغة مصمّمة بدل فراغ أسود ينتظر -->
+            <div class="detail-empty" id="wtDetailEmpty">
+              <svg width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.2"
+                   stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 20l-5.4-2.7A1 1 0 013 16.4V5.6a1 1 0 011.4-.9L9 7m0 13l6-3m-6 3V7m6 10l4.6 2.3a1 1 0 001.4-.9V7.6a1 1 0 00-.6-.9L15 4m0 13V4m0 0L9 7"/>
+              </svg>
+              <h2>خطة اليوم تظهر هنا</h2>
+              <p>
+                أضف المساجد التي ستزورها، ثم اضغط «احسب أقصر مسار» لتحصل على
+                ترتيب الزيارات وأزمنة التنقل والعمل على خريطة وخط زمني.
+              </p>
+            </div>
+
+            <div class="detail-body hidden" id="resultPanel">
+              <div class="detail-head">
+                <div>
+                  <h2>خطة اليوم</h2>
+                  <p class="summary-headline" id="summaryHeadline"></p>
+                </div>
+                <div class="plan-actions">
+                  <button type="button" class="chip-btn" id="wtCopyPlan">نسخ كنص</button>
+                  <button type="button" class="chip-btn" id="wtPrint">طباعة</button>
+                </div>
+              </div>
+
+              <div class="summary-grid" id="summaryGrid"></div>
+
+              <div id="map" class="worktime-map"></div>
+
+              <div class="map-foot">
+                <p class="hint" id="routeSourceNote"></p>
+                <button class="primary subtle" id="openMapsBtn">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                       viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20l-5.4-2.7A1 1 0 013 16.4V5.6a1 1 0 011.4-.9L9 7m0 13l6-3m-6 3V7m6 10l4.6 2.3a1 1 0 001.4-.9V7.6a1 1 0 00-.6-.9L15 4m0 13V4m0 0L9 7"/></svg>
+                  فتح في خرائط Google
+                </button>
+              </div>
+
               <div class="break-block">
                 <h3 class="break-title">استراحات اليوم</h3>
                 <p class="break-sub">اختر بعد أي محطة تضيف كل استراحة. تُحدَّث الخطة فوراً.</p>
@@ -233,21 +268,9 @@
               </div>
 
               <div class="timeline" id="timeline"></div>
-              <p class="hint" id="routeSourceNote"></p>
             </div>
-
-            <div class="map-col">
-              <div class="map-sticky">
-                <div id="map" class="worktime-map"></div>
-                <button class="primary" id="openMapsBtn">
-                  <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
-                       viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-                  فتح المسار في خرائط Google
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
 
       <!-- تأكيد الحذف -->

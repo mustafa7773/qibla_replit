@@ -1,132 +1,338 @@
 /* ============================================================================
-   أداة "حساب وقت العمل" — مخطِّط مسار
+   أداة "حساب وقت العمل" — لوحة رئيسية/تفصيلية (Master–Detail)
 
-   المشكلة التي يعالجها هذا الترتيب: كانت الصفحة تعرض طريقتين للإضافة جنباً
-   إلى جنب بلا علاقة واضحة (قائمة محفوظة + مربع نص)، وتضع الإعدادات وسط
-   الإدخال، والخريطة أسفل الخط الزمني الطويل — فيتنقّل النظر بلا مرساة.
+   ما كان يشتّت الانتباه قبل هذا الترتيب:
+     • طريقتان للإضافة معروضتان معاً بلا علاقة معلنة بينهما.
+     • تقسيم الشاشة نصفين قبل وجود ما يملأ النصف الثاني، فيبقى أسود ينتظر.
+     • تسلسل بصري مسطّح: كل الأقسام بنفس الوزن، فلا يعرف النظر أين يبدأ.
 
-   الترتيب الجديد يتبع ما تفعله مخطِّطات المسار المهنية:
-     • عمودان: المحطات على اليمين، والخريطة لاصقة على اليسار لا تغيب.
-     • طريقتا الإضافة تحت زر واحد بتبويبين — سؤال واحد لا سؤالان.
-     • الإعدادات مطوية: تُضبط مرة وتُنسى، ويظهر ملخّصها في العنوان.
+   العلاج:
+     • مفتاح مقسّم واحد لمصدر المحطات — خيار واحد نشط، لا لوحتان متنافستان.
+     • لوحة يمنى ثابتة للاختيار، ويسرى للنتيجة، ولليسرى حالة فارغة مصمّمة
+       تشرح الخطوة التالية بدل فراغ أسود.
+     • زر "احسب" مثبّت في ذيل لوحة الاختيار — نهاية تدفق العمل الطبيعي:
+       تختار المحطات ثم تحسب، فيقع الزر حيث تنتهي عينك.
    ========================================================================= */
 
 .page-route { padding-block: var(--sp-6) var(--sp-8); }
 
 /* ============================================================ رأس الصفحة */
-.page-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-4);
-  margin-bottom: var(--sp-5);
-}
+.page-head { margin-bottom: var(--sp-5); }
 
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  flex-wrap: wrap;
-}
-
-.page-title h1 {
-  margin: 0;
+.page-head h1 {
+  margin: 0 0 var(--sp-2);
   font-family: var(--font-display);
   font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--paper);
+  letter-spacing: -0.01em;
 }
 
-.stops-badge {
-  padding: 3px var(--sp-3);
+.page-sub {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--text-2);
+  font-size: var(--fs-body);
+  line-height: 1.75;
+}
+
+/* ====================================================== الهيكل ذو اللوحتين */
+.route-shell {
+  display: grid;
+  grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+/* ------------------------------------------------------- اللوحة الرئيسية */
+.master {
+  position: sticky;
+  top: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  /* لا تتجاوز الشاشة أبداً: المحتوى يمرّر داخلها ويبقى زر الحساب ظاهراً */
+  max-height: calc(100vh - var(--sp-8));
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--surface-sunken);
-  color: var(--muted);
-  font-size: var(--fs-caption);
-  white-space: nowrap;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  overflow: hidden;
 }
 
-.stops-badge.is-set {
-  border-color: var(--gold);
-  color: var(--gold-light);
-}
-
-/* ======================================================= مرحلتا الصفحة
-
-   قبل الحساب لا خريطة ولا خطة — فلا معنى لتقسيم الشاشة نصفين ويبقى نصفها
-   أسود فارغاً. مرحلة الإعداد عمود واحد بعرض مريح للقراءة، والخريطة تظهر
-   مع الخطة لأن كليهما ثمرة الحساب.
-*/
-.setup-stage {
-  max-width: 780px;
+.master-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-4);
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
 }
 
-.result-stage { margin-top: var(--sp-6); }
+/* الفعل الأساسي مثبّت في الذيل: لا يختفي مهما طالت قائمة المساجد */
+.master-cta {
+  padding: var(--sp-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
 
-.result-head {
+.master-cta .primary {
+  width: 100%;
+  justify-content: center;
+  font-size: var(--fs-body);
+}
+
+/* ------------------------------------------------ المفتاح المقسّم للمصدر */
+.seg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+}
+
+.seg-btn {
+  flex: 1;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: calc(var(--radius-xs) - 3px);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.seg-btn:hover { color: var(--paper); }
+
+.seg-btn.is-active {
+  background: var(--surface-2);
+  color: var(--gold-light);
+  font-weight: 600;
+}
+
+.seg-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+/* ------------------------------------------------------- عناوين الأقسام */
+.stops-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
-  padding-top: var(--sp-5);
+  padding-top: var(--sp-4);
   border-top: 1px solid var(--line);
 }
 
-.result-head h2 {
+.stops-head h3,
+.saved-head h3 {
+  margin: 0;
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.stops-badge {
+  padding: 2px var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+.stops-badge.is-set { border-color: var(--gold); color: var(--gold-light); }
+
+.stops-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  line-height: 1.7;
+}
+
+/* ------------------------------------------------------- صفوف المحطات */
+.stops-list { list-style: none; margin: 0; padding: 0; }
+
+.stop-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  cursor: grab;
+  transition: border-color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+
+.stop-row + .stop-row { margin-top: var(--sp-2); }
+.stop-row:hover { border-color: var(--line-strong); }
+.stop-row.is-dragging { opacity: 0.4; cursor: grabbing; }
+
+/* خط ذهبي يبيّن أين ستهبط المحطة المسحوبة */
+.stop-row.is-over { border-color: var(--gold); box-shadow: 0 -2px 0 var(--gold) inset; }
+
+.grip { color: var(--muted); display: flex; }
+.stop-row:hover .grip { color: var(--text-2); }
+
+.stop-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--gold-wash);
+  color: var(--gold-light);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.stop-label {
+  min-width: 0;
+  color: var(--paper);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stop-coords {
+  display: block;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* السهمان بديل السحب لمن يعمل باللمس أو لوحة المفاتيح */
+.stop-move { display: flex; flex-direction: column; gap: 1px; }
+.stop-move .icon-btn { width: 22px; height: 16px; }
+.stop-move .icon-btn:disabled { opacity: 0.3; cursor: default; }
+.stop-move .icon-btn:disabled:hover { color: var(--muted); border-color: transparent; }
+
+.stops-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-4);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.stops-empty svg { color: var(--gold); opacity: 0.5; }
+.stops-empty p { margin: 0; max-width: 30ch; line-height: 1.7; }
+
+/* ============================================================== الإعدادات */
+.route-settings {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunken);
+}
+
+.route-settings > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+
+.route-settings > summary::-webkit-details-marker { display: none; }
+.route-settings > summary:hover { color: var(--paper); }
+
+.settings-summary {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.route-settings > summary .chev {
+  color: var(--gold);
+  transform: rotate(180deg);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.route-settings[open] > summary .chev { transform: rotate(90deg); }
+.route-settings[open] > summary { border-bottom: 1px solid var(--line); }
+
+.settings-body { padding: var(--sp-4); }
+
+.settings-sub {
+  margin: var(--sp-4) 0 var(--sp-3);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+
+/* ------------------------------------------------------ اللوحة التفصيلية */
+.detail { min-width: 0; }
+
+.detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  min-height: 460px;
+  padding: var(--sp-8) var(--sp-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  text-align: center;
+}
+
+.detail-empty svg { color: var(--gold); opacity: 0.35; }
+
+.detail-empty h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--fs-lg);
   color: var(--paper);
 }
 
-/* بعد الحساب فقط: الخط الزمني والخريطة جنباً إلى جنب */
-.result-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--sp-5);
-  align-items: start;
-  margin-top: var(--sp-5);
+.detail-empty p {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: var(--fs-body);
+  line-height: 1.85;
 }
 
-.result-col { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
-.map-col { min-width: 0; }
-
-/* الخريطة تبقى في مجال النظر مهما طال الخط الزمني — هي المرساة البصرية */
-.map-sticky {
-  position: sticky;
-  top: var(--sp-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-
-.map-sticky .primary { width: 100%; justify-content: center; }
-
-/* ================================================================ اللوحات */
-.route-panel {
+.detail-body {
   padding: var(--sp-5);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
 }
 
-.route-panel-head {
+.detail-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
 }
 
-.route-panel-head h2 {
-  margin: 0;
+.detail-head h2 {
+  margin: 0 0 var(--sp-2);
   font-family: var(--font-display);
   font-size: var(--fs-lg);
   color: var(--paper);
@@ -141,7 +347,7 @@
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
-  background: var(--surface-1);
+  background: var(--surface-2);
   color: var(--text-2);
   font-family: var(--font-body);
   font-size: var(--fs-sm);
@@ -151,152 +357,17 @@
 
 .chip-btn:hover { border-color: var(--line-strong); color: var(--paper); }
 .chip-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.chip-btn[aria-expanded="true"] { border-color: var(--gold); color: var(--gold-light); }
 
-/* ========================================================== إضافة المحطات */
-.add-body {
-  margin-bottom: var(--sp-4);
-  padding: var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
-}
-
-.add-tabs {
-  display: flex;
-  gap: var(--sp-1);
-  margin-bottom: var(--sp-4);
-  padding: 3px;
-  border-radius: var(--radius-xs);
-  background: var(--surface-2);
-}
-
-.add-tab {
-  flex: 1;
-  padding: var(--sp-2) var(--sp-3);
-  border: 0;
-  border-radius: calc(var(--radius-xs) - 2px);
-  background: transparent;
-  color: var(--muted);
-  font-family: var(--font-body);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-
-.add-tab:hover { color: var(--paper); }
-
-.add-tab.is-active {
-  background: var(--surface-1);
-  color: var(--gold-light);
-  font-weight: 500;
-}
-
-.add-tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-
-/* ========================================================== قائمة المحطات */
-.stops-list { list-style: none; margin: 0; padding: 0; }
-
-.stops-list li {
+.map-foot {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--sp-3);
-  padding: var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  background: var(--surface-2);
+  margin: var(--sp-3) 0 var(--sp-6);
 }
 
-.stops-list li + li { margin-top: var(--sp-2); }
-
-.stop-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--gold-wash);
-  color: var(--gold-light);
-  font-family: var(--font-mono);
-  font-size: var(--fs-caption);
-  font-weight: 600;
-}
-
-.stop-label { flex: 1; min-width: 0; color: var(--paper); font-size: var(--fs-sm); }
-
-.stop-coords {
-  display: block;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--fs-caption);
-}
-
-.stops-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-6) var(--sp-4);
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  text-align: center;
-}
-
-.stops-empty svg { color: var(--gold); opacity: 0.5; }
-.stops-empty p { max-width: 34ch; margin: 0; line-height: 1.8; }
-
-/* ============================================================== الإعدادات */
-.route-settings {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-}
-
-.route-settings > summary {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-4);
-  color: var(--paper);
-  font-size: var(--fs-body);
-  font-weight: 500;
-  cursor: pointer;
-  list-style: none;
-}
-
-.route-settings > summary::-webkit-details-marker { display: none; }
-.route-settings > summary:hover { color: var(--gold-light); }
-
-/* ملخّص الإعدادات في العنوان: تعرف قيمها بلا فتح */
-.settings-summary {
-  margin-inline-start: auto;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--fs-caption);
-  font-weight: 400;
-}
-
-.route-settings > summary .chev {
-  color: var(--gold);
-  transform: rotate(180deg);
-  transition: transform var(--dur-fast) var(--ease);
-}
-
-.route-settings[open] > summary .chev { transform: rotate(90deg); }
-.route-settings[open] > summary { border-bottom: 1px solid var(--line); }
-
-.settings-body { padding: var(--sp-5); }
-
-.settings-sub {
-  margin: var(--sp-5) 0 var(--sp-3);
-  color: var(--text-2);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.map-foot .hint { margin: 0; flex: 1 1 260px; }
 
 /* ============================================================== التنبيهات */
 .toast {
@@ -321,7 +392,6 @@
 .toast.is-error { border-color: var(--red); color: var(--red); }
 .toast.is-ok { border-color: var(--green); }
 
-/* زر التدمير يجب ألا يشبه زر الإضافة */
 button.primary.danger {
   background: var(--red);
   border-color: var(--red);
@@ -331,38 +401,92 @@ button.primary.danger {
 button.primary.danger:hover { background: #fca5a5; border-color: #fca5a5; }
 
 /* ================================================================ الجوال */
-@media (max-width: 1000px) {
-  .result-split { grid-template-columns: 1fr; }
+@media (max-width: 1080px) {
+  .route-shell { grid-template-columns: 1fr; }
 
-  /* الخريطة تصعد فوق التفاصيل على الشاشات الضيقة: يُرى المسار أولاً */
-  .map-col { order: -1; }
-  .map-sticky { position: static; }
-  .worktime-map { height: 380px; }
+  /* اللوحة تتحرر من الالتصاق: الصفحة تصير عموداً واحداً يُمرَّر طبيعياً */
+  .master { position: static; max-height: none; }
+  .master-scroll { overflow: visible; }
+  .detail-empty { min-height: 300px; }
 }
 
 @media (max-width: 720px) {
-  .page-head { align-items: stretch; }
-  .page-head .primary { width: 100%; justify-content: center; }
+  .detail-body { padding: var(--sp-4); }
   .grid2 { grid-template-columns: 1fr; }
-  .route-panel { padding: var(--sp-4); }
-  .settings-summary { display: none; }
+  .map-foot .primary { width: 100%; justify-content: center; }
 }
 
 /* ================================================================ الطباعة
    الخطة تُطبع وتُحمل ميدانياً، فنُخفي كل ما لا معنى له على ورق */
 @media print {
-  .result-split { display: block; }
-  .result-stage { margin: 0; }
-  .setup-stage,
-  .route-settings,
-  .map-actions,
+  .route-shell { display: block; }
+  .master,
+  .detail-empty,
   .plan-actions,
-  .page-head .primary,
-  .stops-badge { display: none !important; }
+  .map-foot .primary,
+  .break-block { display: none !important; }
 
-  .map-sticky { position: static; }
-  .worktime-map { height: 300px !important; page-break-inside: avoid; }
+  .detail-body { border: 0; padding: 0; }
+  .worktime-map { height: 280px !important; page-break-inside: avoid; }
   .timeline-list li { page-break-inside: avoid; }
+}
+
+/* ==========================================================================
+   شارات الخط الزمني
+   الفرق بين "الانطلاق" و"موقع عمل" و"استراحة" و"نهاية اليوم" كان يُقرأ نصاً
+   فقط. اللون يوصله بلمحة قبل أن تُقرأ الكلمة.
+   ========================================================================== */
+.stop-tag.is-start { border-color: var(--green); color: var(--green); }
+.stop-tag.is-end { border-color: var(--gold); color: var(--gold-light); }
+.stop-tag.is-break-tag { border-color: var(--line-strong); color: var(--muted); }
+
+/* شارتا الزمن والمسافة على ساق التنقل: رقمان منفصلان أسرع مسحاً من جملة */
+.leg-chip {
+  padding: 1px var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.leg-chip.is-dist { color: var(--muted); }
+
+/* ==========================================================================
+   صف المسجد المحفوظ — شبكة ثابتة المواضع
+   في عمود ضيّق كانت العناصر تلتفّ فوق بعضها فتصير البطاقة طويلة وفارغة
+   الوسط. الشبكة تثبّتها: النص يتمدّد ويُقصّ، والأزرار لا تغادر مكانها.
+   ========================================================================== */
+.saved-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.saved-item.is-editing { display: block; }
+.saved-pick { min-width: 0; }
+.saved-text { min-width: 0; }
+
+.saved-name { font-size: var(--fs-sm); }
+
+.saved-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* الإحداثيات تفصيل ثانوي في عمود ضيّق — الاسم والأزرار أهم */
+.saved-coords { display: none; }
+
+.saved-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-inline-end: 2px;
 }
 .summary-headline {
   margin: 0 0 var(--sp-6);

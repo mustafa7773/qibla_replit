@@ -433,11 +433,9 @@
       if (stop.legMinutes != null) {
         rows.push(
           '<li class="leg"><span class="leg-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M6.5 17V9.5L8 6h8l1.5 3.5V17"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/></svg></span>' +
-            '<span class="leg-text">تنقّل ' +
-            formatDuration(stop.legMinutes) +
-            " · " +
-            stop.legKm.toFixed(1) +
-            " كم</span></li>",
+            '<span class="leg-text">تنقّل</span>' +
+            '<span class="leg-chip">' + formatDuration(stop.legMinutes) + "</span>" +
+            '<span class="leg-chip is-dist">' + stop.legKm.toFixed(1) + " كم</span></li>",
         );
       }
 
@@ -448,7 +446,7 @@
             stop.icon +
             '</span></div><div class="stop-body"><p class="stop-name">' +
             escapeHtml(stop.name) +
-            '<span class="stop-tag">استراحة</span></p>' +
+            '<span class="stop-tag is-break-tag">استراحة</span></p>' +
             '<p class="stop-meta">من <span class="clock">' +
             formatClock(stop.arrival) +
             '</span> إلى <span class="clock">' +
@@ -473,10 +471,10 @@
       let meta = "";
 
       if (stop.label === "الانطلاق") {
-        tag = '<span class="stop-tag">الانطلاق</span>';
+        tag = '<span class="stop-tag is-start">الانطلاق</span>';
         meta = 'تخرج الساعة <span class="clock">' + formatClock(stop.departure) + "</span>";
       } else if (stop.label === "العودة") {
-        tag = '<span class="stop-tag">نهاية اليوم</span>';
+        tag = '<span class="stop-tag is-end">نهاية اليوم</span>';
         meta = 'تصل الساعة <span class="clock">' + formatClock(stop.arrival) + "</span>";
       } else {
         // نفس تسمية القائمة المنسدلة، ليطابق ما اخترته للاستراحة
@@ -870,6 +868,7 @@
       renderSummary(result);
       renderTimeline(result);
       el("resultPanel").classList.remove("hidden");
+      el("wtDetailEmpty").classList.add("hidden");
       el("routeSourceNote").textContent = noteText;
 
       // الخريطة إضافة توضيحية: لو تعذّر تحميل مكتبتها لا نُسقِط النتيجة كلها
@@ -902,18 +901,30 @@
     toast._t = setTimeout(() => box.classList.add("hidden"), 4000);
   }
 
-  const ICON_TRASH_SM =
-    '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" ' +
-    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
-    '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/>' +
-    '<path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>';
+  // ------------------------------------------------------- محطات المسار
+  //
+  // مربع النص هو مصدر الحقيقة الوحيد: كل ترتيب أو حذف يعيد كتابة أسطره.
+  // القائمة أدناه مجرّد عرض له — بهذا لا يوجد مصدران قد يتناقضان.
+  const ICON_GRIP =
+    '<svg width="14" height="16" fill="currentColor" viewBox="0 0 10 16" aria-hidden="true">' +
+    '<circle cx="2.5" cy="3" r="1.3"/><circle cx="7.5" cy="3" r="1.3"/>' +
+    '<circle cx="2.5" cy="8" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/>' +
+    '<circle cx="2.5" cy="13" r="1.3"/><circle cx="7.5" cy="13" r="1.3"/></svg>';
 
-  // قائمة المحطات المختارة: قبل هذا كان مربع النص هو التمثيل الوحيد، فلا يرى
-  // المستخدم كم محطة عنده إلا بعدّ الأسطر بعينه
+  function stopLines() {
+    return el("mosquesInput").value.split("\n").map((l) => l.trim()).filter(Boolean);
+  }
+
+  function writeStopLines(lines) {
+    el("mosquesInput").value = lines.join("\n");
+    renderStopsList();
+  }
+
   function renderStopsList() {
     const list = el("wtStopsList");
     const empty = el("wtStopsEmpty");
     const badge = el("wtStopsBadge");
+    const hint = el("wtStopsHint");
 
     let stops = [];
     try {
@@ -924,48 +935,127 @@
 
     badge.textContent = stops.length
       ? arabicUnit(stops.length, "محطة واحدة", "محطتان", "محطات", "محطة")
-      : "لا محطات بعد";
+      : "لا محطات";
     badge.classList.toggle("is-set", stops.length > 0);
 
     empty.classList.toggle("hidden", stops.length > 0);
+    hint.classList.toggle("hidden", stops.length < 2);
 
     list.innerHTML = stops
       .map(
         (m, i) =>
-          '<li><span class="stop-index">' + (i + 1) + "</span>" +
+          '<li class="stop-row" draggable="true" data-i="' + i + '">' +
+          '<span class="grip" aria-hidden="true">' + ICON_GRIP + "</span>" +
+          '<span class="stop-index">' + (i + 1) + "</span>" +
           '<span class="stop-label">' + escapeHtml(m.name) +
-          '<span class="stop-coords">' + m.lat.toFixed(5) + ", " + m.lon.toFixed(5) +
+          '<span class="stop-coords">' + m.lat.toFixed(4) + ", " + m.lon.toFixed(4) +
           "</span></span>" +
+          '<span class="stop-move">' +
+          '<button type="button" class="icon-btn" data-move="up" data-i="' + i + '" ' +
+          (i === 0 ? "disabled " : "") + 'aria-label="تحريك لأعلى">' + ICON_UP + "</button>" +
+          '<button type="button" class="icon-btn" data-move="down" data-i="' + i + '" ' +
+          (i === stops.length - 1 ? "disabled " : "") + 'aria-label="تحريك لأسفل">' + ICON_DOWN + "</button>" +
+          "</span>" +
           '<button type="button" class="icon-btn danger" data-drop="' + i + '" ' +
           'aria-label="إزالة هذه المحطة" title="إزالة">' + ICON_TRASH_SM + "</button></li>",
       )
       .join("");
   }
 
-  // إزالة محطة تعني حذف سطرها من مربع النص — مصدر الحقيقة الوحيد
+  const ICON_UP =
+    '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M18 15l-6-6-6 6"/></svg>';
+
+  const ICON_DOWN =
+    '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M6 9l6 6 6-6"/></svg>';
+
+  const ICON_TRASH_SM =
+    '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/>' +
+    '<path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>';
+
   el("wtStopsList").addEventListener("click", function (e) {
-    const btn = e.target.closest("[data-drop]");
-    if (!btn) return;
-    const idx = parseInt(btn.getAttribute("data-drop"), 10);
-    const lines = el("mosquesInput").value.split("\n").map((l) => l.trim()).filter(Boolean);
-    lines.splice(idx, 1);
-    el("mosquesInput").value = lines.join("\n");
-    renderStopsList();
+    const drop = e.target.closest("[data-drop]");
+    if (drop) {
+      const lines = stopLines();
+      lines.splice(parseInt(drop.getAttribute("data-drop"), 10), 1);
+      writeStopLines(lines);
+      return;
+    }
+
+    // أزرار السهمين بديل السحب: تعمل باللمس وبلوحة المفاتيح، وهو ما لا
+    // يوفّره السحب والإفلات وحده
+    const move = e.target.closest("[data-move]");
+    if (move) {
+      const i = parseInt(move.getAttribute("data-i"), 10);
+      const dir = move.getAttribute("data-move") === "up" ? -1 : 1;
+      const lines = stopLines();
+      if (i + dir < 0 || i + dir >= lines.length) return;
+      const [row] = lines.splice(i, 1);
+      lines.splice(i + dir, 0, row);
+      writeStopLines(lines);
+      // نُبقي التركيز على نفس الزر بعد إعادة الرسم
+      const next = el("wtStopsList").querySelector(
+        '[data-move="' + move.getAttribute("data-move") + '"][data-i="' + (i + dir) + '"]',
+      );
+      if (next) next.focus();
+    }
+  });
+
+  // ----- السحب والإفلات لإعادة الترتيب -----
+  let dragFrom = null;
+
+  el("wtStopsList").addEventListener("dragstart", function (e) {
+    const row = e.target.closest(".stop-row");
+    if (!row) return;
+    dragFrom = parseInt(row.getAttribute("data-i"), 10);
+    row.classList.add("is-dragging");
+    e.dataTransfer.effectAllowed = "move";
+    // Firefox لا يبدأ السحب إن لم تُضبط بيانات
+    e.dataTransfer.setData("text/plain", String(dragFrom));
+  });
+
+  el("wtStopsList").addEventListener("dragover", function (e) {
+    if (dragFrom === null) return;
+    e.preventDefault();
+    const row = e.target.closest(".stop-row");
+    el("wtStopsList")
+      .querySelectorAll(".stop-row")
+      .forEach((r) => r.classList.remove("is-over"));
+    if (row) row.classList.add("is-over");
+  });
+
+  el("wtStopsList").addEventListener("drop", function (e) {
+    if (dragFrom === null) return;
+    e.preventDefault();
+    const row = e.target.closest(".stop-row");
+    if (!row) return;
+    const to = parseInt(row.getAttribute("data-i"), 10);
+    if (to === dragFrom) return;
+    const lines = stopLines();
+    const [moved] = lines.splice(dragFrom, 1);
+    lines.splice(to, 0, moved);
+    writeStopLines(lines);
+  });
+
+  el("wtStopsList").addEventListener("dragend", function () {
+    dragFrom = null;
+    el("wtStopsList")
+      .querySelectorAll(".stop-row")
+      .forEach((r) => r.classList.remove("is-dragging", "is-over"));
   });
 
   el("mosquesInput").addEventListener("input", renderStopsList);
 
-  // ----- إضافة المحطات: زر واحد بتبويبين بدل طريقتين معروضتين معاً -----
-  el("wtAddToggle").addEventListener("click", function () {
-    const body = el("wtAddBody");
-    const open = body.classList.toggle("hidden") === false;
-    this.setAttribute("aria-expanded", String(open));
-  });
-
-  document.querySelectorAll(".add-tab").forEach((tab) => {
+  // ----- مفتاح مقسّم لمصدر المحطات: خياران ظاهران دائماً، وواحد نشط -----
+  document.querySelectorAll(".seg-btn").forEach((tab) => {
     tab.addEventListener("click", function () {
       const target = this.getAttribute("data-tab");
-      document.querySelectorAll(".add-tab").forEach((t) => {
+      document.querySelectorAll(".seg-btn").forEach((t) => {
         const on = t === this;
         t.classList.toggle("is-active", on);
         t.setAttribute("aria-selected", String(on));
