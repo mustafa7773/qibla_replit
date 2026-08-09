@@ -132,57 +132,32 @@
   }
 
   // ---------- القراءة بواسطة Claude (اختيارية، أدق) ----------
-  async function extractWithClaude(dataUrl, mediaType, apiKey) {
-    if (!apiKey) throw new Error("أدخل مفتاح Anthropic API أولاً.");
+  // ينادي وسيط الموقع لا Anthropic مباشرة: المفتاح يبقى على الخادم فلا
+  // يُطلب من المستخدم في كل جلسة، ولا يُكشف لمن يفتح أدوات المطوّر
+  async function extractWithClaude(dataUrl, mediaType) {
     const base64Data = dataUrl.split(",")[1];
 
-    const prompt =
-      "اقرأ جدول إحداثيات قطعة الأرض من هذه الصورة (كروكي مساحي عُماني). " +
-      "أعد الإجابة بصيغة JSON فقط بدون أي نص إضافي أو علامات markdown، بالشكل التالي بالضبط:\n" +
-      '{"points": [[easting, northing], ...], "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null, "name": "<اسم المسجد أو القطعة إن وُجد بالوثيقة أو null>"}\n' +
-      "ملاحظات مهمة:\n" +
-      "- بعض الجداول تكتب عمود Northing قبل عمود Easting — تأكد من إخراج كل نقطة بترتيب [Easting, Northing] دائماً بغض النظر عن ترتيب الأعمدة كما تظهر في الصورة.\n" +
-      "- انسخ الأرقام كما هي بالضبط دون أي تقريب أو تعديل.\n" +
-      "- إذا لم تجد قيمة لأي حقل ضعه null.";
+    const headers = { "Content-Type": "application/json" };
+    const gate = window.SkyConfig && window.SkyConfig.apiKey;
+    if (gate) headers["X-Sky-Key"] = gate;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/read-kroki", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2000,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: { type: "base64", media_type: mediaType, data: base64Data },
-              },
-              { type: "text", text: prompt },
-            ],
-          },
-        ],
-      }),
+      headers,
+      body: JSON.stringify({ imageBase64: base64Data, mediaType }),
     });
 
-    if (!response.ok) {
-      throw new Error("الخدمة ردّت بحالة " + response.status);
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (e) {
+      throw new Error("ردّ غير مفهوم من الخادم (حالة " + response.status + ").");
     }
 
-    const data = await response.json();
-    const textOut = (data.content || [])
-      .map((c) => (c.type === "text" ? c.text : ""))
-      .join("")
-      .replace(/```json|```/g, "")
-      .trim();
-
-    return JSON.parse(textOut);
+    if (!response.ok || !data || data.ok === false) {
+      throw new Error((data && data.error) || "حالة " + response.status);
+    }
+    return data.result;
   }
 
   // ---------- القراءة العادية بواسطة Tesseract ----------
@@ -217,7 +192,7 @@
 
     if (options.method === "ai") {
       const mediaType = file.type === "image/png" ? "image/png" : "image/jpeg";
-      const parsed = await extractWithClaude(dataUrl, mediaType, options.apiKey);
+      const parsed = await extractWithClaude(dataUrl, mediaType);
       const points = (Array.isArray(parsed.points) ? parsed.points : []).filter(
         (p) => Array.isArray(p) && p.length >= 2 && isFinite(p[0]) && isFinite(p[1]),
       );
