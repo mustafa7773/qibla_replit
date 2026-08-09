@@ -2,35 +2,30 @@
 // مزامنة مساجد أداة القبلة بين كل الأجهزة
 //
 // المساجد التي تحسبها في أداة القبلة كانت محفوظة في متصفح الجهاز فقط، فلا
-// تظهر عند فتح الموقع من جهاز آخر. هذه الوحدة تجعلها تمر عبر نفس جدول Excel
-// المستخدم في أداة "المساجد المنتهية" — بنفس الرابط ونفس الإعداد.
+// تظهر عند فتحك الموقع من جهاز آخر. هذه الوحدة تجعلها تمر عبر قاعدة البيانات
+// المركزية للموقع نفسه.
+//
+// **بلا أي إعداد.** لا رابط تكتبه ولا مفتاح تلصقه: الاتصال يتم مباشرةً مع
+// /api/records في نفس النطاق. كان هنا سابقاً مسار بديل عبر Google Apps Script
+// يتطلب لصق رابط في كل جهاز — حُذف بالكامل لأنه صار بلا فائدة، ووجوده يوهم
+// بأن هناك إعداداً مطلوباً.
 //
 // تعمل على كل صفحة تستخدم MosqueStore:
-//   • عند فتح الصفحة: تجلب أحدث المساجد من الجدول وتدمجها محلياً.
-//   • عند حفظ أو تعديل أو حذف مسجد: ترفعه تلقائياً.
+//   • عند فتح الصفحة: تجلب أحدث المساجد من الخادم وتدمجها محلياً.
+//   • عند حفظ أو تعديل أو حذف مسجد: ترفعه تلقائياً بعد تأخير قصير.
 //
-// الدمج بالمعرّف، فلا تتكرر السجلات مهما تكررت المزامنة.
+// الدمج بالمعرّف، فلا تتكرر السجلات مهما تكررت المزامنة. وما يتعذّر إرساله
+// يبقى في طابور DataAPI ويُعاد إرساله عند عودة الاتصال.
 // ============================================================================
 
 (function () {
   "use strict";
 
-  const CONFIG_KEY = "sky_completed_sync_config_v1"; // نفس رابط أداة المنتهية
   const STORE_KEY = "sky_tools_mosques_v1";
   const PUSH_DELAY = 1200;
+  const TYPE = "qibla";
 
-  // نفس منطق أداة المنتهية: رابط الجهاز إن وُجد، وإلا رابط الموقع العام
-  function getEndpoint() {
-    let local = "";
-    try {
-      const cfg = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
-      local = (cfg && cfg.endpoint) || "";
-    } catch (e) {
-      local = "";
-    }
-    const site = (window.SkyConfig && window.SkyConfig.syncEndpoint) || "";
-    return local || site;
-  }
+  let pushTimer = null;
 
   function loadLocal() {
     try {
@@ -84,7 +79,6 @@
     };
   }
 
-  // يدمج ما جاء من الخادم مع النسخة المحلية بلا تكرار
   function mergeRemote(remote) {
     const local = loadLocal();
     const byId = {};
@@ -115,149 +109,12 @@
     return { ok: true, added, updated, total: remote.length };
   }
 
-  // ------------------------------------------------------------------ رفع
-
-  async function push(records) {
-    // الخادم هو الطريق الوحيد الآن
-    if (window.DataAPI) {
-      const batch = records || loadLocal();
-      if (!batch.length) return { ok: true, sent: 0 };
-      let sent = 0;
-      let lastErr = null;
-      for (const m of batch) {
-        const r = await window.DataAPI.save("qibla", toWire(m));
-        if (r.synced) sent++;
-        else lastErr = r.error;
-      }
-      return { ok: !lastErr, sent, error: lastErr };
-    }
-
-    const endpoint = getEndpoint();
-    if (!endpoint) return { ok: false, skipped: true };
-
-    const batch = records || loadLocal();
-    if (!batch.length) return { ok: true, sent: 0 };
-
-    const body = JSON.stringify({
-      type: "qibla",
-      records: batch.map((m) => ({
-        recordId: m.id,
-        name: m.name,
-        governorate: m.governorate,
-        village: m.village,
-        requestNo: m.requestNo,
-        easting: m.easting,
-        northing: m.northing,
-        datum: m.datum,
-        zone: m.zone,
-        lat: m.lat,
-        lon: m.lon,
-        savedAt: m.savedAt,
-      })),
-    });
-
-    try {
-      // نص عادي لتفادي طلب التحقق المسبق الذي لا تدعمه Apps Script
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: body,
-        redirect: "follow",
-      });
-      if (!res.ok) throw new Error("حالة " + res.status);
-      return { ok: true, sent: batch.length };
-    } catch (err) {
-      return { ok: false, error: err && err.message ? err.message : "تعذّر الرفع" };
-    }
-  }
-
-  // ------------------------------------------------------------------ جلب
-
-  async function pull() {
-    if (window.DataAPI) {
-      try {
-        await window.DataAPI.flush("qibla");
-        const remote = await window.DataAPI.list("qibla");
-        return mergeRemote(remote.map(fromWire));
-      } catch (err) {
-        return { ok: false, error: err && err.message ? err.message : "تعذّر الاتصال بالخادم" };
-      }
-    }
-
-    const endpoint = getEndpoint();
-    if (!endpoint) return { ok: false, skipped: true };
-
-    try {
-      const url =
-        endpoint + (endpoint.indexOf("?") === -1 ? "?" : "&") + "action=list&type=qibla";
-      const res = await fetch(url, { method: "GET", redirect: "follow" });
-      if (!res.ok) throw new Error("حالة " + res.status);
-
-      const payload = JSON.parse(await res.text());
-      if (!payload || payload.ok === false) {
-        throw new Error((payload && payload.error) || "تعذّرت القراءة");
-      }
-
-      const remote = Array.isArray(payload.records) ? payload.records : [];
-      const local = loadLocal();
-      const byId = {};
-      local.forEach((m) => {
-        byId[m.id] = m;
-      });
-
-      let added = 0;
-      let updated = 0;
-
-      remote.forEach((r) => {
-        if (!r.recordId) return;
-        const incoming = {
-          id: r.recordId,
-          name: r.name || "مسجد بلا اسم",
-          governorate: r.governorate || null,
-          village: r.village || null,
-          requestNo: r.requestNo || null,
-          easting: Number(r.easting) || 0,
-          northing: Number(r.northing) || 0,
-          datum: r.datum || null,
-          zone: r.zone || null,
-          lat: isFinite(r.lat) ? r.lat : null,
-          lon: isFinite(r.lon) ? r.lon : null,
-          savedAt: r.savedAt || new Date().toISOString(),
-        };
-
-        const existing = byId[incoming.id];
-        if (!existing) {
-          local.push(incoming);
-          byId[incoming.id] = incoming;
-          added++;
-        } else if (new Date(incoming.savedAt) > new Date(existing.savedAt || 0)) {
-          Object.assign(existing, incoming);
-          updated++;
-        }
-      });
-
-      if (added || updated) {
-        local.sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
-        persistLocal(local);
-      }
-
-      return { ok: true, added, updated, total: remote.length };
-    } catch (err) {
-      return { ok: false, error: err && err.message ? err.message : "تعذّر الجلب" };
-    }
-  }
-
-  // ------------------------------------------------- الرفع التلقائي عند التغيير
-
-  let pushTimer = null;
-
   function schedulePush() {
     clearTimeout(pushTimer);
     // تأخير بسيط يجمع عدة تعديلات متتابعة في طلب واحد
     pushTimer = setTimeout(() => push(), PUSH_DELAY);
   }
 
-  // يلتف حول دوال المخزن ليرفع أي تغيير تلقائياً، دون تعديل منطقها
   function hookStore() {
     const store = window.MosqueStore;
     if (!store || store.__cloudHooked) return;
@@ -275,25 +132,64 @@
     store.__cloudHooked = true;
   }
 
+  // ------------------------------------------------------------------ رفع
+
+  async function push(records) {
+    if (!window.DataAPI) return { ok: false, skipped: true };
+
+    const batch = records || loadLocal();
+    if (!batch.length) return { ok: true, sent: 0 };
+
+    let sent = 0;
+    let lastErr = null;
+
+    for (const m of batch) {
+      const r = await window.DataAPI.save(TYPE, toWire(m));
+      if (r.synced) sent++;
+      else lastErr = r.error;
+    }
+
+    return { ok: !lastErr, sent, error: lastErr };
+  }
+
+  // ------------------------------------------------------------------ جلب
+
+  async function pull() {
+    if (!window.DataAPI) return { ok: false, skipped: true };
+
+    try {
+      // نُفرغ ما تعذّر إرساله سابقاً قبل القراءة، فلا يُطمس بنسخة الخادم
+      await window.DataAPI.flush(TYPE);
+      const remote = await window.DataAPI.list(TYPE);
+      return mergeRemote(remote.map(fromWire));
+    } catch (err) {
+      return {
+        ok: false,
+        error: err && err.message ? err.message : "تعذّر الاتصال بالخادم",
+      };
+    }
+  }
+
   // ------------------------------------------------------------------ التشغيل
 
   async function init() {
     hookStore();
-    // مع وجود الخادم لا حاجة لرابط في المتصفح إطلاقاً
-    if (!window.DataAPI && !getEndpoint()) return;
+    if (!window.DataAPI) return;
 
     const r = await pull();
     if (r.ok && (r.added || r.updated)) {
       // إعلام الصفحة لتُحدّث ما تعرضه من مساجد
       document.dispatchEvent(
-        new CustomEvent("mosques:updated", { detail: { added: r.added, updated: r.updated } }),
+        new CustomEvent("mosques:updated", {
+          detail: { added: r.added, updated: r.updated },
+        }),
       );
     }
-    // رفع أي مسجد محلي لم يصل الجدول بعد
+    // رفع أي مسجد محلي لم يصل الخادم بعد
     push();
   }
 
-  window.CloudSync = { push, pull, getEndpoint };
+  window.CloudSync = { push, pull };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
