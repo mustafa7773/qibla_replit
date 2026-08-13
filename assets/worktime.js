@@ -19,8 +19,8 @@
 
   // الاستراحات الاختيارية: تُضاف بعد محطة يختارها المستخدم، بمدة ثابتة لكل نوع
   const BREAKS = {
-    prayer: { name: "وقت الصلاة", minutes: 20, icon: "🕌" },
-    dinner: { name: "وقت العشاء", minutes: 30, icon: "🍽️" },
+    prayer: { name: "وقت الصلاة", minutes: 20, icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c2.5 2 4 3.6 4 5.5A4 4 0 018 8.5C8 6.6 9.5 5 12 3z"/><path d="M4 21v-6a2 2 0 012-2h12a2 2 0 012 2v6"/><path d="M4 21h16"/></svg>' },
+    dinner: { name: "وقت العشاء", minutes: 30, icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a2 2 0 004 0V3M8 11v10"/><path d="M16 3c-1.5 1.5-2 3-2 5s.7 3 2 3v10"/></svg>' },
   };
 
   const OSRM_BASE = "https://router.project-osrm.org/trip/v1/driving/";
@@ -39,6 +39,52 @@
   function el(id) {
     return document.getElementById(id);
   }
+
+  // ------------------------------------------------------------ تأكيد الحذف
+  //
+  // بديل confirm() الأصلي، الذي يُجمّد الصفحة، ويظهر بخط النظام لا بهوية
+  // الموقع، ويجعل زر التدمير مطابقاً لزر الإلغاء تماماً.
+  // هنا: زر أحمر واضح، وEsc للإلغاء، والتركيز يبدأ على "إلغاء" لا على الحذف.
+  let pendingConfirm = null;
+
+  function askConfirm(message, okLabel, onConfirm) {
+    const box = el("wtConfirm");
+    if (!box) {
+      // احتياط: إن غاب الحوار لأي سبب لا نحذف بصمت
+      if (window.confirm(message)) onConfirm();
+      return;
+    }
+    pendingConfirm = onConfirm;
+    el("wtConfirmText").textContent = message;
+    el("wtConfirmOk").textContent = okLabel || "حذف";
+    box.classList.remove("hidden");
+    el("wtConfirmCancel").focus();
+  }
+
+  function closeConfirm() {
+    pendingConfirm = null;
+    const box = el("wtConfirm");
+    if (box) box.classList.add("hidden");
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const box = el("wtConfirm");
+    if (!box) return;
+
+    el("wtConfirmCancel").addEventListener("click", closeConfirm);
+    el("wtConfirmOk").addEventListener("click", function () {
+      const fn = pendingConfirm;
+      closeConfirm();
+      if (fn) fn();
+    });
+    // النقر خارج الصندوق يُلغي، كما هو متوقّع في أي حوار
+    box.addEventListener("click", function (e) {
+      if (e.target === box) closeConfirm();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !box.classList.contains("hidden")) closeConfirm();
+    });
+  });
 
   function showError(message) {
     const box = el("errorBox");
@@ -104,6 +150,82 @@
 
   // ---------- قراءة المدخلات ----------
 
+  // نطاق عُمان الجغرافي — يُستخدم للتمييز بين صيغتي الإدخال والتحقق من الناتج
+  const OMAN_BOUNDS = { latMin: 16, latMax: 27.5, lonMin: 51.5, lonMax: 60.5 };
+
+  // هل هذان الرقمان درجتان جغرافيتان أم متران في نظام UTM؟
+  //
+  // الفرق قاطع بالمقدار لا بالتخمين: في عُمان تقع Easting بين ٢٠٠ ألف و٨٠٠
+  // ألف متر، وNorthing بين ١٫٨ و٣ ملايين. أما خطا الطول والعرض فأقل من ٩٠.
+  // فأي زوج تحت الألف هو درجات قطعاً، ولا التباس ممكن بين النطاقين.
+  //
+  // سبب وجود هذه الدالة: من ينسخ إحداثيات من خرائط Google يحصل على درجات،
+  // وكانت الأداة تعاملها كأمتار فتضع المسجد في المحيط على بعد آلاف الكيلومترات.
+  // هامش ٤ درجات حول عُمان: يسمح بالحدود ويرفض الأخطاء الفادحة
+  function withinOman(lat, lon) {
+    return (
+      lat >= OMAN_BOUNDS.latMin - 4 && lat <= OMAN_BOUNDS.latMax + 4 &&
+      lon >= OMAN_BOUNDS.lonMin - 4 && lon <= OMAN_BOUNDS.lonMax + 4
+    );
+  }
+
+  function looksLikeLatLon(a, b) {
+    return Math.abs(a) <= 1000 && Math.abs(b) <= 1000;
+  }
+
+  // ترتيب الدرجات قد يأتي "خط العرض ثم الطول" أو العكس. في عُمان النطاقان
+  // لا يتداخلان (العرض ١٦–٢٧٫٥ والطول ٥١٫٥–٦٠٫٥)، فنعرف أيّهما أيّ بيقين.
+  function orderLatLon(a, b) {
+    const inLat = (v) => v >= OMAN_BOUNDS.latMin && v <= OMAN_BOUNDS.latMax;
+    const inLon = (v) => v >= OMAN_BOUNDS.lonMin && v <= OMAN_BOUNDS.lonMax;
+
+    if (inLat(a) && inLon(b)) return { lat: a, lon: b };
+    if (inLon(a) && inLat(b)) return { lat: b, lon: a }; // مكتوبة بالعكس
+    // خارج عُمان: نأخذ الترتيب الشائع (العرض أولاً) ونترك التحقق لما بعده
+    return { lat: a, lon: b };
+  }
+
+  // ---------------------------------------------------- صيغ الإحداثيات
+  //
+  // ثلاث صيغ تُستخدم فعلياً في العمل الميداني:
+  //   UTM  : 554636.62, 2532743.15      (الرسم المساحي)
+  //   DD   : 23.375456, 56.697578        (نسخ من خرائط Google)
+  //   DMS  : 23 32 31.6 N, 58 1 17.98 E  (أجهزة GPS والوثائق الرسمية)
+  //
+  // "تلقائي" يميّزها بلا لبس، والاختيار الصريح متاح لمن يريد ضماناً.
+
+  // درجات ودقائق وثوانٍ ← رقم عشري.
+  // يقبل الفواصل: ° ' " ′ ″ : ومسافة، ويقبل النقص (درجات ودقائق بلا ثوانٍ).
+  function parseDms(text) {
+    const t = String(text)
+      .trim()
+      .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)); // أرقام عربية
+
+    const m = t.match(
+      /^([NSEWnsew])?\s*(-?\d{1,3})\s*(?:[°ºd:]|\s)\s*(\d{1,2}(?:\.\d+)?)?\s*(?:['′m:]|\s)?\s*(\d{1,2}(?:\.\d+)?)?\s*(?:["″s])?\s*([NSEWnsew])?$/,
+    );
+    if (!m) return { value: NaN, hemi: "" };
+
+    const hemi = (m[1] || m[5] || "").toUpperCase();
+    const deg = parseFloat(m[2]);
+    const min = m[3] ? parseFloat(m[3]) : 0;
+    const sec = m[4] ? parseFloat(m[4]) : 0;
+    if (!isFinite(deg) || min >= 60 || sec >= 60) return { value: NaN, hemi };
+
+    let val = Math.abs(deg) + min / 60 + sec / 3600;
+    if (deg < 0 || hemi === "S" || hemi === "W") val = -val;
+    return { value: val, hemi };
+  }
+
+  // هل يبدو هذا النص بصيغة الدرجات والدقائق؟ علامات قاطعة: رمز درجة أو
+  // دقيقة أو ثانية، أو حرف جهة، أو ثلاث مجموعات رقمية مفصولة بمسافات
+  function looksLikeDms(text) {
+    const t = String(text).trim();
+    if (/[°º'′"″]/.test(t)) return true;
+    if (/[NSEWnsew]\s*$/.test(t) || /^[NSEWnsew]/.test(t)) return true;
+    return /^\d{1,3}\s+\d{1,2}(\.\d+)?(\s+\d{1,2}(\.\d+)?)?$/.test(t);
+  }
+
   function parseMosques() {
     const raw = el("mosquesInput").value.trim();
     if (!raw) throw new Error("أدخل موقع مسجد واحد على الأقل.");
@@ -115,39 +237,97 @@
     const mosques = [];
 
     lines.forEach((line, idx) => {
+      const no = idx + 1;
+
       // الحقول مفصولة بفاصلة (عربية أو إنجليزية) أو فاصلة منقوطة أو Tab.
-      // آخر حقلين هما Easting ثم Northing، وما قبلهما هو الاسم — بهذا الترتيب
-      // يبقى الاسم سليماً حتى لو احتوى أرقاماً مثل "ص-24-103".
+      // آخر حقلين هما الإحداثيتان، وما قبلهما هو الاسم — بهذا الترتيب يبقى
+      // الاسم سليماً حتى لو احتوى أرقاماً مثل "ص-24-103".
       let parts = line.split(/[,،;\t]+/).map((p) => p.trim()).filter(Boolean);
 
-      // سطر بلا فواصل: نقبل الفصل بالمسافات (إحداثيتان فقط)
-      if (parts.length < 2) {
+      // سطر بلا فواصل: نقبل الفصل بالمسافات (إحداثيتان فقط).
+      // لا نفعل هذا مع الدرجات والدقائق لأن مسافاتها جزء من الرقم نفسه.
+      if (parts.length < 2 && !looksLikeDms(line)) {
         parts = line.split(/\s+/).map((p) => p.trim()).filter(Boolean);
       }
 
       if (parts.length < 2) {
+        throw new Error("السطر رقم " + no + " لا يحتوي على إحداثيتين صالحتين.");
+      }
+
+      const rawA = parts[parts.length - 2];
+      const rawB = parts[parts.length - 1];
+      const name = parts.slice(0, -2).join(", ").trim() || "مسجد " + no;
+
+      let lat;
+      let lon;
+      let easting = null;
+      let northing = null;
+
+      // التمييز تلقائي دائماً: قائمة الصيغة تتحكم بشكل خانات الإدخال، لا
+      // بتفسير النص المخزَّن. وهو إما مكتوب بصيغة موحّدة من النموذج، أو
+      // ملصوقاً بصيغة يحسمها شكله.
+      const wantDms = looksLikeDms(rawA) && looksLikeDms(rawB);
+
+      if (wantDms) {
+        const A = parseDms(rawA);
+        const B = parseDms(rawB);
+        if (!isFinite(A.value) || !isFinite(B.value)) {
+          throw new Error(
+            "السطر رقم " + no +
+              " غير مقروء بصيغة الدرجات والدقائق. المتوقّع مثل: " +
+              "23 32 31.6 N, 58 1 17.98 E",
+          );
+        }
+        // حرف الجهة يحسم أيّهما العرض وأيّهما الطول، وبلا حرف نعتمد النطاق
+        if (A.hemi === "N" || A.hemi === "S" || B.hemi === "E" || B.hemi === "W") {
+          lat = A.value;
+          lon = B.value;
+        } else if (A.hemi === "E" || A.hemi === "W" || B.hemi === "N" || B.hemi === "S") {
+          lat = B.value;
+          lon = A.value;
+        } else {
+          const ll = orderLatLon(A.value, B.value);
+          lat = ll.lat;
+          lon = ll.lon;
+        }
+      } else {
+        const first = parseFloat(String(rawA).replace(/[^\d.\-]/g, ""));
+        const second = parseFloat(String(rawB).replace(/[^\d.\-]/g, ""));
+
+        if (!isFinite(first) || !isFinite(second)) {
+          throw new Error("السطر رقم " + no + " لا يحتوي على إحداثيتين صالحتين.");
+        }
+
+        const asDegrees = looksLikeLatLon(first, second);
+
+        if (asDegrees) {
+          const ll = orderLatLon(first, second);
+          lat = ll.lat;
+          lon = ll.lon;
+        } else {
+          easting = first;
+          northing = second;
+          const wgs = convertToWGS84(easting, northing, zone, datum);
+          lat = wgs.lat;
+          lon = wgs.lon;
+        }
+      }
+
+      if (!isFinite(lat) || !isFinite(lon)) {
+        throw new Error("تعذّر تحويل إحداثيات السطر رقم " + no + ".");
+      }
+
+      // حارس أخير: موقع خارج عُمان بمسافات شاسعة يعني غالباً صيغة أُسيء
+      // قراءتها، لا مسجداً في المحيط. نُخبر المستخدم بدل أن نحسب مساراً بلا معنى.
+      if (!withinOman(lat, lon)) {
         throw new Error(
-          "السطر رقم " + (idx + 1) + " لا يحتوي على إحداثيتين صالحتين (Easting و Northing).",
+          "إحداثيات السطر رقم " + no + " تقع خارج عُمان (" +
+            lat.toFixed(4) + ", " + lon.toFixed(4) +
+            "). تحقّق من صيغة الإدخال المختارة ومن نطاق UTM.",
         );
       }
 
-      const northing = parseFloat(parts[parts.length - 1].replace(/[^\d.\-]/g, ""));
-      const easting = parseFloat(parts[parts.length - 2].replace(/[^\d.\-]/g, ""));
-
-      if (!isFinite(easting) || !isFinite(northing)) {
-        throw new Error(
-          "السطر رقم " + (idx + 1) + " لا يحتوي على إحداثيتين صالحتين (Easting و Northing).",
-        );
-      }
-
-      const name = parts.slice(0, -2).join(", ").trim() || "مسجد " + (idx + 1);
-
-      const wgs = convertToWGS84(easting, northing, zone, datum);
-      if (!isFinite(wgs.lat) || !isFinite(wgs.lon)) {
-        throw new Error("تعذّر تحويل إحداثيات السطر رقم " + (idx + 1) + ".");
-      }
-
-      mosques.push({ name, easting, northing, lat: wgs.lat, lon: wgs.lon });
+      mosques.push({ name, easting, northing, lat, lon });
     });
 
     return mosques;
@@ -296,9 +476,6 @@
         legMinutes: leg.minutes,
         legKm: leg.km,
         label: "مسجد",
-        // تُمرَّر لرابط تقرير القبلة
-        easting: route.ordered[i].easting,
-        northing: route.ordered[i].northing,
       });
 
       // استراحة بعد هذا المسجد إن اختيرت له
@@ -341,8 +518,10 @@
   function renderSummary(result) {
     // جملة تلخيصية واضحة أعلى البطاقات
     const endTime = result.schedule[result.schedule.length - 1].arrival;
+    // كانت الساعة مكتوبة نصاً ثابتاً فتناقض حقل "بداية الدوام" إن غيّره المستخدم
+    const startLabel = formatClock(result.schedule[0].departure);
     el("summaryHeadline").innerHTML =
-      "تبدأ ٨:٠٠ صباحاً وتزور <b>" +
+      "تبدأ " + startLabel + " وتزور <b>" +
       arabicUnit(result.mosqueCount, "مسجداً واحداً", "مسجدين", "مساجد", "مسجداً") +
       "</b>، وتعود إلى " + ORIGIN_NAME + " الساعة <b>" +
       formatClock(endTime) +
@@ -387,12 +566,10 @@
       // ساق التنقل تُعرض بين المحطتين لتكون العلاقة واضحة
       if (stop.legMinutes != null) {
         rows.push(
-          '<li class="leg"><span class="leg-icon">🚗</span>' +
-            '<span class="leg-text">تنقّل ' +
-            formatDuration(stop.legMinutes) +
-            " · " +
-            stop.legKm.toFixed(1) +
-            " كم</span></li>",
+          '<li class="leg"><span class="leg-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M6.5 17V9.5L8 6h8l1.5 3.5V17"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/></svg></span>' +
+            '<span class="leg-text">تنقّل</span>' +
+            '<span class="leg-chip">' + formatDuration(stop.legMinutes) + "</span>" +
+            '<span class="leg-chip is-dist">' + stop.legKm.toFixed(1) + " كم</span></li>",
         );
       }
 
@@ -403,7 +580,7 @@
             stop.icon +
             '</span></div><div class="stop-body"><p class="stop-name">' +
             escapeHtml(stop.name) +
-            '<span class="stop-tag">استراحة</span></p>' +
+            '<span class="stop-tag is-break-tag">استراحة</span></p>' +
             '<p class="stop-meta">من <span class="clock">' +
             formatClock(stop.arrival) +
             '</span> إلى <span class="clock">' +
@@ -428,10 +605,10 @@
       let meta = "";
 
       if (stop.label === "الانطلاق") {
-        tag = '<span class="stop-tag">الانطلاق</span>';
+        tag = '<span class="stop-tag is-start">الانطلاق</span>';
         meta = 'تخرج الساعة <span class="clock">' + formatClock(stop.departure) + "</span>";
       } else if (stop.label === "العودة") {
-        tag = '<span class="stop-tag">نهاية اليوم</span>';
+        tag = '<span class="stop-tag is-end">نهاية اليوم</span>';
         meta = 'تصل الساعة <span class="clock">' + formatClock(stop.arrival) + "</span>";
       } else {
         // نفس تسمية القائمة المنسدلة، ليطابق ما اخترته للاستراحة
@@ -449,26 +626,6 @@
           "</span>";
       }
 
-      // رابط تقرير القبلة: يفتح أداة القبلة بإحداثيات هذا المسجد محمّلة
-      // ومحسوبة، فيُنزَّل التقرير من مساره المعتاد بصورة الخريطة وكل حقوله.
-      let reportLink = "";
-      if (!isBase && isFinite(stop.easting) && isFinite(stop.northing)) {
-        const params = new URLSearchParams({
-          e: Number(stop.easting).toFixed(2),
-          n: Number(stop.northing).toFixed(2),
-          zone: el("zone").value,
-          datum: el("datum").value,
-          name: title,
-        });
-        reportLink =
-          '<a class="stop-report" href="qibla.html?' +
-          params.toString() +
-          '" target="_blank" rel="noopener">' +
-          '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">' +
-          '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/>' +
-          "</svg> تقرير القبلة (Word)</a>";
-      }
-
       rows.push(
         '<li class="stop' +
           (isBase ? " is-base" : "") +
@@ -481,9 +638,7 @@
           (subtitle ? '<p class="stop-sub">' + escapeHtml(subtitle) + "</p>" : "") +
           '<p class="stop-meta">' +
           meta +
-          "</p>" +
-          reportLink +
-          "</div></li>",
+          "</p></div></li>",
       );
     });
 
@@ -585,7 +740,7 @@
         if (dateStr && subParts.indexOf(dateStr) === -1) subParts.push(dateStr);
 
         const hasGov = !!(m.governorate || segments.length > 2);
-        if (!hasGov) subParts.push("بلا ولاية — اضغط ✎");
+        if (!hasGov) subParts.push("بلا ولاية — اضغط زر التعديل");
         const subtitle = subParts.join(" · ");
 
         return (
@@ -605,10 +760,10 @@
           m.northing.toFixed(0) +
           '</span><button type="button" class="icon-btn" data-edit="' +
           m.id +
-          '" title="تعديل الاسم والولاية">✎</button>' +
+          '" aria-label="تعديل الاسم والولاية" title="تعديل الاسم والولاية"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
           '<button type="button" class="icon-btn danger" data-delete="' +
           m.id +
-          '" title="حذف هذا المسجد">🗑</button></div>'
+          '" aria-label="حذف هذا المسجد" title="حذف هذا المسجد"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></div>'
         );
       })
       .join("");
@@ -692,13 +847,22 @@
       if (m.datum === "psd93" || m.datum === "wgs84utm") el("datum").value = m.datum;
     });
 
-    if (!lines.length) return;
+    if (!lines.length) {
+      toast("المساجد المحددة مضافة بالفعل إلى المسار.");
+      return;
+    }
 
     ta.value = existing ? existing + "\n" + lines.join("\n") : lines.join("\n");
 
     el("savedList")
       .querySelectorAll('input[type="checkbox"]:checked')
       .forEach((cb) => (cb.checked = false));
+
+    renderStopsList();
+    toast(
+      "أُضيفت " + arabicUnit(lines.length, "محطة واحدة", "محطتان", "محطات", "محطة") + " إلى المسار.",
+      "ok",
+    );
   }
 
   // ---------- الاستراحات ----------
@@ -706,6 +870,7 @@
   // المحطة المختارة لكل استراحة: "" (بدون) أو "start" أو رقم المحطة
   const chosenBreaks = { prayer: "", dinner: "" };
   let lastRouteForBreaks = null;
+  let lastResult = null; // آخر خطة محسوبة — تغذّي "نسخ كنص"
 
   // ترتيب عربي لمواقع العمل: الأول، الثاني، الثالث...
   const ORDINALS = [
@@ -784,6 +949,7 @@
     const stopMinutes = Math.max(0, parseFloat(el("stopMinutes").value) || 0);
     const startTime = el("startTime").value || "08:00";
     const result = buildSchedule(lastRouteForBreaks, stopMinutes, startTime, chosenBreaks);
+    lastResult = result;
     renderSummary(result);
     renderTimeline(result);
   }
@@ -815,11 +981,11 @@
       try {
         route = await solveRouteViaOsrm(stops);
         noteText =
-          "🛣️ الأزمنة والمسافات محسوبة على الطرق الفعلية عبر خدمة OSRM المفتوحة، ولا تشمل الازدحام المروري.";
+          "الأزمنة والمسافات محسوبة على الطرق الفعلية عبر خدمة OSRM المفتوحة، ولا تشمل الازدحام المروري.";
       } catch (osrmErr) {
         route = solveRouteFallback(stops);
         noteText =
-          "⚠️ تعذّر الوصول لخدمة المسارات، فاستُخدم تقدير تقريبي بمسافة الخط المستقيم بمتوسط سرعة " +
+          "تعذّر الوصول لخدمة المسارات، فاستُخدم تقدير تقريبي بمسافة الخط المستقيم بمتوسط سرعة " +
           FALLBACK_SPEED_KMH +
           " كم/س. الأرقام إرشادية فقط.";
       }
@@ -828,6 +994,7 @@
       const startTime = el("startTime").value || "08:00";
 
       const result = buildSchedule(route, stopMinutes, startTime, chosenBreaks);
+      lastResult = result;
       lastRoute = route;
       lastRouteForBreaks = route;
       renderBreakPicker(route);
@@ -835,6 +1002,7 @@
       renderSummary(result);
       renderTimeline(result);
       el("resultPanel").classList.remove("hidden");
+      el("wtDetailEmpty").classList.add("hidden");
       el("routeSourceNote").textContent = noteText;
 
       // الخريطة إضافة توضيحية: لو تعذّر تحميل مكتبتها لا نُسقِط النتيجة كلها
@@ -853,6 +1021,738 @@
       btn.innerHTML = originalLabel;
     }
   }
+
+  // ==========================================================================
+  //                        واجهة الترتيب الجديد
+  // ==========================================================================
+
+  function toast(message, kind) {
+    const box = el("wtToast");
+    box.className = "toast" + (kind ? " is-" + kind : "");
+    box.textContent = message;
+    box.classList.remove("hidden");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => box.classList.add("hidden"), 4000);
+  }
+
+  // ------------------------------------------------------- محطات المسار
+  //
+  // مربع النص هو مصدر الحقيقة الوحيد: كل ترتيب أو حذف يعيد كتابة أسطره.
+  // القائمة أدناه مجرّد عرض له — بهذا لا يوجد مصدران قد يتناقضان.
+  const ICON_GRIP =
+    '<svg width="14" height="16" fill="currentColor" viewBox="0 0 10 16" aria-hidden="true">' +
+    '<circle cx="2.5" cy="3" r="1.3"/><circle cx="7.5" cy="3" r="1.3"/>' +
+    '<circle cx="2.5" cy="8" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/>' +
+    '<circle cx="2.5" cy="13" r="1.3"/><circle cx="7.5" cy="13" r="1.3"/></svg>';
+
+  function stopLines() {
+    return el("mosquesInput").value.split("\n").map((l) => l.trim()).filter(Boolean);
+  }
+
+  function writeStopLines(lines) {
+    el("mosquesInput").value = lines.join("\n");
+    renderStopsList();
+  }
+
+  function renderStopsList() {
+    const list = el("wtStopsList");
+    const empty = el("wtStopsEmpty");
+    const badge = el("wtStopsBadge");
+    const hint = el("wtStopsHint");
+
+    let stops = [];
+    try {
+      stops = parseMosques();
+    } catch (e) {
+      stops = [];
+    }
+
+    badge.textContent = stops.length
+      ? arabicUnit(stops.length, "محطة واحدة", "محطتان", "محطات", "محطة")
+      : "لا محطات";
+    badge.classList.toggle("is-set", stops.length > 0);
+
+    empty.classList.toggle("hidden", stops.length > 0);
+    hint.classList.toggle("hidden", stops.length < 2);
+
+    list.innerHTML = stops
+      .map(
+        (m, i) =>
+          '<li class="stop-row" draggable="true" data-i="' + i + '">' +
+          '<span class="grip" aria-hidden="true">' + ICON_GRIP + "</span>" +
+          '<span class="stop-index">' + (i + 1) + "</span>" +
+          '<span class="stop-label">' + escapeHtml(m.name) +
+          '<span class="stop-coords">' + m.lat.toFixed(4) + ", " + m.lon.toFixed(4) +
+          "</span></span>" +
+          '<span class="stop-move">' +
+          '<button type="button" class="icon-btn" data-move="up" data-i="' + i + '" ' +
+          (i === 0 ? "disabled " : "") + 'aria-label="تحريك لأعلى">' + ICON_UP + "</button>" +
+          '<button type="button" class="icon-btn" data-move="down" data-i="' + i + '" ' +
+          (i === stops.length - 1 ? "disabled " : "") + 'aria-label="تحريك لأسفل">' + ICON_DOWN + "</button>" +
+          "</span>" +
+          '<button type="button" class="icon-btn danger" data-drop="' + i + '" ' +
+          'aria-label="إزالة هذه المحطة" title="إزالة">' + ICON_TRASH_SM + "</button></li>",
+      )
+      .join("");
+  }
+
+  const ICON_UP =
+    '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M18 15l-6-6-6 6"/></svg>';
+
+  const ICON_DOWN =
+    '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M6 9l6 6 6-6"/></svg>';
+
+  const ICON_TRASH_SM =
+    '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/>' +
+    '<path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>';
+
+  el("wtStopsList").addEventListener("click", function (e) {
+    const drop = e.target.closest("[data-drop]");
+    if (drop) {
+      const lines = stopLines();
+      lines.splice(parseInt(drop.getAttribute("data-drop"), 10), 1);
+      writeStopLines(lines);
+      return;
+    }
+
+    // أزرار السهمين بديل السحب: تعمل باللمس وبلوحة المفاتيح، وهو ما لا
+    // يوفّره السحب والإفلات وحده
+    const move = e.target.closest("[data-move]");
+    if (move) {
+      const i = parseInt(move.getAttribute("data-i"), 10);
+      const dir = move.getAttribute("data-move") === "up" ? -1 : 1;
+      const lines = stopLines();
+      if (i + dir < 0 || i + dir >= lines.length) return;
+      const [row] = lines.splice(i, 1);
+      lines.splice(i + dir, 0, row);
+      writeStopLines(lines);
+      // نُبقي التركيز على نفس الزر بعد إعادة الرسم
+      const next = el("wtStopsList").querySelector(
+        '[data-move="' + move.getAttribute("data-move") + '"][data-i="' + (i + dir) + '"]',
+      );
+      if (next) next.focus();
+    }
+  });
+
+  // ----- السحب والإفلات لإعادة الترتيب -----
+  let dragFrom = null;
+
+  el("wtStopsList").addEventListener("dragstart", function (e) {
+    const row = e.target.closest(".stop-row");
+    if (!row) return;
+    dragFrom = parseInt(row.getAttribute("data-i"), 10);
+    row.classList.add("is-dragging");
+    e.dataTransfer.effectAllowed = "move";
+    // Firefox لا يبدأ السحب إن لم تُضبط بيانات
+    e.dataTransfer.setData("text/plain", String(dragFrom));
+  });
+
+  el("wtStopsList").addEventListener("dragover", function (e) {
+    if (dragFrom === null) return;
+    e.preventDefault();
+    const row = e.target.closest(".stop-row");
+    el("wtStopsList")
+      .querySelectorAll(".stop-row")
+      .forEach((r) => r.classList.remove("is-over"));
+    if (row) row.classList.add("is-over");
+  });
+
+  el("wtStopsList").addEventListener("drop", function (e) {
+    if (dragFrom === null) return;
+    e.preventDefault();
+    const row = e.target.closest(".stop-row");
+    if (!row) return;
+    const to = parseInt(row.getAttribute("data-i"), 10);
+    if (to === dragFrom) return;
+    const lines = stopLines();
+    const [moved] = lines.splice(dragFrom, 1);
+    lines.splice(to, 0, moved);
+    writeStopLines(lines);
+  });
+
+  el("wtStopsList").addEventListener("dragend", function () {
+    dragFrom = null;
+    el("wtStopsList")
+      .querySelectorAll(".stop-row")
+      .forEach((r) => r.classList.remove("is-dragging", "is-over"));
+  });
+
+  // ==========================================================================
+  //                     نموذج إدخال محطة واحدة
+  // ==========================================================================
+  //
+  // مربع النص الحر كان يطلب من المستخدم تذكّر الترتيب والفواصل والصيغة معاً.
+  // الخانات المنفصلة تُزيل هذا الحمل: كل خانة تحمل اسمها ومثالها، والصيغة
+  // المختارة تُبدّل شكل الخانات لا شكل الكتابة.
+  //
+  // كل ما يُضاف يُحوَّل فوراً إلى درجات عشرية ويُكتب في mosquesInput المخفي —
+  // مصدر حقيقة واحد يبقى كما هو مهما تغيّرت صيغة الإدخال، فلا يتناقض العرض
+  // مع الحساب.
+
+  const COORD_FORMS = {
+    utm: {
+      hint: "إحداثيات الرسم المساحي بالأمتار، وفق نطاق UTM المختار في الإعدادات.",
+      fields: [
+        { id: "cfE", label: "Easting (شرقاً)", ph: "554636.62", w: "half" },
+        { id: "cfN", label: "Northing (شمالاً)", ph: "2532743.15", w: "half" },
+      ],
+    },
+    dd: {
+      hint: "الأرقام كما تُنسخ من خرائط Google: خط العرض أولاً ثم خط الطول.",
+      fields: [
+        { id: "cfLat", label: "خط العرض (Latitude)", ph: "23.375456", w: "half" },
+        { id: "cfLon", label: "خط الطول (Longitude)", ph: "56.697578", w: "half" },
+      ],
+    },
+    dms: {
+      hint: "اترك خانة الثواني فارغة إن لم تكن لديك — تُحسب صفراً.",
+      groups: [
+        {
+          title: "خط العرض (Latitude)",
+          fields: [
+            { id: "cfLatD", label: "درجات", ph: "23" },
+            { id: "cfLatM", label: "دقائق", ph: "32" },
+            { id: "cfLatS", label: "ثوانٍ", ph: "31.6" },
+            { id: "cfLatH", label: "الجهة", opts: ["N", "S"] },
+          ],
+        },
+        {
+          title: "خط الطول (Longitude)",
+          fields: [
+            { id: "cfLonD", label: "درجات", ph: "58" },
+            { id: "cfLonM", label: "دقائق", ph: "1" },
+            { id: "cfLonS", label: "ثوانٍ", ph: "17.98" },
+            { id: "cfLonH", label: "الجهة", opts: ["E", "W"] },
+          ],
+        },
+      ],
+    },
+  };
+
+  function fieldHtml(f) {
+    if (f.opts) {
+      return (
+        '<div class="field"><label for="' + f.id + '">' + f.label + "</label>" +
+        '<select id="' + f.id + '">' +
+        f.opts.map((o) => '<option value="' + o + '">' + o + "</option>").join("") +
+        "</select></div>"
+      );
+    }
+    return (
+      '<div class="field"><label for="' + f.id + '">' + f.label + "</label>" +
+      '<input type="text" inputmode="decimal" id="' + f.id +
+      '" class="textarea-mono" placeholder="' + f.ph + '" /></div>'
+    );
+  }
+
+  function renderCoordFields() {
+    const fmt = el("coordFormat").value;
+    const cfg = COORD_FORMS[fmt] || COORD_FORMS.utm;
+    const box = el("coordFields");
+
+    if (cfg.groups) {
+      box.innerHTML = cfg.groups
+        .map(
+          (g) =>
+            '<div class="dms-group"><h4>' + g.title + "</h4>" +
+            '<div class="dms-row">' + g.fields.map(fieldHtml).join("") + "</div></div>",
+        )
+        .join("");
+    } else {
+      box.innerHTML = '<div class="grid2">' + cfg.fields.map(fieldHtml).join("") + "</div>";
+    }
+
+    el("coordHint").textContent = cfg.hint;
+    hideCoordError();
+  }
+
+  function showCoordError(msg) {
+    const box = el("coordError");
+    box.textContent = msg;
+    box.classList.remove("hidden");
+  }
+
+  function hideCoordError() {
+    el("coordError").classList.add("hidden");
+  }
+
+  function numOf(id) {
+    const v = String((el(id) || { value: "" }).value)
+      .trim()
+      .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+      .replace(/[^\d.\-]/g, "");
+    return v === "" ? NaN : parseFloat(v);
+  }
+
+  // يقرأ الخانات ويُرجع { lat, lon } أو رسالة خطأ تشرح الخانة الناقصة تحديداً
+  function readCoordForm() {
+    const fmt = el("coordFormat").value;
+
+    if (fmt === "utm") {
+      const e = numOf("cfE");
+      const n = numOf("cfN");
+      if (!isFinite(e) || !isFinite(n)) return { error: "أدخل قيمتي Easting و Northing." };
+      const zone = parseInt(el("zone").value, 10);
+      const wgs = convertToWGS84(e, n, zone, el("datum").value);
+      if (!isFinite(wgs.lat) || !isFinite(wgs.lon)) return { error: "تعذّر تحويل الإحداثيات." };
+      return { lat: wgs.lat, lon: wgs.lon };
+    }
+
+    if (fmt === "dd") {
+      const lat = numOf("cfLat");
+      const lon = numOf("cfLon");
+      if (!isFinite(lat) || !isFinite(lon)) return { error: "أدخل خط العرض وخط الطول." };
+      return { lat, lon };
+    }
+
+    // درجات ودقائق وثوانٍ
+    const parts = [
+      ["cfLatD", "درجات خط العرض"],
+      ["cfLonD", "درجات خط الطول"],
+    ];
+    for (const [id, label] of parts) {
+      if (!isFinite(numOf(id))) return { error: "أدخل " + label + "." };
+    }
+
+    function assemble(dId, mId, sId, hId) {
+      const d = numOf(dId);
+      const m = isFinite(numOf(mId)) ? numOf(mId) : 0;
+      const sec = isFinite(numOf(sId)) ? numOf(sId) : 0;
+      if (m >= 60 || sec >= 60) return NaN;
+      const v = Math.abs(d) + m / 60 + sec / 3600;
+      const h = el(hId).value;
+      return h === "S" || h === "W" ? -v : v;
+    }
+
+    const lat = assemble("cfLatD", "cfLatM", "cfLatS", "cfLatH");
+    const lon = assemble("cfLonD", "cfLonM", "cfLonS", "cfLonH");
+    if (!isFinite(lat) || !isFinite(lon)) {
+      return { error: "الدقائق والثواني يجب أن تكون أقل من ٦٠." };
+    }
+    return { lat, lon };
+  }
+
+  function clearCoordForm() {
+    el("cfName").value = "";
+    el("coordFields")
+      .querySelectorAll("input")
+      .forEach((i) => (i.value = ""));
+    el("cfName").focus();
+  }
+
+  // يُلحق محطة بمصدر الحقيقة بصيغة موحّدة: الاسم، ثم درجتان عشريتان
+  function appendStop(name, lat, lon) {
+    const ta = el("mosquesInput");
+    const line = (name || "").trim()
+      ? name.trim() + ", " + lat.toFixed(6) + ", " + lon.toFixed(6)
+      : lat.toFixed(6) + ", " + lon.toFixed(6);
+    const cur = ta.value.trim();
+    ta.value = cur ? cur + "\n" + line : line;
+  }
+
+  el("coordFormat").addEventListener("change", renderCoordFields);
+  renderCoordFields();
+
+  el("cfAdd").addEventListener("click", function () {
+    const res = readCoordForm();
+    if (res.error) {
+      showCoordError(res.error);
+      return;
+    }
+    if (!withinOman(res.lat, res.lon)) {
+      showCoordError(
+        "الموقع الناتج (" + res.lat.toFixed(4) + ", " + res.lon.toFixed(4) +
+          ") خارج عُمان — تحقّق من الصيغة المختارة ومن نطاق UTM.",
+      );
+      return;
+    }
+    hideCoordError();
+    appendStop(el("cfName").value, res.lat, res.lon);
+    renderStopsList();
+    clearCoordForm();
+    toast("أُضيفت المحطة.", "ok");
+  });
+
+  // اللصق الجماعي يبقى متاحاً لمن ينسخ قائمة جاهزة — يمرّ على نفس المحلّل
+  el("bulkAdd").addEventListener("click", function () {
+    const text = el("bulkInput").value.trim();
+    if (!text) return;
+    const ta = el("mosquesInput");
+    const cur = ta.value.trim();
+    const before = cur ? cur.split("\n").filter(Boolean).length : 0;
+    ta.value = cur ? cur + "\n" + text : text;
+
+    try {
+      const after = parseMosques().length;
+      renderStopsList();
+      el("bulkInput").value = "";
+      toast("أُضيفت " + (after - before) + " محطة.", "ok");
+    } catch (err) {
+      ta.value = cur; // نتراجع كاملاً: سطر واحد فاسد لا يُفسد القائمة
+      showCoordError(err.message);
+    }
+  });
+
+  el("mosquesInput").addEventListener("input", renderStopsList);
+
+  // ----- مفتاح مقسّم لمصدر المحطات: خياران ظاهران دائماً، وواحد نشط -----
+  document.querySelectorAll(".seg-btn").forEach((tab) => {
+    tab.addEventListener("click", function () {
+      const target = this.getAttribute("data-tab");
+      document.querySelectorAll(".seg-btn").forEach((t) => {
+        const on = t === this;
+        t.classList.toggle("is-active", on);
+        t.setAttribute("aria-selected", String(on));
+      });
+      el("paneSaved").classList.toggle("hidden", target !== "saved");
+      el("paneManual").classList.toggle("hidden", target !== "manual");
+    });
+  });
+
+  // ----- ملخّص الإعدادات في العنوان: تعرف قيمها بلا فتح -----
+  function updateSettingsSummary() {
+    const start = el("startTime").value || "08:00";
+    const mins = el("stopMinutes").value || "60";
+    el("wtSettingsSummary").textContent = "تبدأ " + start + " · " + mins + " دقيقة بكل مسجد";
+  }
+
+  ["startTime", "stopMinutes", "datum", "zone"].forEach((id) => {
+    el(id).addEventListener("change", updateSettingsSummary);
+  });
+  updateSettingsSummary();
+
+  // ----- نسخ الخطة كنص: تُرسل في واتساب للفريق قبل الخروج للميدان -----
+  el("wtCopyPlan").addEventListener("click", async function () {
+    const text = planAsText();
+    if (!text) {
+      toast("احسب المسار أولاً.", "error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("نُسخت الخطة.", "ok");
+    } catch (e) {
+      // الحافظة محجوبة (اتصال غير آمن أو رفض المستخدم) — نعرض النص لينسخه يدوياً
+      window.prompt("انسخ الخطة يدوياً:", text);
+    }
+  });
+
+  function planAsText() {
+    if (!lastResult) return "";
+    const lines = ["خطة يوم العمل", ""];
+    let n = 0;
+    lastResult.schedule.forEach((stop) => {
+      if (stop.isBreak) {
+        lines.push("• " + stop.name + " — " + formatClock(stop.arrival) + " إلى " + formatClock(stop.departure));
+        return;
+      }
+      if (stop.isOrigin && n > 0) {
+        lines.push("العودة إلى " + stop.name + " — " + formatClock(stop.arrival));
+        return;
+      }
+      if (stop.isOrigin) {
+        lines.push("الانطلاق من " + stop.name + " — " + formatClock(stop.departure));
+        return;
+      }
+      n++;
+      lines.push(n + ". " + stop.name + " — " + formatClock(stop.arrival) + " إلى " + formatClock(stop.departure));
+    });
+    lines.push("");
+    lines.push("الإجمالي: " + formatDuration(lastResult.totalMinutes));
+    return lines.join("\n");
+  }
+
+  // ==========================================================================
+  //                        تقرير PDF لخطة اليوم
+  // ==========================================================================
+  //
+  // لماذا نرسم صفحة HTML ثم نصوّرها بدل كتابة النص في PDF مباشرة؟
+  // لأن مكتبات PDF لا تُشكّل الحروف العربية: تكتب "س ل ا م" منفصلة ومقلوبة.
+  // المتصفح وحده يعرف كيف يصل الحروف ويرتّب الاتجاه، فندعه يرسم ثم نلتقط
+  // الصورة. النتيجة عربية صحيحة على كل جهاز.
+  //
+  // الرابط استثناء: نكتبه في PDF كنص حقيقي قابل للنقر (لاتيني فلا مشكلة في
+  // تشكيله)، فيبقى المسار قابلاً للفتح من داخل الملف لا صورةً ميتة.
+
+  const PDF_LIBS = [
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+  ];
+
+  let pdfLibsReady = null;
+
+  // نُحمّل المكتبتين عند أول ضغطة فقط — لا نُثقل فتح الصفحة بـ ٥٠٠ كيلوبايت
+  // لا يحتاجها أغلب الاستخدام
+  function loadPdfLibs() {
+    if (pdfLibsReady) return pdfLibsReady;
+    pdfLibsReady = Promise.all(
+      PDF_LIBS.map(
+        (src) =>
+          new Promise((resolve, reject) => {
+            const tag = document.createElement("script");
+            tag.src = src;
+            tag.onload = resolve;
+            tag.onerror = () => {
+              // تُجلب من الإنترنت، فالفشل هنا يعني غالباً انقطاع الاتصال
+              pdfLibsReady = null; // نسمح بإعادة المحاولة لاحقاً
+              reject(new Error("تعذّر تحميل مكتبة PDF — تحقّق من الاتصال بالإنترنت"));
+            };
+            document.head.appendChild(tag);
+          }),
+      ),
+    );
+    return pdfLibsReady;
+  }
+
+  function pdfEsc(t) {
+    return escapeHtml(t == null ? "" : String(t));
+  }
+
+  // مكدّس خطوط كل واحد فيه حروف عربية كاملة.
+  //
+  // هذا سبب تكسّر الحروف في النسخة السابقة: كان عمود "المدة" يستخدم
+  // IBM Plex Mono، وهو خط لاتيني بلا حرف عربي واحد. فيسقط المتصفح إلى خط
+  // بديل حرفاً حرفاً، فتنفصل "ساعة واحدة" إلى "س ا ع ة  و ا ح د ة".
+  // القاعدة: لا خط لاتيني على نص عربي أبداً — ولو لرقم بجواره.
+  const PDF_FONT =
+    "'IBM Plex Sans Arabic','Noto Sans Arabic','Segoe UI',Tahoma,'Geeza Pro',Arial,sans-serif";
+
+  // صفحة بيضاء مستقلة — لا نصوّر الواجهة الداكنة: خلفيتها تلتهم الحبر
+  // وألوانها الخافتة تصير غير مقروءة على ورق
+  function buildPdfSheet(result) {
+    const today = new Date();
+    const dateStr =
+      String(today.getDate()).padStart(2, "0") + "-" +
+      String(today.getMonth() + 1).padStart(2, "0") + "-" +
+      today.getFullYear();
+
+    const rows = [];
+    let n = 0;
+
+    result.schedule.forEach((stop) => {
+      // ساق التنقل صف ممتد بلون خافت: تفصل المحطات بصرياً وتحمل رقميها
+      if (stop.legMinutes != null) {
+        rows.push(
+          '<tr class="leg"><td colspan="5">' +
+            "تنقّل " + pdfEsc(formatDuration(stop.legMinutes)) +
+            "  ·  " + stop.legKm.toFixed(1) + " كم" +
+            "</td></tr>",
+        );
+      }
+
+      let order = "";
+      let cls = "";
+      if (stop.isBreak) {
+        order = "استراحة";
+        cls = " class=\"rest\"";
+      } else if (stop.label === "الانطلاق") {
+        order = "الانطلاق";
+        cls = " class=\"edge\"";
+      } else if (stop.label === "العودة") {
+        order = "نهاية اليوم";
+        cls = " class=\"edge\"";
+      } else {
+        n++;
+        order = String(n);
+      }
+
+      const name = pdfEsc(String(stop.name).split(" — ")[0]);
+      const arrive = stop.arrival != null ? formatClock(stop.arrival) : "—";
+      const depart = stop.departure != null ? formatClock(stop.departure) : "—";
+      const dur = stop.workMinutes ? formatDuration(stop.workMinutes) : "—";
+
+      // فصل الوصول عن المغادرة في عمودين: كان دمجهما بشرطة يخلط الاتجاه
+      // فيظهر "٠٨:٠٠ ص - -" بلا معنى
+      rows.push(
+        "<tr" + cls + '><td class="ord">' + pdfEsc(order) + "</td>" +
+          '<td class="nm">' + name + "</td>" +
+          '<td class="t">' + pdfEsc(arrive) + "</td>" +
+          '<td class="t">' + pdfEsc(depart) + "</td>" +
+          '<td class="t">' + pdfEsc(dur) + "</td></tr>",
+      );
+    });
+
+    const box = document.createElement("div");
+    box.setAttribute("dir", "rtl");
+    box.setAttribute("lang", "ar");
+    box.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;" +
+      "color:#111827;font-family:" + PDF_FONT + ";";
+
+    box.innerHTML =
+      "<style>" +
+      ".sheet,.sheet *{font-family:" + PDF_FONT + ";letter-spacing:normal;box-sizing:border-box}" +
+      ".sheet{padding:44px 46px}" +
+
+      /* ترويسة بشريط ذهبي رفيع — هوية بلا ضجيج */
+      ".sheet .hd{display:flex;align-items:flex-end;justify-content:space-between;" +
+      "padding-bottom:14px;border-bottom:2px solid #c9a227;margin-bottom:22px}" +
+      ".sheet .hd h1{margin:0;font-size:26px;font-weight:700;color:#0f172a;line-height:1.5}" +
+      ".sheet .hd .brand{font-size:12px;color:#8a6d1f;font-weight:600;line-height:1.9}" +
+      ".sheet .hd .date{font-size:11px;color:#9ca3af;line-height:1.9}" +
+
+      ".sheet .lead{margin:0 0 22px;padding:13px 16px;background:#fbf7ec;" +
+      "border-radius:6px;font-size:13px;line-height:2;color:#3f3f46}" +
+
+      /* بطاقات الأرقام */
+      ".sheet .cards{display:flex;gap:10px;margin-bottom:24px}" +
+      ".sheet .c{flex:1;border:1px solid #e8e8ec;border-radius:8px;padding:12px 14px;" +
+      "background:#fcfcfd}" +
+      ".sheet .c b{display:block;font-size:18px;font-weight:700;color:#0f172a;line-height:1.7}" +
+      ".sheet .c span{display:block;font-size:10.5px;color:#8b8b96;line-height:1.8}" +
+
+      /* الجدول: بلا حدود رأسية، خطوط أفقية خفيفة فقط — أهدأ للعين */
+      ".sheet table{width:100%;border-collapse:collapse;font-size:12.5px}" +
+      ".sheet th{padding:9px 10px;text-align:right;font-weight:600;font-size:11px;" +
+      "color:#6b7280;border-bottom:1.5px solid #d8d8de;line-height:1.9}" +
+      ".sheet td{padding:10px;border-bottom:1px solid #eeeef2;color:#1f2937;line-height:1.9}" +
+      ".sheet tbody tr:nth-child(even):not(.leg) td{background:#fcfcfd}" +
+
+      ".sheet .ord{width:72px;color:#8b8b96;font-size:11.5px}" +
+      ".sheet .nm{font-weight:600;color:#0f172a}" +
+      /* الأوقات وسط الخانة بأرقام متساوية العرض، وبنفس الخط العربي */
+      ".sheet .t{width:78px;text-align:center;font-variant-numeric:tabular-nums;" +
+      "font-size:12px;color:#3f3f46}" +
+
+      ".sheet tr.edge .nm{color:#8a6d1f}" +
+      ".sheet tr.edge .ord{color:#8a6d1f;font-weight:600}" +
+      ".sheet tr.rest td{background:#fafafa;color:#6b7280}" +
+      ".sheet tr.leg td{padding:6px 10px;background:#ffffff;border-bottom:1px solid #eeeef2;" +
+      "color:#9ca3af;font-size:11px;text-align:center;line-height:1.9}" +
+      "</style>" +
+
+      '<div class="sheet">' +
+      '<div class="hd"><div><h1>خطة يوم العمل</h1>' +
+      '<div class="date">صدر بتاريخ ' + dateStr + "</div></div>" +
+      '<div class="brand">ابتكارات السماء</div></div>' +
+
+      '<p class="lead">' + pdfEsc(el("summaryHeadline").textContent) + "</p>" +
+
+      '<div class="cards">' +
+      '<div class="c"><b>' + result.mosqueCount + "</b><span>عدد المساجد</span></div>" +
+      '<div class="c"><b>' + pdfEsc(formatDurationShort(result.drivingMinutes)) + "</b><span>زمن التنقل</span></div>" +
+      '<div class="c"><b>' + pdfEsc(formatDurationShort(result.workMinutes)) + "</b><span>العمل بالمواقع</span></div>" +
+      '<div class="c"><b>' + pdfEsc(formatDurationShort(result.totalMinutes)) + "</b><span>إجمالي اليوم</span></div>" +
+      "</div>" +
+
+      "<table><thead><tr>" +
+      "<th>الترتيب</th><th>الموقع</th><th>الوصول</th><th>المغادرة</th><th>المدة</th>" +
+      "</tr></thead><tbody>" + rows.join("") + "</tbody></table>" +
+      "</div>";
+
+    return box;
+  }
+
+  // الخطوط تُجلب من الشبكة، والتصوير قبل وصولها يعني التقاط خط بديل —
+  // وهو ما كسر عنوان النسخة السابقة. ننتظرها صراحةً لا بمهلة تخمينية.
+  async function ensurePdfFonts() {
+    if (!document.fonts || !document.fonts.load) return;
+    try {
+      await Promise.all([
+        document.fonts.load("700 26px 'IBM Plex Sans Arabic'", "خطة يوم العمل"),
+        document.fonts.load("600 13px 'IBM Plex Sans Arabic'", "الموقع"),
+        document.fonts.load("400 13px 'IBM Plex Sans Arabic'", "ساعة واحدة"),
+      ]);
+      await document.fonts.ready;
+    } catch (e) {
+      // تعذّر تحميل الخط: نُكمل بالخط البديل من المكدّس، وكلها عربية سليمة
+    }
+  }
+
+  async function downloadPlanPdf() {
+    if (!lastResult || !lastRoute) {
+      toast("احسب المسار أولاً.", "error");
+      return;
+    }
+
+    const btn = el("wtPdf");
+    const label = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = "جارٍ التجهيز…";
+
+    let sheet = null;
+    try {
+      await loadPdfLibs();
+
+      const mapsUrl = buildGoogleMapsUrl(lastRoute);
+      sheet = buildPdfSheet(lastResult);
+      document.body.appendChild(sheet);
+
+      // ننتظر وصول الخطوط فعلياً — لا بمهلة تخمينية
+      await ensurePdfFonts();
+      await new Promise((r) => setTimeout(r, 80));
+
+      const canvas = await window.html2canvas(sheet, {
+        scale: 2.4, // دقة أعلى: النص العربي الدقيق يحتاجها ليخرج حاداً
+        backgroundColor: "#ffffff",
+        logging: false,
+        useCORS: true,
+        letterRendering: true,
+      });
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const footerH = 18; // نحجز أسفل كل صفحة لرابط المسار
+      const usableH = pageH - footerH;
+
+      const imgW = pageW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+
+      // المحتوى الطويل يُقسَّم على صفحات: نزيح الصورة لأعلى في كل صفحة
+      const pages = Math.max(1, Math.ceil(imgH / usableH));
+      const img = canvas.toDataURL("image/jpeg", 0.92);
+
+      for (let p = 0; p < pages; p++) {
+        if (p > 0) doc.addPage();
+        doc.addImage(img, "JPEG", 0, -p * usableH, imgW, imgH);
+
+        // شريط أبيض يغطي ما تجاوز حدّ الصفحة قبل رسم التذييل
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, usableH, pageW, footerH, "F");
+
+        doc.setDrawColor(201, 162, 39); // ذهبي رفيع يطابق ترويسة الصفحة
+        doc.setLineWidth(0.4);
+        doc.line(14, usableH + 3, pageW - 14, usableH + 3);
+
+        // الرابط بحروف لاتينية فيُكتب نصاً حقيقياً قابلاً للنقر داخل الملف،
+        // لا صورة ميتة. النقر عليه يفتح المسار كاملاً في خرائط Google.
+        doc.setFontSize(8.5);
+        doc.setTextColor(150, 150, 158);
+        doc.text("SKY INNOVATIONS", 14, usableH + 9);
+        doc.text(String(p + 1) + " / " + String(pages), pageW - 14, usableH + 9, { align: "right" });
+
+        // الرابط بحروف لاتينية فيُكتب نصاً حقيقياً قابلاً للنقر داخل الملف،
+        // لا صورة ميتة. النقر عليه يفتح المسار كاملاً في خرائط Google.
+        doc.setFontSize(9);
+        doc.setTextColor(28, 92, 196);
+        doc.textWithLink("Open the full route in Google Maps", 14, usableH + 14, { url: mapsUrl });
+      }
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      doc.save("خطة يوم العمل " + stamp + ".pdf");
+      toast("نُزّل ملف الخطة.", "ok");
+    } catch (err) {
+      toast(
+        "تعذّر إنشاء الملف: " + (err && err.message ? err.message : "خطأ غير متوقع"),
+        "error",
+      );
+    } finally {
+      if (sheet && sheet.parentNode) sheet.parentNode.removeChild(sheet);
+      btn.disabled = false;
+      btn.innerHTML = label;
+    }
+  }
+
+  el("wtPdf").addEventListener("click", downloadPlanPdf);
 
   el("computeBtn").addEventListener("click", compute);
 
@@ -876,7 +1776,7 @@
 
   el("addSelectedBtn").addEventListener("click", addSelectedSaved);
 
-  // أزرار التعديل (✎) والحذف (🗑) داخل كل صف
+  // أزرار التعديل والحذف داخل كل صف
   el("savedList").addEventListener("click", function (e) {
     const editBtn = e.target.closest("[data-edit]");
     if (editBtn) {
@@ -893,9 +1793,10 @@
       if (!store) return;
       const item = store.loadAll().find((m) => m.id === id);
       const label = item ? String(item.name).split(" — ")[0] : "هذا المسجد";
-      if (!confirm("حذف «" + label + "» من القائمة؟")) return;
-      store.removeById(id);
-      renderSavedMosques();
+      askConfirm("سيُحذف «" + label + "» من القائمة.", "حذف المسجد", function () {
+        store.removeById(id);
+        renderSavedMosques();
+      });
     }
   });
 
@@ -907,9 +1808,16 @@
 
   el("clearSaved").addEventListener("click", function () {
     if (!window.MosqueStore) return;
-    if (!confirm("سيتم مسح كل المساجد المحفوظة. هل تريد المتابعة؟")) return;
-    window.MosqueStore.clearAll();
-    renderSavedMosques();
+    const total = window.MosqueStore.loadAll().length;
+    if (!total) return;
+    askConfirm(
+      "سيُمسح " + total + " مسجداً من القائمة المحفوظة، ولا يمكن التراجع.",
+      "امسح الكل",
+      function () {
+        window.MosqueStore.clearAll();
+        renderSavedMosques();
+      },
+    );
   });
 
   // ملاحظة: window.open مع وسيط خصائص (مثل "noopener") تعامله بعض المتصفحات
@@ -924,6 +1832,9 @@
     a.click();
     a.remove();
   }
+
+  // أول رسم لقائمة المحطات (مربع النص قد يحمل قيمة محفوظة من المتصفح)
+  renderStopsList();
 
   el("openMapsBtn").addEventListener("click", function () {
     if (!lastRoute) {
