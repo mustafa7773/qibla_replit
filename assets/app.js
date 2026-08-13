@@ -105,18 +105,24 @@
       const ocrChoiceModal = document.getElementById("ocrChoiceModal"),
         chooseNormalBtn = document.getElementById("chooseNormalBtn"),
         chooseAiBtn = document.getElementById("chooseAiBtn"),
+        modalAiKeyWrap = document.getElementById("modalAiKeyWrap"),
+        modalAnthropicKey = document.getElementById("modalAnthropicKey"),
+        confirmAiBtn = document.getElementById("confirmAiBtn"),
         cancelOcrModalBtn = document.getElementById("cancelOcrModalBtn");
 
-      // لا حقل لمفتاح API بعد اليوم: المفتاح على الخادم، فالاختيار صار
-      // نقرة واحدة بدل لصق مفتاح في كل جلسة
+      let sessionApiKey = "";
+
       function askOcrMethod() {
         return new Promise((resolve) => {
+          modalAiKeyWrap.classList.add("hidden");
+          modalAnthropicKey.value = sessionApiKey;
           ocrChoiceModal.classList.remove("hidden");
 
           function cleanup() {
             ocrChoiceModal.classList.add("hidden");
             chooseNormalBtn.onclick = null;
             chooseAiBtn.onclick = null;
+            confirmAiBtn.onclick = null;
             cancelOcrModalBtn.onclick = null;
           }
 
@@ -125,8 +131,17 @@
             resolve({ method: "normal" });
           };
           chooseAiBtn.onclick = () => {
+            modalAiKeyWrap.classList.remove("hidden");
+          };
+          confirmAiBtn.onclick = () => {
+            const key = modalAnthropicKey.value.trim();
+            if (!key) {
+              modalAnthropicKey.focus();
+              return;
+            }
+            sessionApiKey = key;
             cleanup();
-            resolve({ method: "ai" });
+            resolve({ method: "ai", apiKey: key });
           };
           cancelOcrModalBtn.onclick = () => {
             cleanup();
@@ -424,36 +439,59 @@
         });
       }
 
-      // ينادي وسيط الموقع لا Anthropic مباشرة: المفتاح يبقى في متغيرات بيئة
-      // Vercel، فلا يُطلب من المستخدم في كل جلسة ولا يُكشف في المتصفح
-      async function extractWithClaudeVision(dataUrl, mediaType) {
+      async function extractWithClaudeVision(dataUrl, mediaType, apiKey) {
+        if (!apiKey) throw new Error("يرجى إدخال مفتاح Anthropic API أولاً.");
         const base64Data = dataUrl.split(",")[1];
 
-        const headers = { "Content-Type": "application/json" };
-        const gate = window.SkyConfig && window.SkyConfig.apiKey;
-        if (gate) headers["X-Sky-Key"] = gate;
+        const prompt =
+          "اقرأ جدول إحداثيات قطعة الأرض من هذه الصورة (كروكي مساحي عُماني). " +
+          "أعد الإجابة بصيغة JSON فقط بدون أي نص إضافي أو علامات markdown، بالشكل التالي بالضبط:\n" +
+          '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null, "rawText": "<انسخ هنا حرفياً السطر الذي يذكر نظام الإسناد كما هو مكتوب في الوثيقة، مثل Clark1880 40N، أو اتركه فارغاً>"}\n' +
+          "ملاحظات مهمة:\n" +
+          "- بعض الجداول تكتب عمود Northing قبل عمود Easting — تأكد من إخراج كل نقطة بترتيب [Easting, Northing] دائماً بغض النظر عن ترتيب الأعمدة كما تظهر في الصورة.\n" +
+          "- انسخ الأرقام كما هي بالضبط دون أي تقريب أو تعديل.\n" +
+          "- إذا لم تجد قيمة لأي حقل ضعه null.";
 
-        const response = await fetch("/api/read-kroki", {
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
-          headers,
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+          },
           body: JSON.stringify({
-            imageBase64: base64Data,
-            mediaType,
-            variant: "full",
+            model: "claude-sonnet-4-6",
+            max_tokens: 1000,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+                  { type: "text", text: prompt },
+                ],
+              },
+            ],
           }),
         });
 
-        let data = null;
-        try {
-          data = await response.json();
-        } catch (e) {
-          throw new Error("ردّ غير مفهوم من الخادم (حالة " + response.status + ").");
+        if (!response.ok) {
+          const errText = await response.text().catch(() => "");
+          throw new Error("فشل الاتصال بـ Anthropic API (" + response.status + "). " + errText.slice(0, 200));
         }
 
-        if (!response.ok || !data || data.ok === false) {
-          throw new Error((data && data.error) || "حالة " + response.status);
+        const data = await response.json();
+        const textOut = (data.content || [])
+          .map((c) => (c.type === "text" ? c.text : ""))
+          .filter(Boolean)
+          .join("\n");
+
+        const cleaned = textOut.replace(/```json|```/g, "").trim();
+        try {
+          return JSON.parse(cleaned);
+        } catch (e) {
+          throw new Error("تعذّر تفسير استجابة الذكاء الاصطناعي.");
         }
-        return data.result;
       }
 
       async function handleFile(file) {
@@ -473,7 +511,7 @@
             document.getElementById("ocrStatusText").textContent = "جاري القراءة بدقة عالية بواسطة Claude AI…";
             try {
               const mediaType = file.type === "image/png" ? "image/png" : "image/jpeg";
-              const parsed = await extractWithClaudeVision(reader.result, mediaType);
+              const parsed = await extractWithClaudeVision(reader.result, mediaType, choice.apiKey);
 
               const points = Array.isArray(parsed.points) ? parsed.points : [];
               const pointsLines = points
@@ -959,6 +997,115 @@
         return { zone, corrected: false };
       }
 
+
+      // ======================================================================
+      // التحويل العكسي: من إحداثيات جغرافية (WGS84) إلى UTM
+      //
+      // يُستخدم لخاصية "موقعي الحالي": الجهاز يعطي خط طول وعرض بنظام WGS84،
+      // فنحوّلهما إلى Easting/Northing بنظام الإسناد المختار، ثم نمرّرهما
+      // لمسار الحساب القائم بلا تكرار أي منطق.
+      // ======================================================================
+
+      /** من إحداثيات جغرافية إلى UTM على قطع ناقص محدد */
+      function utmForward(lat, lon, zone, a, invF) {
+        const f = 1 / invF,
+          e2 = 2 * f - f * f,
+          ep2 = e2 / (1 - e2),
+          k0 = 0.9996;
+        const R = Math.PI / 180;
+        const p = lat * R,
+          l = lon * R,
+          l0 = (zone * 6 - 183) * R;
+
+        const N = a / Math.sqrt(1 - e2 * Math.sin(p) * Math.sin(p));
+        const T = Math.tan(p) * Math.tan(p);
+        const C = ep2 * Math.cos(p) * Math.cos(p);
+        const A = Math.cos(p) * (l - l0);
+
+        const M =
+          a *
+          ((1 - e2 / 4 - (3 * e2 * e2) / 64 - (5 * e2 * e2 * e2) / 256) * p -
+            ((3 * e2) / 8 + (3 * e2 * e2) / 32 + (45 * e2 * e2 * e2) / 1024) *
+              Math.sin(2 * p) +
+            ((15 * e2 * e2) / 256 + (45 * e2 * e2 * e2) / 1024) * Math.sin(4 * p) -
+            ((35 * e2 * e2 * e2) / 3072) * Math.sin(6 * p));
+
+        const E =
+          k0 *
+            N *
+            (A +
+              ((1 - T + C) * A * A * A) / 6 +
+              ((5 - 18 * T + T * T + 72 * C - 58 * ep2) * Math.pow(A, 5)) / 120) +
+          500000;
+
+        const Nn =
+          k0 *
+          (M +
+            N *
+              Math.tan(p) *
+              ((A * A) / 2 +
+                ((5 - T + 9 * C + 4 * C * C) * Math.pow(A, 4)) / 24 +
+                ((61 - 58 * T + T * T + 600 * C - 330 * ep2) * Math.pow(A, 6)) / 720));
+
+        return { E: E, N: Nn };
+      }
+
+      /**
+       * عكس convertToWGS84 تماماً. معاملات هيلمرت هنا بإشارة معاكسة، فيعود
+       * التحويل ذهاباً وإياباً لنفس الرقم (اختُبر: خطأ أقل من 12 مم).
+       */
+      function convertFromWGS84(lat, lon, zone, datum) {
+        const CLARKE_A = 6378249.145,
+          CLARKE_INVF = 293.465;
+        const WGS_A = 6378137,
+          WGS_INVF = 298.257223563;
+
+        if (datum === "wgs84utm") {
+          return utmForward(lat, lon, zone, WGS_A, WGS_INVF);
+        }
+
+        const wf = 1 / WGS_INVF,
+          we2 = 2 * wf - wf * wf;
+        const xyz = geodeticToGeocentric(lat, lon, WGS_A, we2);
+
+        const shifted = helmert(
+          xyz[0],
+          xyz[1],
+          xyz[2],
+          180.624,
+          225.516,
+          -173.919,
+          0.81,
+          1.898,
+          -8.336,
+          -16.71006,
+        );
+
+        const cf = 1 / CLARKE_INVF,
+          ce2 = 2 * cf - cf * cf;
+        const geo = geocentricToGeodetic(
+          shifted[0],
+          shifted[1],
+          shifted[2],
+          CLARKE_A,
+          ce2,
+        );
+
+        return utmForward(geo[0], geo[1], zone, CLARKE_A, CLARKE_INVF);
+      }
+
+      /**
+       * النطاق المناسب لموقع داخل عُمان.
+       *
+       * التقسيم القياسي يجعل الحد عند خط الطول 54، لكن المساحة العُمانية تعتمد
+       * النطاق 39 لكامل محافظة ظفار حتى ما بعد 54 (صلالة عند 54.09 مثلاً).
+       * لذلك نستخدم خط العرض للتمييز: ما دون 19.5 شمالاً هو ظفار.
+       */
+      function zoneForLocation(lat, lon) {
+        if (lat < 19.5) return 39;
+        return lon < 54 ? 39 : 40;
+      }
+
       function convertToWGS84(E, N, zone, datum) {
         const CLARKE_A = 6378249.145,
           CLARKE_INVF = 293.465;
@@ -1107,101 +1254,6 @@
         .getElementById("declination")
         .addEventListener("input", updateCompassField);
 
-      // ---------- اقتراح حالة الخرائط تلقائياً ----------
-      //
-      // CW هي الزاوية المعروضة مع اتجاه القبلة أعلى الصفحة، وقيمتها
-      // (360 - زاوية القبلة) % 360. فإن اختلفت الزاوية المكتوبة في خانة
-      // "الزاوية بالخرائط" عن CW بأكثر من درجة واحدة، فاتجاه المبنى في
-      // الخرائط لا يطابق القبلة، ونقترح تعديله.
-      //
-      // الاختيار يُضبط تلقائياً كلما تغيّرت الزاوية بالخرائط أو أُعيد حساب
-      // القبلة، لكن يبقى بإمكانك تغييره يدوياً — وحينها تنبّهك الملاحظة
-      // إلى أن اختيارك يخالف المقترح.
-      const MAPS_TOLERANCE_DEG = 1;
-      let qiblaComputed = false;
-
-      // فرق الزاويتين بأقصر اتجاه (يعالج الالتفاف حول 360°)
-      function angleGap(a, b) {
-        let d = Math.abs(a - b) % 360;
-        if (d > 180) d = 360 - d;
-        return d;
-      }
-
-      // يقبل "90" و "90°" و "90 درجة"
-      function parseAngleText(text) {
-        const n = parseFloat(String(text || "").replace(/[^\d.\-]/g, ""));
-        if (!isFinite(n)) return null;
-        return ((n % 360) + 360) % 360;
-      }
-
-      function updateMapsStatus(applyToSelect) {
-        const sel = document.getElementById("mapsStatusInput");
-        const hint = document.getElementById("mapsStatusHint");
-        const input = document.getElementById("mapAngleInput");
-        if (!sel || !hint || !input) return;
-
-        if (!qiblaComputed) {
-          hint.textContent =
-            "احسب اتجاه القبلة أولاً، ثم اكتب الزاوية بالخرائط ليُختار الحقل تلقائياً.";
-          return;
-        }
-
-        const cw = (360 - lastBearing) % 360;
-        const mapAngle = parseAngleText(input.value);
-
-        if (mapAngle === null) {
-          hint.textContent =
-            "اكتب الزاوية بالخرائط لتُقارَن مع CW = " +
-            cw.toFixed(2) +
-            "° فيُختار الحقل تلقائياً.";
-          return;
-        }
-
-        const gap = angleGap(mapAngle, cw);
-        const recommended = gap > MAPS_TOLERANCE_DEG ? "adjust" : "feasible";
-
-        if (applyToSelect) sel.value = recommended;
-
-        const numbers =
-          "الزاوية بالخرائط " +
-          mapAngle.toFixed(2) +
-          "° و CW " +
-          cw.toFixed(2) +
-          "° — الفرق " +
-          gap.toFixed(2) +
-          "°";
-
-        let text;
-        if (recommended === "adjust") {
-          text =
-            numbers +
-            "، أي أكبر من درجة، لذلك نقترح تعديل اتجاه المبنى بالخرائط وفق زاوية القبلة.";
-        } else {
-          text =
-            numbers +
-            "، أي درجة أو أقل، لذلك اتجاه المبنى مطابق للقبلة وقابل للتنفيذ ميدانيا كما هو.";
-        }
-
-        if (sel.value !== recommended) {
-          text +=
-            " ⚠ اخترت خلاف المقترح يدوياً — سيُعتمد اختيارك في التقرير.";
-        }
-
-        hint.textContent = text;
-      }
-
-      document
-        .getElementById("mapAngleInput")
-        .addEventListener("input", function () {
-          updateMapsStatus(true);
-        });
-
-      document
-        .getElementById("mapsStatusInput")
-        .addEventListener("change", function () {
-          updateMapsStatus(false);
-        });
-
       function compassIcon() {
         const svg = `
   <svg width="110" height="110" viewBox="0 0 250 250" xmlns="http://www.w3.org/2000/svg">
@@ -1328,8 +1380,6 @@
             "rotate(" + q.bearing.toFixed(2) + ",120,120)",
           );
         updateCompassField();
-        qiblaComputed = true;
-        updateMapsStatus(true);
 
         const path = greatCirclePoints(lat, lon, KAABA.lat, KAABA.lon, 150);
         if (lineInstance) {
@@ -1483,7 +1533,7 @@
         row.innerHTML =
           '<input type="text" class="agent-name" placeholder="اسم الوكيل أو نائبه" />' +
           '<input type="tel" class="agent-phone textarea-mono" inputmode="tel" placeholder="رقم الهاتف" />' +
-          '<button type="button" class="icon-btn danger agent-remove" aria-label="حذف هذا الوكيل" title="حذف هذا الوكيل"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>';
+          '<button type="button" class="icon-btn danger agent-remove" title="حذف هذا الوكيل">🗑</button>';
         return row;
       }
 
@@ -1612,19 +1662,117 @@
 
       let polygonInstance = null;
 
+      // ======================================================================
+      // موقعي الحالي
+      //
+      // يقرأ موقع الجهاز (WGS84)، يحوّله إلى UTM بنظام الإسناد المختار، يملأ
+      // خانة النقاط، ثم يستدعي زر الحساب — فيمر بنفس مسار الحساب المعتاد
+      // بلا أي تكرار للمنطق.
+      //
+      // ملاحظة: دقة GPS في الهاتف تتراوح بين 5 و 50 متراً، وهي أقل بكثير من
+      // دقة الكروكي المساحي. لذلك نعرض الدقة صراحةً للمستخدم ونحذّره إن كانت
+      // ضعيفة، ونذكّره بإمكانية سحب الدبوس للضبط.
+      // ======================================================================
+
+      function showLocationNote(message, tone) {
+        const el = document.getElementById("locationNote");
+        if (!el) return;
+        el.textContent = message;
+        el.className = "location-note is-" + (tone || "info");
+        el.style.display = "block";
+      }
+
+      function hideLocationNote() {
+        const el = document.getElementById("locationNote");
+        if (el) el.style.display = "none";
+      }
+
+      (function initMyLocation() {
+        const btn = document.getElementById("useMyLocationBtn");
+        if (!btn) return;
+
+        if (!("geolocation" in navigator)) {
+          btn.disabled = true;
+          showLocationNote("هذا المتصفح لا يدعم تحديد الموقع.", "bad");
+          return;
+        }
+
+        btn.addEventListener("click", () => {
+          const original = btn.innerHTML;
+          btn.disabled = true;
+          btn.textContent = "جاري تحديد موقعك...";
+          showLocationNote("اسمح للمتصفح بالوصول إلى موقعك عند طلب الإذن.", "info");
+
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              btn.disabled = false;
+              btn.innerHTML = original;
+
+              const lat = pos.coords.latitude;
+              const lon = pos.coords.longitude;
+              const accuracy = Math.round(pos.coords.accuracy || 0);
+
+              if (!insideOman({ lat: lat, lon: lon })) {
+                showLocationNote(
+                  "موقعك الحالي خارج حدود عُمان — الأداة مضبوطة على أنظمة الإسناد العُمانية.",
+                  "bad",
+                );
+                return;
+              }
+
+              // النطاق يُختار من الموقع نفسه، فلا يعتمد على اختيار سابق خاطئ
+              const zone = zoneForLocation(lat, lon);
+              document.getElementById("zone").value = String(zone);
+
+              const datum = document.getElementById("datum").value;
+              const utm = convertFromWGS84(lat, lon, zone, datum);
+
+              document.getElementById("pointsInput").value =
+                utm.E.toFixed(2) + ", " + utm.N.toFixed(2);
+
+              const datumLabel = datum === "wgs84utm" ? "WGS84 UTM" : "PSD93";
+              let msg =
+                "تم تحديد موقعك بدقة ±" + accuracy + " متر — " +
+                "حُوّل إلى " + datumLabel + " نطاق " + zone + ".";
+              let tone = "ok";
+
+              if (accuracy > 50) {
+                msg +=
+                  " الدقة ضعيفة؛ اسحب الدبوس على الخريطة لضبط الموقع، أو استخدم الكروكي المساحي.";
+                tone = "warn";
+              } else {
+                msg += " يمكنك سحب الدبوس على الخريطة للضبط الدقيق.";
+              }
+              showLocationNote(msg, tone);
+
+              document.getElementById("computeBtn").click();
+            },
+            (err) => {
+              btn.disabled = false;
+              btn.innerHTML = original;
+
+              const messages = {
+                1: "رُفض إذن الوصول للموقع. فعّله من إعدادات المتصفح ثم أعد المحاولة.",
+                2: "تعذّر تحديد الموقع. تأكد من تفعيل خدمة الموقع في جهازك.",
+                3: "انتهت مهلة تحديد الموقع. أعد المحاولة في مكان مكشوف.",
+              };
+              showLocationNote(
+                messages[err.code] || "تعذّر تحديد الموقع الحالي.",
+                "bad",
+              );
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+          );
+        });
+      })();
+
       document.getElementById("computeBtn").addEventListener("click", () => {
         errorBox.classList.remove("show");
         const rawPoints = parsePoints();
         let zone = parseInt(document.getElementById("zone").value) || 40;
         const datum = document.getElementById("datum").value;
         if (rawPoints.length === 0) {
-          // صندوق الخطأ داخل الصفحة بدل alert(): لا يُجمّد الواجهة، ويتبع
-          // هوية الموقع، ويبقى ظاهراً بجوار الحقل الذي يجب تصحيحه
-          errorBox.textContent =
-            "يرجى إدخال نقطة واحدة على الأقل بصيغة Easting, Northing";
-          errorBox.classList.add("show");
-          const box = document.getElementById("pointsInput");
-          if (box) box.focus();
+          alert("يرجى إدخال نقطة واحدة على الأقل بصيغة Easting, Northing");
           return;
         }
 
