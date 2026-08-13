@@ -6,19 +6,11 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#070b14" />
     <link rel="icon" href="favicon.png" />
-    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="description" content="احسب اتجاه القبلة من إحداثيات الرسم المساحي، وشاهده على خريطة الأقمار الصناعية، وأصدر تقرير Word جاهزاً." />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="أدوات ابتكارات السماء" />
-    <meta property="og:locale" content="ar_OM" />
-    <meta property="og:title" content="أداة تحديد اتجاه القبلة — أدوات ابتكارات السماء" />
-    <meta property="og:description" content="احسب اتجاه القبلة من إحداثيات الرسم المساحي، وشاهده على خريطة الأقمار الصناعية، وأصدر تقرير Word جاهزاً." />
-    <meta property="og:image" content="assets/icons/icon-512.png" />
-    <meta name="twitter:card" content="summary" />
     <title>قبلة سكاي — اتجاه القبلة من إحداثيات الأرض</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -30,11 +22,10 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
-    <link rel="stylesheet" href="assets/style.css" />
-    <link rel="stylesheet" href="assets/hub.css" />
+    <link rel="stylesheet" href="assets/style.css?v=20260813a" />
+    <link rel="stylesheet" href="assets/hub.css?v=20260813a" />
   </head>
   <body>
-    <a class="skip-link" href="#main">تخطَّ إلى المحتوى</a>
     <header class="site-header">
       <div class="site-header-inner">
         <a class="brand" href="index.html">
@@ -51,21 +42,12 @@
         </a>
         <nav class="main-nav">
           <a href="index.html">الرئيسية</a>
-          <a href="qibla.html" class="is-active" aria-current="page">اتجاه القبلة</a>
+          <a href="qibla.html" class="is-active">اتجاه القبلة</a>
           <a href="worktime.html">وقت العمل</a>
           <a href="completed.html">المساجد المنتهية</a>
         </nav>
       </div>
     </header>
-
-    <noscript>
-      <div class="noscript-note">
-        هذه الأداة تحتاج JavaScript لتعمل. فعّله في إعدادات المتصفح ثم أعد تحميل
-        الصفحة.
-      </div>
-    </noscript>
-
-    <main id="main">
 
     <section class="hero">
       <div class="star-field"></div>
@@ -129,16 +111,21 @@
       <div id="ocrChoiceModal" class="ocr-modal-overlay hidden">
         <div class="ocr-modal-box">
           <h3>كيف تحب تقرأ هذا الكروكي؟</h3>
-          <p class="hint" style="margin-bottom: 18px;">اختر طريقة القراءة، وسيبدأ العمل فوراً.</p>
+          <p class="hint" style="margin-bottom: 18px;">اختر طريقة القراءة، وهيبدأ العمل فوراً.</p>
           <button id="chooseNormalBtn" class="ghost" style="width: 100%; padding: 14px; margin-bottom: 10px;">
-            القراءة العادية (سريعة، بلا اتصال)
+            القراءة العادية (مجانية، مباشرة)
           </button>
           <button id="chooseAiBtn" class="primary" style="margin-top: 0;">
-            القراءة بالذكاء الاصطناعي (دقة أعلى)
+            القراءة بالذكاء الاصطناعي (Claude AI — دقة أعلى)
           </button>
-          <p class="hint" style="margin-top: 12px;">
-            القراءة بالذكاء الاصطناعي تمر عبر خادم الموقع — لا يلزمك إدخال أي مفتاح.
-          </p>
+          <div id="modalAiKeyWrap" class="hidden" style="margin-top: 16px;">
+            <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px;">مفتاح Anthropic API</label>
+            <input type="password" id="modalAnthropicKey" placeholder="sk-ant-..." autocomplete="off" style="width: 100%; padding: 12px; border-radius: 10px; background: rgba(10,17,30,0.7); border: 1px solid var(--card-border); color: var(--paper); font-family: 'IBM Plex Mono', monospace;" />
+            <p class="hint" style="margin-top: 6px;">
+              يُستخدم من متصفحك فقط لهذه الجلسة، ولا يُحفظ أو يُرسل لأي مكان غير Anthropic. تُحتسب تكلفة بسيطة على حسابك لكل صورة.
+            </p>
+            <button id="confirmAiBtn" class="primary">متابعة</button>
+          </div>
           <button id="cancelOcrModalBtn" class="ghost" style="width: 100%; margin-top: 14px; padding: 10px;">
             إلغاء
           </button>
@@ -167,6 +154,16 @@
         <p class="hint">
           💡 أدخل نقطة واحدة للحساب السريع، أو كافة نقاط الزوايا لرسم حدود القطعة الحقيقية وحساب المركز الفعلي بدقة متناهية.
         </p>
+
+        <button type="button" class="primary subtle" id="useMyLocationBtn">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>
+            <circle cx="12" cy="12" r="8"/>
+          </svg>
+          استخدم موقعي الحالي
+        </button>
+        <p class="location-note" id="locationNote"></p>
 
         <div class="grid2">
           <div class="field">
@@ -346,7 +343,7 @@
               <input type="text" class="agent-name" placeholder="اسم الوكيل أو نائبه" />
               <input type="tel" class="agent-phone textarea-mono" inputmode="tel"
                      placeholder="رقم الهاتف" />
-              <button type="button" class="icon-btn danger agent-remove" aria-label="حذف هذا الوكيل" title="حذف هذا الوكيل"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+              <button type="button" class="icon-btn danger agent-remove" title="حذف هذا الوكيل">🗑</button>
             </div>
           </div>
           <button type="button" class="primary subtle" id="addAgentBtn">
@@ -387,9 +384,6 @@
             <option value="feasible" selected>قابلة للتنفيذ ميدانيا</option>
             <option value="adjust">نقترح تعديل اتجاه المبنى بالخرائط وفق زاوية القبلة</option>
           </select>
-          <p class="hint" id="mapsStatusHint" style="margin-top: 8px">
-            احسب اتجاه القبلة أولاً، ثم اكتب الزاوية بالخرائط ليُختار الحقل تلقائياً.
-          </p>
         </div>
 
         <div class="field">
@@ -427,21 +421,19 @@
 
 
     <!-- Scripts -->
-    </main>
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.2.0/dist/pizzip.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.69.0/build/docxtemplater.js"></script>
     <!-- html2canvas مطلوبة لالتقاط صورة الخريطة التي تُدرَج داخل تقرير Word -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="assets/data-api.js"></script>
-    <script src="assets/config.js"></script>
-    <script src="assets/app.js" defer></script>
-    <script src="assets/export.js" defer></script>
+    <script src="assets/data-api.js?v=20260813a"></script>
+    <script src="assets/config.js?v=20260813a"></script>
+    <script src="assets/app.js?v=20260813a" defer></script>
+    <script src="assets/export.js?v=20260813a" defer></script>
     <!-- يحفظ كل مسجد يُحسب هنا ليظهر كخيار جاهز في أداة حساب وقت العمل -->
-    <script src="assets/mosque-store.js" defer></script>
-    <script src="assets/cloud-sync.js" defer></script>
+    <script src="assets/mosque-store.js?v=20260813a" defer></script>
+    <script src="assets/cloud-sync.js?v=20260813a" defer></script>
     <script>
       // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت
       if ("serviceWorker" in navigator) {
