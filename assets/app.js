@@ -1650,7 +1650,8 @@
 
         const govValue = document.getElementById("governorateInput").value.trim();
         const govFull = window.Governorates ? window.Governorates.governorateOf(govValue) : "";
-        const govCode = GOV_CODES[govFull] || "";
+        const govKey = govFull ? "محافظة " + govFull.replace(/^محافظة\s*/, "").trim() : "";
+        const govCode = GOV_CODES[govKey] || GOV_CODES[govFull] || "";
 
         let count = 1;
         if (window.MosqueStore && typeof window.MosqueStore.loadAll === "function") {
