@@ -149,12 +149,15 @@
     const village = readValue("villagePlotInput");
     const requestNo = readValue("mosqueRequestNo");
 
+    // حقل المحافظة يُكتب "المحافظة - الولاية"، نأخذ الولاية فقط (الجزء الأخير)
+    const govRaw = readValue("governorateInput");
+    const wilaya = govRaw ? govRaw.split("-").pop().trim() : "";
+
     // الاسم = الولاية - رقم الطلب بنظام المساجد
-    const parts = [village, requestNo].filter(Boolean);
+    const parts = [wilaya, requestNo].filter(Boolean);
     if (parts.length) return parts.join(" - ");
 
-    const governorate = readValue("governorateInput");
-    if (governorate) return governorate;
+    if (village) return village;
 
     return "مسجد " + formatShortDate();
   }
