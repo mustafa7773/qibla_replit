@@ -147,14 +147,14 @@
 
   function buildMosqueName() {
     const village = readValue("villagePlotInput");
-    const governorate = readValue("governorateInput");
-
-    // الاسم يعتمد على المحافظة والقرية/الولاية
-    const parts = [governorate, village].filter(Boolean);
-    if (parts.length) return parts.join(" — ");
-
     const requestNo = readValue("mosqueRequestNo");
-    if (requestNo) return requestNo;
+
+    // الاسم = الولاية - رقم الطلب بنظام المساجد
+    const parts = [village, requestNo].filter(Boolean);
+    if (parts.length) return parts.join(" - ");
+
+    const governorate = readValue("governorateInput");
+    if (governorate) return governorate;
 
     return "مسجد " + formatShortDate();
   }

@@ -743,17 +743,6 @@
         if (!hasGov) subParts.push("بلا ولاية — اضغط زر التعديل");
         const subtitle = subParts.join(" · ");
 
-        const qiblaParams = new URLSearchParams();
-        qiblaParams.set("e", m.easting.toFixed(2));
-        qiblaParams.set("n", m.northing.toFixed(2));
-        if (m.zone) qiblaParams.set("zone", m.zone);
-        if (m.datum) qiblaParams.set("datum", m.datum);
-        if (m.governorate) qiblaParams.set("gov", m.governorate);
-        if (m.village) qiblaParams.set("village", m.village);
-        if (m.requestNo) qiblaParams.set("req", m.requestNo);
-        if (m.agentPhone) qiblaParams.set("phone", m.agentPhone);
-        const qiblaUrl = "qibla.html?" + qiblaParams.toString();
-
         return (
           '<div class="saved-item" data-id="' +
           m.id +
@@ -769,9 +758,7 @@
           m.easting.toFixed(0) +
           " · " +
           m.northing.toFixed(0) +
-          '</span><a class="icon-btn" href="' +
-          escapeHtml(qiblaUrl) +
-          '" target="_blank" rel="noopener" aria-label="تقرير القبلة" title="تقرير القبلة"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v6a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1h6"/></svg></a><button type="button" class="icon-btn" data-edit="' +
+          '</span><button type="button" class="icon-btn" data-edit="' +
           m.id +
           '" aria-label="تعديل الاسم والولاية" title="تعديل الاسم والولاية"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
           '<button type="button" class="icon-btn danger" data-delete="' +
