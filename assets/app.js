@@ -1614,21 +1614,22 @@
       // توليد رقم الطلب بالشركة تلقائياً: ق س \<رمز الشهر>\<السنة الهجرية>\<رمز المحافظة>\<العدد>
       // ==========================================================================
       const HIJRI_MONTH_CODES = ["م", "ص", "ر١", "ر٢", "ج١", "ج٢", "رج", "ش ع", "ر", "ش و", "ذ ق", "ذ ح"];
-      const GOV_CODES = {
-        "محافظة مسقط": "خ0",
-        "محافظة شمال الباطنة": "خ1",
-        "محافظة جنوب الباطنة": "خ1",
-        "محافظة الباطنة": "خ1",
-        "محافظة الظاهرة": "خ2",
-        "محافظة الداخلية": "خ3",
-        "محافظة شمال الشرقية": "خ4",
-        "محافظة جنوب الشرقية": "خ4",
-        "محافظة الشرقية": "خ4",
-        "محافظة الوسطى": "خ5",
-        "محافظة ظفار": "خ6",
-        "محافظة مسندم": "خ7",
+      const GOV_CODE_RULES = [
+        { root: /مسقط/, code: "خ0" },
+        { root: /باطنة/, code: "خ1" },
+        { root: /ظاهرة/, code: "خ2" },
+        { root: /داخلية/, code: "خ3" },
+        { root: /شرقية/, code: "خ4" },
+        { root: /وسطى/, code: "خ5" },
+        { root: /ظفار/, code: "خ6" },
+        { root: /مسندم/, code: "خ7" },
         // محافظة البريمي: بلا رمز بقرار — تُترك خانة المحافظة فارغة في الرقم
-      };
+      ];
+      function govCodeFor(govText) {
+        if (!govText) return "";
+        const hit = GOV_CODE_RULES.find((r) => r.root.test(govText));
+        return hit ? hit.code : "";
+      }
 
       function currentHijriYearMonth() {
         try {
@@ -1652,11 +1653,7 @@
 
         const govValue = document.getElementById("governorateInput").value.trim();
         const govFull = window.Governorates ? window.Governorates.governorateOf(govValue) : "";
-        const govBare = govFull.replace(/^محافظة\s*/, "").trim();
-        const govKey = govBare ? "محافظة " + govBare : "";
-        const govKeyGeneric = govBare ? "محافظة " + govBare.replace(/^(شمال|جنوب)\s+/, "").trim() : "";
-        const govCode =
-          GOV_CODES[govKey] || GOV_CODES[govKeyGeneric] || GOV_CODES[govFull] || "";
+        const govCode = govCodeFor(govFull) || govCodeFor(govValue);
 
         let count = 1;
         if (window.MosqueStore && typeof window.MosqueStore.loadAll === "function") {
