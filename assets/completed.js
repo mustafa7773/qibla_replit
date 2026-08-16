@@ -811,6 +811,9 @@
       render();
       if (r.ok) {
         el("cmSyncStatus").textContent = "متصل بالخادم — " + r.total + " سجل.";
+        if (r.migrated) {
+          showSuccess("تم استرجاع " + r.migrated + " سجل محفوظ سابقاً على هذا الجهاز ورفعه للخادم.");
+        }
       } else {
         el("cmSyncStatus").textContent = "تعذّر الاتصال بالخادم — يُعرض آخر نسخة محفوظة.";
         showError("تعذّر الاتصال بالخادم: " + r.error);
