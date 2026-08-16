@@ -358,6 +358,7 @@
             document.getElementById("governorateInput").value =
               wilayaMatch.governorate + " - " + wilayaMatch.wilaya;
             governorateAutoFillEnabled = false;
+            if (typeof refreshCompanyRequestNo === "function") refreshCompanyRequestNo();
           }
         }
       }
@@ -1725,6 +1726,7 @@
           }
           if (finalValue && governorateAutoFillEnabled) {
             input.value = finalValue;
+            if (typeof refreshCompanyRequestNo === "function") refreshCompanyRequestNo();
           }
         } catch (e) {
           // نتجاهل بصمت أي خطأ في الشبكة أو الاستعلام؛ يبقى الحقل قابلاً للتعبئة يدوياً
