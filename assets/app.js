@@ -1287,6 +1287,44 @@
         .getElementById("declination")
         .addEventListener("input", updateCompassField);
 
+      // ----------------------------------------------------------------------
+      // اختيار حالة الخرائط تلقائياً: نقارن "الزاوية بالخرائط" التي يكتبها
+      // المستخدم بزاوية CW المحسوبة. الفرق درجة واحدة فأقل ⇐ قابلة للتنفيذ
+      // ميدانياً؛ أكثر من درجة ⇐ نقترح تعديل اتجاه المبنى.
+      // يتوقف الاختيار التلقائي فور تغيير القائمة يدوياً (نفس مبدأ بقية الحقول).
+      // ----------------------------------------------------------------------
+      const MAPS_ANGLE_TOLERANCE_DEG = 1;
+      let mapsStatusAutoEnabled = true;
+
+      function refreshMapsStatusFromAngle() {
+        if (!mapsStatusAutoEnabled) return;
+        const select = document.getElementById("mapsStatusInput");
+        const input = document.getElementById("mapAngleInput");
+        if (!select || !input) return;
+
+        // نقبل صيغاً مثل "90" و "90°" و "٩٠" ونتجاهل ما عداها
+        const normalized = input.value
+          .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+          .replace(/[^\d.\-]/g, "");
+        const mapAngle = parseFloat(normalized);
+        if (isNaN(mapAngle) || lastBearing === null || lastBearing === undefined) return;
+
+        const cw = (360 - lastBearing) % 360;
+        // فرق دائري: 359° و 1° بينهما درجتان لا 358
+        let diff = Math.abs(((mapAngle - cw + 540) % 360) - 180);
+
+        select.value = diff <= MAPS_ANGLE_TOLERANCE_DEG ? "feasible" : "adjust";
+      }
+
+      document
+        .getElementById("mapAngleInput")
+        .addEventListener("input", refreshMapsStatusFromAngle);
+      document
+        .getElementById("mapsStatusInput")
+        .addEventListener("change", () => {
+          mapsStatusAutoEnabled = false;
+        });
+
       function compassIcon() {
         const svg = `
   <svg width="110" height="110" viewBox="0 0 250 250" xmlns="http://www.w3.org/2000/svg">
@@ -1413,6 +1451,7 @@
             "rotate(" + q.bearing.toFixed(2) + ",120,120)",
           );
         updateCompassField();
+        refreshMapsStatusFromAngle();
 
         const path = greatCirclePoints(lat, lon, KAABA.lat, KAABA.lon, 150);
         if (lineInstance) {
