@@ -1618,10 +1618,12 @@
         "محافظة مسقط": "خ0",
         "محافظة شمال الباطنة": "خ1",
         "محافظة جنوب الباطنة": "خ1",
+        "محافظة الباطنة": "خ1",
         "محافظة الظاهرة": "خ2",
         "محافظة الداخلية": "خ3",
         "محافظة شمال الشرقية": "خ4",
         "محافظة جنوب الشرقية": "خ4",
+        "محافظة الشرقية": "خ4",
         "محافظة الوسطى": "خ5",
         "محافظة ظفار": "خ6",
         "محافظة مسندم": "خ7",
@@ -1650,8 +1652,11 @@
 
         const govValue = document.getElementById("governorateInput").value.trim();
         const govFull = window.Governorates ? window.Governorates.governorateOf(govValue) : "";
-        const govKey = govFull ? "محافظة " + govFull.replace(/^محافظة\s*/, "").trim() : "";
-        const govCode = GOV_CODES[govKey] || GOV_CODES[govFull] || "";
+        const govBare = govFull.replace(/^محافظة\s*/, "").trim();
+        const govKey = govBare ? "محافظة " + govBare : "";
+        const govKeyGeneric = govBare ? "محافظة " + govBare.replace(/^(شمال|جنوب)\s+/, "").trim() : "";
+        const govCode =
+          GOV_CODES[govKey] || GOV_CODES[govKeyGeneric] || GOV_CODES[govFull] || "";
 
         let count = 1;
         if (window.MosqueStore && typeof window.MosqueStore.loadAll === "function") {
