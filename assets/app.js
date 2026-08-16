@@ -2050,3 +2050,28 @@
           errorBox.classList.add("show");
         }
       });
+
+      // ==========================================================================
+      // تعبئة تلقائية عند القدوم برابط من أداة وقت العمل (المساجد المحفوظة)
+      // مثال: qibla.html?e=..&n=..&zone=..&datum=..&gov=..&village=..&req=..
+      // ==========================================================================
+      (function fillFromLink() {
+        const p = new URLSearchParams(location.search);
+        const e = parseFloat(p.get("e"));
+        const n = parseFloat(p.get("n"));
+        if (!isFinite(e) || !isFinite(n)) return;
+
+        document.getElementById("pointsInput").value = e.toFixed(2) + ", " + n.toFixed(2);
+        if (p.get("zone")) document.getElementById("zone").value = p.get("zone");
+        if (p.get("datum")) document.getElementById("datum").value = p.get("datum");
+        if (p.get("gov")) document.getElementById("governorateInput").value = p.get("gov");
+        if (p.get("village")) document.getElementById("villagePlotInput").value = p.get("village");
+        if (p.get("req")) document.getElementById("mosqueRequestNo").value = p.get("req");
+        if (p.get("phone")) {
+          const phoneEl = document.querySelector(".agent-phone");
+          if (phoneEl) phoneEl.value = p.get("phone");
+        }
+
+        document.getElementById("computeBtn").click();
+      })();
+
