@@ -458,8 +458,9 @@
         const prompt =
           "اقرأ جدول إحداثيات قطعة الأرض من هذه الصورة (كروكي مساحي عُماني). " +
           "أعد الإجابة بصيغة JSON فقط بدون أي نص إضافي أو علامات markdown، بالشكل التالي بالضبط:\n" +
-          '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null, "rawText": "<انسخ هنا حرفياً السطر الذي يذكر نظام الإسناد كما هو مكتوب في الوثيقة، مثل Clark1880 40N، أو اتركه فارغاً>"}\n' +
+          '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null, "rawText": "<انسخ هنا حرفياً السطر الذي يذكر نظام الإسناد كما هو مكتوب في الوثيقة، مثل Clark1880 40N، أو اتركه فارغاً>", "wilaya": "<انسخ هنا حرفياً اسم الولاية المكتوب في الوثيقة أمام خانة \\"الولاية\\" أو Wilayat، عربياً أو إنجليزياً كما هو، أو null>"}\n' +
           "ملاحظات مهمة:\n" +
+          "- حقل wilaya: انسخ ما هو مكتوب أمام \"الولاية\" فقط. لا تنسخ اسم القرية أو المدينة أو الحي، ولا تستنتج الولاية من اسم القرية.\n" +
           "- بعض الجداول تكتب عمود Northing قبل عمود Easting — تأكد من إخراج كل نقطة بترتيب [Easting, Northing] دائماً بغض النظر عن ترتيب الأعمدة كما تظهر في الصورة.\n" +
           "- انسخ الأرقام كما هي بالضبط دون أي تقريب أو تعديل.\n" +
           "- إذا لم تجد قيمة لأي حقل ضعه null.";
@@ -552,10 +553,30 @@
                 document.getElementById("datum").value = parsed.datum;
               }
 
+              // اكتشاف الولاية من نص الكروكي، بأولوية على نتيجة الموقع
+              // الجغرافي التقريبية (Nominatim) التي قد تعطي ولاية مجاورة.
+              let wilayaMatch = null;
+              if (window.Governorates && typeof window.Governorates.detectFromText === "function") {
+                wilayaMatch =
+                  window.Governorates.detectFromText(parsed.wilaya || "") ||
+                  window.Governorates.detectFromText(parsed.rawText || "");
+              }
+              if (wilayaMatch) {
+                document.getElementById("governorateInput").value =
+                  wilayaMatch.governorate + " - " + wilayaMatch.wilaya;
+                governorateAutoFillEnabled = false;
+                if (typeof refreshCompanyRequestNo === "function") refreshCompanyRequestNo();
+              }
+
               const summaryLines = [
                 "✓ تمت القراءة بواسطة Claude AI",
                 "عدد النقاط المستخرجة: " + pointsLines.length,
               ];
+              if (wilayaMatch) {
+                summaryLines.push("الولاية من الكروكي: " + wilayaMatch.wilaya);
+              } else if (parsed.wilaya) {
+                summaryLines.push("الولاية بالكروكي: " + parsed.wilaya + " (لم تُطابَق — راجع الحقل)");
+              }
               if (parsed.area) summaryLines.push("المساحة المذكورة بالكروكي: " + parsed.area + " م²");
               document.getElementById("ocrText").value =
                 summaryLines.join("\n") + (parsed.area ? "\nAREA = " + parsed.area + " SQ M" : "");
