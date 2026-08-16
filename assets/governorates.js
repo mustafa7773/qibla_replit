@@ -58,7 +58,7 @@
     { wilaya: "الرستاق", governorate: "محافظة جنوب الباطنة", en: ["RUSTAQ", "ALRUSTAQ"] },
     { wilaya: "العوابي", governorate: "محافظة جنوب الباطنة", en: ["AWABI", "ALAWABI"] },
     { wilaya: "نخل", governorate: "محافظة جنوب الباطنة", en: ["NAKHAL"] },
-    { wilaya: "وادي المعاول", governorate: "محافظة جنوب الباطنة", en: ["WADIALMAAWIL", "MAAWIL"] },
+    { wilaya: "وادي المعاول", governorate: "محافظة جنوب الباطنة", en: ["WADI AL MAAWIL", "MAAWIL"] },
     { wilaya: "بركاء", governorate: "محافظة جنوب الباطنة", en: ["BARKA"] },
     { wilaya: "المصنعة", governorate: "محافظة جنوب الباطنة", en: ["MUSANAAH", "MASNAAH"] },
 
@@ -66,13 +66,13 @@
     { wilaya: "المضيبي", governorate: "محافظة شمال الشرقية", en: ["MUDHAIBI", "ALMUDHAIBI"] },
     { wilaya: "بدية", governorate: "محافظة شمال الشرقية", en: ["BIDIYAH"] },
     { wilaya: "القابل", governorate: "محافظة شمال الشرقية", en: ["QABIL"] },
-    { wilaya: "وادي بني خالد", governorate: "محافظة شمال الشرقية", en: ["WADIBANIKHALID", "BANIKHALID"] },
+    { wilaya: "وادي بني خالد", governorate: "محافظة شمال الشرقية", en: ["WADI BANI KHALID", "BANI KHALID"] },
     { wilaya: "دماء والطائيين", governorate: "محافظة شمال الشرقية", en: ["DIMA", "TAIYIN"] },
 
     { wilaya: "صور", governorate: "محافظة جنوب الشرقية", en: ["SUR"] },
     { wilaya: "الكامل والوافي", governorate: "محافظة جنوب الشرقية", en: ["KAMIL", "ALWAFI"] },
-    { wilaya: "جعلان بني بو علي", governorate: "محافظة جنوب الشرقية", en: ["JALANBANIBUALI", "BANIBUALI"] },
-    { wilaya: "جعلان بني بو حسن", governorate: "محافظة جنوب الشرقية", en: ["JALANBANIBUHASAN", "BANIBUHASAN"] },
+    { wilaya: "جعلان بني بو علي", governorate: "محافظة جنوب الشرقية", en: ["JALAN BANI BU ALI", "BANI BU ALI"] },
+    { wilaya: "جعلان بني بو حسن", governorate: "محافظة جنوب الشرقية", en: ["JALAN BANI BU HASAN", "BANI BU HASAN"] },
     { wilaya: "مصيرة", governorate: "محافظة جنوب الشرقية", en: ["MASIRAH"] },
 
     { wilaya: "عبري", governorate: "محافظة الظاهرة", en: ["IBRI"] },
@@ -109,21 +109,26 @@
   // يبحث في نص الكروكي (OCR) عن اسم ولاية صريح، عربياً أو إنجليزياً.
   // يُفحص الأطول أولاً لتفادي تطابق جزئي خاطئ (مثال: تفادي مطابقة اسم فرعي
   // ضمن اسم ولاية أخرى)، ويُشترط حد كلمة عند المطابقة الإنجليزية.
+  // حدّ الكلمة العربية: أي حرف ليس ضمن نطاق الحروف العربية الأساسية
+  const AR_LETTER = "\\u0621-\\u064A";
+
   function detectFromText(text) {
     if (!text) return null;
     const arabicText = String(text);
-    const upperText = String(text).toUpperCase().replace(/[^A-Z]/g, "");
+    // نطبّع الإنجليزي: كل ما ليس حرفاً لاتينياً يصبح مسافة، فتُحفظ حدود الكلمات
+    const upperText = " " + String(text).toUpperCase().replace(/[^A-Z]+/g, " ") + " ";
 
     const sorted = [...WILAYAT].sort((a, b) => b.wilaya.length - a.wilaya.length);
 
     for (const w of sorted) {
-      if (arabicText.includes(w.wilaya)) {
+      const re = new RegExp("(^|[^" + AR_LETTER + "])" + w.wilaya + "($|[^" + AR_LETTER + "])");
+      if (re.test(arabicText)) {
         return { governorate: w.governorate, wilaya: w.wilaya };
       }
     }
     for (const w of sorted) {
       for (const alias of w.en) {
-        if (upperText.includes(alias)) {
+        if (upperText.includes(" " + alias + " ")) {
           return { governorate: w.governorate, wilaya: w.wilaya };
         }
       }
