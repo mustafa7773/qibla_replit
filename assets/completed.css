@@ -1,140 +1,687 @@
-/* ==========================================================================
-   المساجد المنتهية — لوحة ومعطيات
-   مبنية بالكامل على متغيّرات style.css: لا ألوان ولا مقاسات محلية.
-   ========================================================================== */
+/* ============================================================================
+   أداة "المساجد المنتهية" — صفحة بيانات
 
-/* ------------------------------------------------------------------ حالات */
-.success-box {
-  display: none;
-  margin-top: var(--sp-5);
-  padding: var(--sp-3) var(--sp-4);
-  border: 1px solid rgba(74, 222, 128, 0.3);
-  border-inline-start: 3px solid var(--green);
-  border-radius: var(--radius-sm);
-  background: var(--green-wash);
-  color: var(--green);
-  font-size: var(--fs-body);
-  line-height: 1.7;
+   المبدأ الحاكم: البيانات هي الصفحة.
+   الجدول يبدأ فوق حد الشاشة الأولى. النموذج درج يُفتح عند الطلب. الرسوم
+   مطوية لأنها تُراجَع شهرياً لا يومياً. الفلاتر ملاصقة للجدول الذي تتحكم به.
+   ========================================================================= */
+
+/* -------------------------------------------------------- نص لقارئ الشاشة */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.success-box.show {
-  display: block;
+.page-records {
+  padding-block: var(--sp-6) var(--sp-8);
 }
 
-.empty-state {
-  padding: var(--sp-8) var(--sp-5);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-sm);
+/* ============================================================ رأس الصفحة */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.page-title h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--paper);
+}
+
+/* حالة الاتصال شارة صغيرة لا قسماً كاملاً — معلومة مطمئنة لا مهمة */
+.conn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 3px var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   background: var(--surface-sunken);
   color: var(--muted);
-  font-size: var(--fs-body);
-  text-align: center;
-  line-height: 1.8;
+  font-size: var(--fs-caption);
+  white-space: nowrap;
 }
 
-/* ------------------------------------------------------------------ فلاتر */
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+.conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: 0 0 auto;
+}
+
+.conn-badge.is-ok .conn-dot { background: var(--green); }
+.conn-badge.is-wait .conn-dot { background: var(--gold); }
+.conn-badge.is-off .conn-dot { background: var(--red); }
+.conn-badge.is-ok { color: var(--green); }
+.conn-badge.is-off { color: var(--red); }
+
+/* =========================================================== شريط البطاقات */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--sp-3);
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-5);
+}
+
+.stat-cell {
   padding: var(--sp-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
+  background: var(--surface-1);
 }
 
-.filter-item {
-  flex: 1 1 170px;
-  min-width: 0;
-}
-
-.filter-item label {
+.stat-cell-label {
   display: block;
-  margin-bottom: var(--sp-1);
+  margin-bottom: var(--sp-2);
   color: var(--muted);
   font-size: var(--fs-caption);
 }
 
-.filter-item select,
-.field select#cmGovernorate {
+.stat-cell-value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* الرقم المجرّد لا معنى له — الدلتا هي التي تجيب "هل هذا جيد؟" */
+.stat-cell-delta {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}
+
+.stat-cell-delta.is-up { color: var(--green); }
+.stat-cell-delta.is-down { color: var(--red); }
+
+/* =========================================================== شريط الأدوات */
+.records-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.toolbar-gap { flex: 1 1 auto; }
+
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 240px;
+  max-width: 340px;
+}
+
+.search-wrap svg {
+  position: absolute;
+  inset-inline-start: var(--sp-3);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.search-wrap input {
   width: 100%;
   padding: var(--sp-2) var(--sp-3);
+  padding-inline-start: calc(var(--sp-3) + 22px);
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
   background: var(--surface-1);
   color: var(--paper);
   font-family: var(--font-body);
-  font-size: var(--fs-body);
-  cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  font-size: var(--fs-sm);
 }
 
-.filter-item select:hover,
-.field select#cmGovernorate:hover {
-  border-color: var(--line-strong);
-}
-
-.filter-item select:focus,
-.field select#cmGovernorate:focus {
+.search-wrap input:focus {
   outline: none;
   border-color: var(--gold);
   box-shadow: 0 0 0 3px var(--gold-glow);
 }
 
-.filter-bar .link-btn {
-  flex: 0 0 auto;
-  padding: var(--sp-2) var(--sp-2);
+.records-toolbar select {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  cursor: pointer;
 }
 
-/* ------------------------------------------------------------------ مؤشرات */
-.kpi-grid {
+.records-toolbar select:hover { border-color: var(--line-strong); }
+
+.records-toolbar select:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+/* الفلتر المفعَّل يجب أن يُرى: بلا هذا ينسى المستخدم أنه يرى جزءاً من بياناته */
+.records-toolbar select.is-set {
+  border-color: var(--gold);
+  color: var(--gold-light);
+}
+
+.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.chip-btn:hover {
+  border-color: var(--line-strong);
+  color: var(--paper);
+}
+
+.chip-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.chip-btn.is-danger { color: var(--red); }
+.chip-btn.is-danger:hover { border-color: var(--red); color: var(--red); }
+
+/* ====================================================== شريط الاختيار المتعدد */
+.bulk-bar {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-8);
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  background: var(--gold-wash);
+  color: var(--gold-light);
+  font-size: var(--fs-sm);
 }
 
-.kpi-card {
-  flex: 1 1 180px;
-  padding: var(--sp-5) var(--sp-4);
+/* ================================================================ الجدول */
+.records-card {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
-  text-align: center;
-  transition: border-color var(--dur-fast) var(--ease);
+  background: var(--surface-1);
+  overflow: hidden;
 }
 
-.kpi-card:hover {
-  border-color: var(--line-strong);
+.table-scroll { overflow-x: auto; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
 }
 
-.kpi-label {
-  display: block;
-  color: var(--muted);
-  font-size: var(--fs-caption);
-}
-
-.kpi-value {
-  display: block;
-  margin: var(--sp-1) 0;
-  color: var(--gold-light);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--fs-lg);
-  font-weight: 500;
-  line-height: 1.35;
+.data-table th,
+.data-table td {
+  padding: var(--sp-3) var(--sp-4);
+  text-align: start;
   white-space: nowrap;
 }
 
-.kpi-note {
-  display: block;
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-2);
   color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+
+.data-table th.is-sortable { cursor: pointer; user-select: none; }
+.data-table th.is-sortable:hover { color: var(--paper); }
+.data-table th.is-active { color: var(--gold); }
+.data-table th[data-dir="asc"]::after { content: " ↑"; }
+.data-table th[data-dir="desc"]::after { content: " ↓"; }
+
+.data-table tbody td {
+  border-bottom: 1px solid var(--line);
+  color: var(--text-2);
+}
+
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover td { background: var(--surface-2); }
+.data-table tbody tr.is-selected td { background: var(--gold-wash); }
+
+/* الأرقام بخط أحادي وأعمدة متساوية — تتراصف الخانات فتُقارَن بالعين */
+.data-table td.num,
+.data-table td.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table td.name {
+  color: var(--paper);
+  font-weight: 500;
+  white-space: normal;
+  min-width: 180px;
+}
+
+.data-table td.price {
+  color: var(--gold-light);
+  font-weight: 600;
+}
+
+.col-check { width: 40px; }
+.col-actions { width: 84px; }
+
+.data-table input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+/* صف المجموع: جدول أموال بلا مجموع ناقص. يعكس ما بعد الفلترة لا كل شيء */
+.data-table tfoot td {
+  border-top: 1px solid var(--line-strong);
+  background: var(--surface-sunken);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.data-table tfoot .price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-light);
+}
+
+.row-actions {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.icon-btn:hover { color: var(--paper); border-color: var(--line-strong); }
+.icon-btn.danger:hover { color: var(--red); border-color: var(--red); }
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 1px var(--sp-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+.pill.is-wait { color: var(--gold); }
+
+.records-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+
+.table-count { color: var(--muted); font-size: var(--fs-caption); }
+
+/* ------------------------------------------------------ هيكل التحميل */
+.data-table tr.is-skeleton td { padding-block: var(--sp-4); }
+
+.data-table tr.is-skeleton span {
+  display: block;
+  height: 11px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-3) 0%, var(--line-strong) 50%, var(--surface-3) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* -------------------------------------------------------- الحالة الفارغة */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-8) var(--sp-5);
+  color: var(--muted);
+  font-size: var(--fs-body);
+  text-align: center;
+}
+
+.empty-state svg { color: var(--gold); opacity: 0.5; }
+
+.empty-state h3 {
+  margin: 0;
+  color: var(--paper);
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.empty-state p { max-width: 36ch; margin: 0; }
+.empty-state button { margin-top: var(--sp-2); }
+
+/* ============================================================= التحليلات */
+.analytics {
+  margin-top: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.analytics > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  color: var(--paper);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+
+.analytics > summary::-webkit-details-marker { display: none; }
+.analytics > summary:hover { color: var(--gold-light); }
+
+.analytics > summary .hint { margin: 0; margin-inline-start: auto; }
+
+.analytics > summary .chev {
+  color: var(--gold);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+/* السهم يشير لليسار في RTL، ولأسفل عند الفتح */
+.analytics > summary .chev { transform: rotate(180deg); }
+.analytics[open] > summary .chev { transform: rotate(90deg); }
+
+.analytics[open] > summary { border-bottom: 1px solid var(--line); }
+
+.analytics .chart-grid { padding: var(--sp-5); }
+
+.page-note {
+  margin-top: var(--sp-5);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.8;
+}
+
+/* ================================================================= الدرج */
+.drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(4, 8, 15, 0.7);
+  animation: scrim-in var(--dur-fast) var(--ease);
+}
+
+@keyframes scrim-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ينزلق من اليمين لأن الصفحة RTL — يخرج من الجهة التي بدأ منها النظر */
+.drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 100%);
+  border-inline-start: 1px solid var(--line-strong);
+  background: var(--surface-1);
+  box-shadow: -18px 0 48px rgba(0, 0, 0, 0.45);
+  animation: drawer-in var(--dur) var(--ease);
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(-100%); opacity: 0.4; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  color: var(--paper);
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-5);
+}
+
+.drawer-foot {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+
+.drawer-foot .primary { flex: 1; }
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+}
+
+/* حقل به خطأ: الحدّ الأحمر عند الحقل نفسه، لا رسالة في صندوق بعيد */
+.field.has-error input,
+.field.has-error select {
+  border-color: var(--red);
+}
+
+.field-error {
+  display: block;
+  margin-top: var(--sp-1);
+  color: var(--red);
   font-size: var(--fs-caption);
 }
 
-/* ------------------------------------------------------------------ رسوم */
+/* ============================================================== التنبيهات */
+.toast {
+  position: fixed;
+  inset-block-end: var(--sp-5);
+  inset-inline-start: 50%;
+  transform: translateX(50%);
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  max-width: min(520px, calc(100vw - 32px));
+  padding: var(--sp-3) var(--sp-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--paper);
+  font-size: var(--fs-sm);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  animation: toast-in var(--dur-fast) var(--ease);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(50%, 12px); }
+  to { opacity: 1; transform: translate(50%, 0); }
+}
+
+.toast.is-error { border-color: var(--red); color: var(--red); }
+.toast.is-ok { border-color: var(--green); }
+
+.toast button {
+  border: 0;
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toast button:hover { text-decoration: underline; }
+
+/* ================================================================ الجوال */
+@media (max-width: 900px) {
+  .stat-strip { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 720px) {
+  .page-head { align-items: stretch; }
+  .page-head .primary { width: 100%; justify-content: center; }
+
+  .search-wrap { max-width: none; flex-basis: 100%; }
+  .records-toolbar select { flex: 1 1 30%; }
+
+  /* الجدول يصير بطاقات: ثمانية أعمدة على ٣٧٥ بكسل تعني تمريراً أفقياً
+     داخل تمرير عمودي، وعمود الإجراءات يقع في طرف لا يُرى.
+     التسميات تأتي من data-label الذي يضعه completed.js. */
+  .records-card { border: 0; background: transparent; }
+  .table-scroll { overflow: visible; }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tfoot,
+  .data-table tr,
+  .data-table td { display: block; width: 100%; }
+
+  .data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .data-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--sp-3);
+    padding: var(--sp-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+  }
+
+  .data-table tbody tr:hover td,
+  .data-table tbody tr.is-selected td { background: transparent; }
+
+  .data-table tbody tr.is-selected {
+    border-color: var(--gold);
+    background: var(--gold-wash);
+  }
+
+  .data-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-2) 0;
+    border: 0;
+    white-space: normal;
+  }
+
+  .data-table tbody td + td { border-top: 1px solid var(--line); }
+
+  .data-table tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+
+  /* اسم المسجد عنوان البطاقة، والسعر تحته — هما ما تبحث عنه العين أولاً */
+  .data-table td.name {
+    order: -3;
+    padding-bottom: var(--sp-2);
+    border-top: 0;
+    font-size: var(--fs-md);
+  }
+
+  .data-table td.price { order: -2; border-top: 0; font-size: var(--fs-md); }
+  .data-table td.col-check { order: -4; border-top: 0; }
+  .data-table td.col-check::before { content: "تحديد"; }
+
+  .data-table td.name::before,
+  .data-table td.price::before { content: attr(data-label); }
+
+  .data-table td.row-actions { justify-content: stretch; padding-top: var(--sp-3); }
+  .data-table td.row-actions::before { content: none; }
+  .data-table td.row-actions .icon-btn { flex: 1; min-height: 40px; }
+
+  .data-table tr.is-skeleton td::before { content: none; }
+
+  .data-table tfoot td {
+    display: flex;
+    justify-content: space-between;
+    border-radius: var(--radius-sm);
+  }
+
+  .records-foot { padding-inline: 0; background: transparent; border: 0; }
+  .chart-grid { grid-template-columns: 1fr; }
+  .drawer { width: 100%; }
+}
 .chart-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -251,217 +798,7 @@
   white-space: nowrap;
 }
 
-/* ------------------------------------------------------------------ جدول */
-.table-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  margin-bottom: var(--sp-4);
-}
-
-.table-search {
-  flex: 1 1 260px;
-  min-width: 0;
-  padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  background: var(--surface-sunken);
-  color: var(--paper);
-  font-family: var(--font-body);
-  font-size: var(--fs-body);
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
-}
-
-.table-search:focus {
-  outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px var(--gold-glow);
-}
-
-.table-count {
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.table-scroll {
-  overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--fs-body);
-  min-width: 640px;
-}
-
-.data-table th,
-.data-table td {
-  padding: var(--sp-3) var(--sp-4);
-  text-align: right;
-}
-
-.data-table thead th {
-  background: var(--surface-sunken);
-  color: var(--text-2);
-  font-weight: 600;
-  font-size: var(--fs-sm);
-  white-space: nowrap;
-  border-bottom: 1px solid var(--line);
-}
-
-.data-table th.is-sortable {
-  cursor: pointer;
-  user-select: none;
-  transition: color var(--dur-fast) var(--ease);
-}
-
-.data-table th.is-sortable:hover {
-  color: var(--paper);
-}
-
-.data-table th.is-active {
-  color: var(--gold-light);
-}
-
-.data-table th[data-dir="asc"]::after {
-  content: " ↑";
-}
-
-.data-table th[data-dir="desc"]::after {
-  content: " ↓";
-}
-
-.data-table tbody tr + tr td {
-  border-top: 1px solid var(--line);
-}
-
-.data-table tbody tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.data-table td.num {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--gold-light);
-  white-space: nowrap;
-}
-
-.pill {
-  display: inline-block;
-  padding: 1px var(--sp-2);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--line-strong);
-  font-size: var(--fs-caption);
-  white-space: nowrap;
-}
-
-.pill.is-ok {
-  border-color: transparent;
-  background: transparent;
-  color: var(--green);
-  font-weight: 600;
-}
-
-.pill.is-wait {
-  border-color: rgba(223, 182, 104, 0.4);
-  background: var(--gold-wash);
-  color: var(--gold-light);
-}
-
-.row-actions {
-  display: flex;
-  gap: var(--sp-2);
-  white-space: nowrap;
-}
-
-/* ------------------------------------------------------------------ ترقيم */
-.pagination {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-top: var(--sp-4);
-  justify-content: center;
-}
-
-.page-btn {
-  min-width: 34px;
-  padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--text-2);
-  font: inherit;
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
-}
-
-.page-btn:hover:not(:disabled) {
-  border-color: var(--line-strong);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.page-btn.is-active {
-  border-color: rgba(223, 182, 104, 0.5);
-  background: var(--gold-wash);
-  color: var(--gold-light);
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* ------------------------------------------------------------------ مزامنة */
-.sync-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-}
-
-.sync-status {
-  color: var(--muted);
-  font-size: var(--fs-sm);
-}
-
-button.primary.danger {
-  background: linear-gradient(180deg, #fca5a5 0%, var(--red) 60%, #dc2626 100%);
-  color: #2a0707;
-}
-
-/* ------------------------------------------------------------------ استجابة */
-@media (max-width: 640px) {
-  .kpi-card {
-    flex: 1 1 130px;
-    padding: var(--sp-4) var(--sp-3);
-  }
-
-  .chart-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .filter-item {
-    flex: 1 1 140px;
-  }
-
-  .hbar {
-    grid-template-columns: minmax(60px, 1fr) 1.4fr auto;
-    gap: var(--sp-2);
-  }
-
-  .data-table th,
-  .data-table td {
-    padding: var(--sp-3);
-  }
-}
-
-/* ------------------------------------------------------ اختيار من أداة القبلة */
+/* -------------------------------------------- اختيار من أداة القبلة */
 .from-qibla {
   margin-bottom: var(--sp-5);
   padding: var(--sp-4);
@@ -501,18 +838,21 @@ button.primary.danger {
   box-shadow: 0 0 0 3px var(--gold-glow);
 }
 
-.diag-box {
-  margin-top: var(--sp-3);
-  padding: var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
-  color: var(--text-2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-caption);
-  line-height: 1.9;
-  white-space: pre-wrap;
-  word-break: break-all;
-  direction: ltr;
-  text-align: left;
+/* -------------------------------------------------- زر التدمير
+   بلا هذا يبدو زر الحذف مطابقاً لزر الإضافة الذهبي تماماً — وهو أخطر
+   ما في حوار التأكيد: أن يتساوى الفعل الذي لا رجعة فيه مع غيره. */
+button.primary.danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: #2a0a0a;
+}
+
+button.primary.danger:hover {
+  background: #fca5a5;
+  border-color: #fca5a5;
+}
+
+button.primary.danger:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
 }
