@@ -136,6 +136,16 @@
       // وإدراج صورة الموقع فقط — دون أي مساس بالتصميم.
       // ============================================================================
 
+      // يضيف علامة الدرجة ° إلى الزاوية بالخرائط إن لم يكتبها المستخدم،
+      // فيظهر التقرير "96°" لا "96". يُترك الحقل كما هو إن كان فارغاً أو
+      // كان يحوي العلامة أصلاً أو كُتب نصاً لا رقماً.
+      function withDegreeSign(value) {
+        if (!value) return "";
+        if (value.includes("°")) return value;
+        if (!/\d/.test(value)) return value;
+        return value + "°";
+      }
+
       // ----- جمع بيانات الحقول التي تُملأ في القالب -----
       function collectQiblaReportFields() {
         const nowForDates = new Date();
@@ -154,7 +164,7 @@
               : (document.getElementById("agentInfo") || { value: "" }).value.trim(),
           governorate: document.getElementById("governorateInput").value.trim(),
           village_plot: document.getElementById("villagePlotInput").value.trim(),
-          map_angle: document.getElementById("mapAngleInput").value.trim(),
+          map_angle: withDegreeSign(document.getElementById("mapAngleInput").value.trim()),
           request_status: document.getElementById("requestStatusInput").value.trim(),
           maps_status: (
             document.getElementById("mapsStatusInput") || { value: "feasible" }
