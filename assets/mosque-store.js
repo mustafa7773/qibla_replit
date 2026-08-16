@@ -146,15 +146,17 @@
   }
 
   function buildMosqueName() {
-    const requestNo = readValue("mosqueRequestNo");
     const village = readValue("villagePlotInput");
     const governorate = readValue("governorateInput");
-    const dateStr = formatShortDate();
 
-    // الاسم يجمع رقم الطلب والقرية والولاية، والتاريخ دائماً في آخره
-    const parts = [requestNo, village, governorate].filter(Boolean);
-    if (parts.length) return parts.join(" — ") + " — " + dateStr;
-    return "مسجد " + dateStr;
+    // الاسم يعتمد على المحافظة والقرية/الولاية
+    const parts = [governorate, village].filter(Boolean);
+    if (parts.length) return parts.join(" — ");
+
+    const requestNo = readValue("mosqueRequestNo");
+    if (requestNo) return requestNo;
+
+    return "مسجد " + formatShortDate();
   }
 
   function saveCurrentMosque() {
