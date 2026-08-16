@@ -50,6 +50,7 @@
       governorate: entry.governorate || null,
       village: entry.village || null,
       requestNo: entry.requestNo || null,
+      companyRequestNo: entry.companyRequestNo || null,
       agentPhone: entry.agentPhone || null,
       easting: entry.easting,
       northing: entry.northing,
@@ -190,6 +191,7 @@
       governorate: readValue("governorateInput"),
       village: readValue("villagePlotInput"),
       requestNo: readValue("mosqueRequestNo"),
+      companyRequestNo: readValue("companyRequestNo"),
       agentPhone: readFirstAgentPhone(),
       easting: coords.easting,
       northing: coords.northing,
@@ -227,7 +229,7 @@
 
   // نحدّث السجل فور تعبئة/تعديل أي من بيانات المسجد (رقم الطلب، القرية، الولاية)
   // حتى يُحفظ الاسم كاملاً دون انتظار تنزيل تقرير Word
-  ["mosqueRequestNo", "villagePlotInput", "governorateInput"].forEach((id) => {
+  ["mosqueRequestNo", "companyRequestNo", "villagePlotInput", "governorateInput"].forEach((id) => {
     const node = document.getElementById(id);
     if (!node) return;
     node.addEventListener("change", saveCurrentMosque);

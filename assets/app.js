@@ -349,6 +349,17 @@
 
         // اكتشاف نظام الإسناد تلقائياً من نص الكروكي
         document.getElementById("datum").value = detectDatum(text);
+
+        // اكتشاف الولاية من نص الكروكي نفسه (عربي أو إنجليزي)، وتفضيله على
+        // نتيجة الموقع الجغرافي التقريبية إن وُجد ذِكر صريح في الكروكي
+        if (window.Governorates && typeof window.Governorates.detectFromText === "function") {
+          const wilayaMatch = window.Governorates.detectFromText(text);
+          if (wilayaMatch) {
+            document.getElementById("governorateInput").value =
+              wilayaMatch.governorate + " - " + wilayaMatch.wilaya;
+            governorateAutoFillEnabled = false;
+          }
+        }
       }
 
       /**
@@ -1599,6 +1610,80 @@
         governorateAutoFillEnabled = false;
       });
 
+      // ==========================================================================
+      // توليد رقم الطلب بالشركة تلقائياً: ق س \<رمز الشهر>\<السنة الهجرية>\<رمز المحافظة>\<العدد>
+      // ==========================================================================
+      const HIJRI_MONTH_CODES = ["م", "ص", "ر١", "ر٢", "ج١", "ج٢", "رج", "ش ع", "ر", "ش و", "ذ ق", "ذ ح"];
+      const GOV_CODES = {
+        "محافظة مسقط": "خ0",
+        "محافظة شمال الباطنة": "خ1",
+        "محافظة جنوب الباطنة": "خ1",
+        "محافظة الظاهرة": "خ2",
+        "محافظة الداخلية": "خ3",
+        "محافظة شمال الشرقية": "خ4",
+        "محافظة جنوب الشرقية": "خ4",
+        "محافظة الوسطى": "خ5",
+        "محافظة ظفار": "خ6",
+        "محافظة مسندم": "خ7",
+        // محافظة البريمي: بلا رمز بقرار — تُترك خانة المحافظة فارغة في الرقم
+      };
+
+      function currentHijriYearMonth() {
+        try {
+          const parts = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
+            year: "numeric",
+            month: "numeric",
+          }).formatToParts(new Date());
+          const year = parts.find((p) => p.type === "year").value;
+          const month = parseInt(parts.find((p) => p.type === "month").value, 10);
+          return { year, month };
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function buildCompanyRequestNo() {
+        const hy = currentHijriYearMonth();
+        if (!hy) return "";
+        const monthCode = HIJRI_MONTH_CODES[hy.month - 1];
+        const monthYearPrefix = "ق س \\" + monthCode + "\\" + hy.year + "\\";
+
+        const govValue = document.getElementById("governorateInput").value.trim();
+        const govFull = window.Governorates ? window.Governorates.governorateOf(govValue) : "";
+        const govCode = GOV_CODES[govFull] || "";
+
+        let count = 1;
+        if (window.MosqueStore && typeof window.MosqueStore.loadAll === "function") {
+          try {
+            const existing = window.MosqueStore.loadAll().filter(
+              (m) => m.companyRequestNo && m.companyRequestNo.indexOf(monthYearPrefix) === 0,
+            );
+            count = existing.length + 1;
+          } catch (e) {
+            // نتجاهل ونبدأ من 1
+          }
+        }
+
+        return monthYearPrefix + (govCode ? govCode + "\\" : "") + count;
+      }
+
+      let companyRequestAutoFillEnabled = true;
+      const companyRequestEl = document.getElementById("companyRequestNo");
+      if (companyRequestEl) {
+        companyRequestEl.addEventListener("input", () => {
+          companyRequestAutoFillEnabled = false;
+        });
+
+        var refreshCompanyRequestNo = function () {
+          if (!companyRequestAutoFillEnabled) return;
+          companyRequestEl.value = buildCompanyRequestNo();
+        };
+
+        refreshCompanyRequestNo();
+        document.getElementById("governorateInput").addEventListener("change", refreshCompanyRequestNo);
+        document.getElementById("computeBtn").addEventListener("click", () => setTimeout(refreshCompanyRequestNo, 50));
+      }
+
       // يستدل على المحافظة والولاية من إحداثيات الموقع عبر خدمة Nominatim (OpenStreetMap)
       // ويملأ الحقل تلقائياً، دون الكتابة فوق أي تعديل يدوي أدخله المستخدم على الحقل.
       async function reverseGeocodeGovernorate(lat, lon) {
@@ -2050,4 +2135,3 @@
           errorBox.classList.add("show");
         }
       });
-
