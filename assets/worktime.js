@@ -730,18 +730,8 @@
 
         // بقية أجزاء الاسم (الولاية والتاريخ) تُعرض كسطر فرعي،
         // مع تفادي تكرار أي جزء يطابق العنوان نفسه
-        const subParts = segments
-          .slice(1)
-          .filter((seg) => seg && seg !== title);
-        if (!subParts.length && m.governorate && m.governorate !== title) {
-          subParts.push(m.governorate);
-        }
-        const dateStr = window.MosqueStore.formatShortDate(m.savedAt);
-        if (dateStr && subParts.indexOf(dateStr) === -1) subParts.push(dateStr);
-
-        const hasGov = !!(m.governorate || segments.length > 2);
-        if (!hasGov) subParts.push("بلا ولاية — اضغط زر التعديل");
-        const subtitle = subParts.join(" · ");
+        const subtitle = window.MosqueStore.formatShortDate(m.savedAt);
+        const hasGov = true;
 
         return (
           '<div class="saved-item" data-id="' +
