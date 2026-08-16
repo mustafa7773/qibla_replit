@@ -1632,6 +1632,11 @@
         return hit ? hit.code : "";
       }
 
+      function toArabicDigits(input) {
+        const map = { 0: "٠", 1: "١", 2: "٢", 3: "٣", 4: "٤", 5: "٥", 6: "٦", 7: "٧", 8: "٨", 9: "٩" };
+        return String(input).replace(/[0-9]/g, (d) => map[d]);
+      }
+
       function currentHijriYearMonth() {
         try {
           const parts = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
@@ -1650,11 +1655,11 @@
         const hy = currentHijriYearMonth();
         if (!hy) return "";
         const monthCode = HIJRI_MONTH_CODES[hy.month - 1];
-        const monthYearPrefix = "ق س \\" + monthCode + "\\" + hy.year + "\\";
+        const monthYearPrefix = "ق س \\" + monthCode + "\\" + toArabicDigits(hy.year) + "\\";
 
         const govValue = document.getElementById("governorateInput").value.trim();
         const govFull = window.Governorates ? window.Governorates.governorateOf(govValue) : "";
-        const govCode = govCodeFor(govFull) || govCodeFor(govValue);
+        const govCode = toArabicDigits(govCodeFor(govFull) || govCodeFor(govValue));
 
         let count = 1;
         if (window.MosqueStore && typeof window.MosqueStore.loadAll === "function") {
@@ -1668,7 +1673,7 @@
           }
         }
 
-        return monthYearPrefix + (govCode ? govCode + "\\" : "") + count;
+        return monthYearPrefix + (govCode ? govCode + "\\" : "") + toArabicDigits(count);
       }
 
       let companyRequestAutoFillEnabled = true;
