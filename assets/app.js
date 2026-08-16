@@ -361,9 +361,6 @@
             if (typeof refreshCompanyRequestNo === "function") refreshCompanyRequestNo();
           }
         }
-        // رقم القطعة من القراءة العادية (الاسم العربي يأتي من الخريطة لاحقاً)
-        const plotMatch = /PLOT\s*N[O0]\s*[:.\-]?\s*(\d{1,5})/i.exec(text);
-        if (plotMatch) setVillagePlot("", plotMatch[1]);
       }
 
       /**
@@ -461,9 +458,8 @@
         const prompt =
           "اقرأ جدول إحداثيات قطعة الأرض من هذه الصورة (كروكي مساحي عُماني). " +
           "أعد الإجابة بصيغة JSON فقط بدون أي نص إضافي أو علامات markdown، بالشكل التالي بالضبط:\n" +
-          '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null, "rawText": "<انسخ هنا حرفياً السطر الذي يذكر نظام الإسناد كما هو مكتوب في الوثيقة، مثل Clark1880 40N، أو اتركه فارغاً>", "wilaya": "<انسخ هنا حرفياً اسم الولاية المكتوب في الوثيقة أمام خانة \\"الولاية\\" أو Wilayat، عربياً أو إنجليزياً كما هو، أو null>", "village": "<اسم المدينة/القرية المكتوب أمام خانة \\"المدينة - القرية\\"، مكتوباً بالعربية؛ فإن كان في الوثيقة باللاتينية فقط فاكتب نطقه بالحروف العربية، أو null>", "plot_no": "<رقم القطعة المكتوب أمام PLOT NO أو خانة \\"القطعة\\"، أو null>"}\n' +
+          '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null, "rawText": "<انسخ هنا حرفياً السطر الذي يذكر نظام الإسناد كما هو مكتوب في الوثيقة، مثل Clark1880 40N، أو اتركه فارغاً>", "wilaya": "<انسخ هنا حرفياً اسم الولاية المكتوب في الوثيقة أمام خانة \\"الولاية\\" أو Wilayat، عربياً أو إنجليزياً كما هو، أو null>"}\n' +
           "ملاحظات مهمة:\n" +
-          "- حقل village: انسخ خانة \"المدينة / القرية\" وحدها. لا تخلطها بالولاية ولا باسم الحي في مكان آخر من الوثيقة.\n" +
           "- حقل wilaya: انسخ ما هو مكتوب أمام \"الولاية\" فقط. لا تنسخ اسم القرية أو المدينة أو الحي، ولا تستنتج الولاية من اسم القرية.\n" +
           "- بعض الجداول تكتب عمود Northing قبل عمود Easting — تأكد من إخراج كل نقطة بترتيب [Easting, Northing] دائماً بغض النظر عن ترتيب الأعمدة كما تظهر في الصورة.\n" +
           "- انسخ الأرقام كما هي بالضبط دون أي تقريب أو تعديل.\n" +
@@ -571,13 +567,6 @@
                 governorateAutoFillEnabled = false;
                 if (typeof refreshCompanyRequestNo === "function") refreshCompanyRequestNo();
               }
-
-              // القرية ورقم القطعة من الكروكي. الاسم هنا نطق تقريبي للاتيني؛
-              // إن عرفت الخريطة اسم القرية بالعربية استبدلته لاحقاً.
-              setVillagePlot(
-                parsed.village || "",
-                parsed.plot_no == null ? "" : parsed.plot_no,
-              );
 
               const summaryLines = [
                 "✓ تمت القراءة بواسطة Claude AI",
@@ -1679,33 +1668,6 @@
 
       let governorateAutoFillEnabled = true;
 
-      // ----------------------------------------------------------------------
-      // حقل "القرية (رقم القطعة)": اسمها ورقمها يأتيان من مصدرين مختلفين —
-      // رقم القطعة من الكروكي، والاسم العربي من خريطة OpenStreetMap عبر
-      // الإحداثيات (أدق من نطق الاسم اللاتيني: SURSHIYADIH ⇐ سور الشيادي).
-      // نحتفظ بالجزأين منفصلين ونركّبهما، فلا يمحو أحدهما الآخر.
-      // ----------------------------------------------------------------------
-      let villageAutoFillEnabled = true;
-      let lastVillageName = "";
-      let lastPlotNo = "";
-
-      function setVillagePlot(village, plotNo) {
-        if (!villageAutoFillEnabled) return;
-        const el = document.getElementById("villagePlotInput");
-        if (!el) return;
-        if (village) lastVillageName = String(village).trim();
-        if (plotNo) lastPlotNo = String(plotNo).trim();
-        const parts = [];
-        if (lastVillageName) parts.push(lastVillageName);
-        if (lastPlotNo) parts.push("قطعة " + lastPlotNo);
-        if (parts.length) el.value = parts.join(" - ");
-      }
-
-      (function () {
-        const el = document.getElementById("villagePlotInput");
-        if (el) el.addEventListener("input", () => { villageAutoFillEnabled = false; });
-      })();
-
       document.getElementById("governorateInput").addEventListener("input", () => {
         governorateAutoFillEnabled = false;
       });
@@ -1795,9 +1757,7 @@
       // يستدل على المحافظة والولاية من إحداثيات الموقع عبر خدمة Nominatim (OpenStreetMap)
       // ويملأ الحقل تلقائياً، دون الكتابة فوق أي تعديل يدوي أدخله المستخدم على الحقل.
       async function reverseGeocodeGovernorate(lat, lon) {
-        // لا نخرج مبكراً إن كانت المحافظة مقفلة: الاستعلام نفسه لا يزال
-        // مطلوباً لجلب اسم القرية بالعربية. كل حقل يُفحص قفله عند تعبئته.
-        if (!governorateAutoFillEnabled && !villageAutoFillEnabled) return;
+        if (!governorateAutoFillEnabled) return;
         const input = document.getElementById("governorateInput");
         if (!input) return;
         try {
@@ -1833,17 +1793,6 @@
           if (finalValue && governorateAutoFillEnabled) {
             input.value = finalValue;
             if (typeof refreshCompanyRequestNo === "function") refreshCompanyRequestNo();
-          }
-
-          // اسم القرية بالعربية من الخريطة. نقتصر على المستويات الصغيرة
-          // (قرية/حي/مجمّع) ولا نقبل اسم المدينة أو الولاية، فهو مكتوب في
-          // حقل المحافظة أصلاً. وإن لم تعرف الخريطة القرية يبقى ما استُخرج
-          // من الكروكي كما هو.
-          const villageName =
-            addr.village || addr.hamlet || addr.neighbourhood ||
-            addr.quarter || addr.suburb || "";
-          if (villageName && villageName !== wilayatName) {
-            setVillagePlot(villageName, "");
           }
         } catch (e) {
           // نتجاهل بصمت أي خطأ في الشبكة أو الاستعلام؛ يبقى الحقل قابلاً للتعبئة يدوياً
