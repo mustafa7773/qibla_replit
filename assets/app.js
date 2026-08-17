@@ -105,24 +105,18 @@
       const ocrChoiceModal = document.getElementById("ocrChoiceModal"),
         chooseNormalBtn = document.getElementById("chooseNormalBtn"),
         chooseAiBtn = document.getElementById("chooseAiBtn"),
-        modalAiKeyWrap = document.getElementById("modalAiKeyWrap"),
-        modalAnthropicKey = document.getElementById("modalAnthropicKey"),
-        confirmAiBtn = document.getElementById("confirmAiBtn"),
         cancelOcrModalBtn = document.getElementById("cancelOcrModalBtn");
 
-      let sessionApiKey = "";
-
+      // القراءة بالذكاء الاصطناعي تمر بدالة الخادم /api/vision، والمفتاح
+      // مخزَّن هناك — فلا يُطلب من المستخدم ولا يصل المتصفح.
       function askOcrMethod() {
         return new Promise((resolve) => {
-          modalAiKeyWrap.classList.add("hidden");
-          modalAnthropicKey.value = sessionApiKey;
           ocrChoiceModal.classList.remove("hidden");
 
           function cleanup() {
             ocrChoiceModal.classList.add("hidden");
             chooseNormalBtn.onclick = null;
             chooseAiBtn.onclick = null;
-            confirmAiBtn.onclick = null;
             cancelOcrModalBtn.onclick = null;
           }
 
@@ -131,17 +125,8 @@
             resolve({ method: "normal" });
           };
           chooseAiBtn.onclick = () => {
-            modalAiKeyWrap.classList.remove("hidden");
-          };
-          confirmAiBtn.onclick = () => {
-            const key = modalAnthropicKey.value.trim();
-            if (!key) {
-              modalAnthropicKey.focus();
-              return;
-            }
-            sessionApiKey = key;
             cleanup();
-            resolve({ method: "ai", apiKey: key });
+            resolve({ method: "ai" });
           };
           cancelOcrModalBtn.onclick = () => {
             cleanup();
@@ -451,8 +436,7 @@
         });
       }
 
-      async function extractWithClaudeVision(dataUrl, mediaType, apiKey) {
-        if (!apiKey) throw new Error("يرجى إدخال مفتاح Anthropic API أولاً.");
+      async function extractWithClaudeVision(dataUrl, mediaType) {
         const base64Data = dataUrl.split(",")[1];
 
         const prompt =
@@ -465,39 +449,21 @@
           "- انسخ الأرقام كما هي بالضبط دون أي تقريب أو تعديل.\n" +
           "- إذا لم تجد قيمة لأي حقل ضعه null.";
 
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
+        const response = await fetch("/api/vision", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true",
-          },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-6",
-            max_tokens: 1000,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
-                  { type: "text", text: prompt },
-                ],
-              },
-            ],
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64Data, mediaType, prompt }),
         });
 
-        if (!response.ok) {
-          const errText = await response.text().catch(() => "");
-          throw new Error("فشل الاتصال بـ Anthropic API (" + response.status + "). " + errText.slice(0, 200));
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload || !payload.ok) {
+          throw new Error(
+            (payload && payload.error) ||
+              "تعذّر الاتصال بخدمة القراءة (" + response.status + ")."
+          );
         }
 
-        const data = await response.json();
-        const textOut = (data.content || [])
-          .map((c) => (c.type === "text" ? c.text : ""))
-          .filter(Boolean)
-          .join("\n");
+        const textOut = payload.text || "";
 
         const cleaned = textOut.replace(/```json|```/g, "").trim();
         try {
@@ -524,7 +490,7 @@
             document.getElementById("ocrStatusText").textContent = "جاري القراءة بدقة عالية بواسطة Claude AI…";
             try {
               const mediaType = file.type === "image/png" ? "image/png" : "image/jpeg";
-              const parsed = await extractWithClaudeVision(reader.result, mediaType, choice.apiKey);
+              const parsed = await extractWithClaudeVision(reader.result, mediaType);
 
               const points = Array.isArray(parsed.points) ? parsed.points : [];
               const pointsLines = points
