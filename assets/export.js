@@ -170,6 +170,10 @@
           maps_status: (
             document.getElementById("mapsStatusInput") || { value: "feasible" }
           ).value,
+          // جاهزية الشروع بالبناء: "yes" جاهز · "no" غير جاهز
+          ready_status: (
+            document.getElementById("readyStatusInput") || { value: "no" }
+          ).value,
           notes: document.getElementById("notesInput").value.trim(),
         };
       }
@@ -235,6 +239,9 @@
           // خانتا الخرائط: واحدة فقط تُعلَّم حسب الاختيار
           maps_box_feasible: fields.maps_status === "feasible" ? CHECKED_BOX : UNCHECKED_BOX,
           maps_box_adjust: fields.maps_status === "adjust" ? CHECKED_BOX : UNCHECKED_BOX,
+          // خانتا جاهزية الشروع بالبناء: واحدة فقط تُعلَّم
+          ready_box_yes: fields.ready_status === "yes" ? CHECKED_BOX : UNCHECKED_BOX,
+          ready_box_no: fields.ready_status === "yes" ? UNCHECKED_BOX : CHECKED_BOX,
         });
 
         const outZip = docTemplate.getZip();
