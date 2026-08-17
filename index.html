@@ -28,6 +28,15 @@
     />
     <link rel="stylesheet" href="assets/style.css" />
     <link rel="stylesheet" href="assets/hub.css" />
+    <style>
+      /* البطاقة الرابعة تقع وحدها في صف ثانٍ. نضعها في العمود الأوسط بدل
+         أن تلتصق بحافة الشبكة. القاعدة تعمل عند ثلاثة أعمدة فقط. */
+      @media (min-width: 900px) {
+        .tool-grid > .tool-card:last-child:nth-child(3n + 1) {
+          grid-column: 2;
+        }
+      }
+    </style>
   </head>
   <body>
     <header class="site-header">
