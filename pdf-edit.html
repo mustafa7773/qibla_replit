@@ -28,7 +28,7 @@
     />
     <link rel="stylesheet" href="assets/style.css" />
     <link rel="stylesheet" href="assets/hub.css" />
-    <link rel="stylesheet" href="assets/pdf-edit.css?v=20260818a" />
+    <link rel="stylesheet" href="assets/pdf-edit.css?v=20260818b" />
   </head>
   <body>
 
@@ -131,16 +131,6 @@
             <button type="button" class="ghost" id="resetBtn">استعادة الأصل</button>
           </div>
 
-          <button type="button" class="primary" id="downloadBtn">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
-                 viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
-              <path d="M5 19h14" />
-            </svg>
-            تنزيل PDF المعدّل
-          </button>
-
-          <div class="status" id="workStatus"></div>
         </section>
 
         <!-- ═══ ٣) التاريخ ═══ -->
@@ -175,6 +165,17 @@
           </div>
 
           <div class="status" id="dateStatus"></div>
+
+          <button type="button" class="primary" id="downloadBtn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                 viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
+              <path d="M5 19h14" />
+            </svg>
+            تنزيل PDF المعدّل
+          </button>
+
+          <div class="status" id="workStatus"></div>
         </section>
 
         <!-- ═══ ٤) المعاينة ═══ -->
@@ -194,8 +195,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="assets/hijri.js?v=20260818a" defer></script>
-    <script src="assets/pdf-edit.js?v=20260818a" defer></script>
+    <script src="assets/hijri.js?v=20260818b" defer></script>
+    <script src="assets/pdf-edit.js?v=20260818b" defer></script>
 
     <script>
       // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت

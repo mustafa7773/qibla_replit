@@ -19,7 +19,7 @@
 // DataAPI إرسالها تلقائياً عند عودة الشبكة — هذا مبني أصلاً في data-api.js.
 // ============================================================================
 
-const VERSION = "sky-v2";
+const VERSION = "sky-v3";
 const SHELL_CACHE = VERSION + "-shell";
 const ASSET_CACHE = VERSION + "-assets";
 
