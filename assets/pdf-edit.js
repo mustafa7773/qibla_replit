@@ -25,6 +25,8 @@
   const DATE = {
     LABEL: /تاريخ\s*ال?زيارة/,   // عنوان الخلية — المرساة الوحيدة المضمونة
     SIZE_RATIO: 0.875,           // مقاس سطر التاريخ ÷ مقاس العنوان (14÷16)
+    BOOST: 1.08,                 // تكبير طفيف للوضوح — ١ يعيده لمقاس القالب
+    WEIGHT: 700,                 // عريض كبقية نصوص التقرير (٤٠٠ = عادي)
     LINE_GAP: 1.16,              // تباعد السطرين ÷ مقاس الخط (15.2÷13.17)
     PAD: 0.15,                   // هامش يمين القصاصة ÷ مقاس الخط، ضد القص
     SS: 6,                       // دقة رسم النص، كدقة استنساخ المربعات
@@ -39,7 +41,9 @@
   const fontsReady = (document.fonts && document.fonts.load)
     ? Promise.all([
         document.fonts.load('16px "Noto Naskh Arabic"'),
+        document.fonts.load('700 16px "Noto Naskh Arabic"'),
         document.fonts.load('16px Arial'),
+        document.fonts.load('700 16px Arial'),
       ]).catch(() => {})
     : Promise.resolve();
 
@@ -306,8 +310,8 @@
   function dateImage() {
     const lines = dateLines.filter((t) => t && t.trim());
     if (!lines.length || !dateCell) return null;
-    const px = dateCell.size * DATE.SS;
-    const font = px + 'px ' + DATE.FONT;
+    const px = dateCell.size * DATE.BOOST * DATE.SS;
+    const font = DATE.WEIGHT + ' ' + px + 'px ' + DATE.FONT;
 
     const probe = document.createElement('canvas').getContext('2d');
     probe.font = font;
