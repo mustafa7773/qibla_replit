@@ -11,24 +11,24 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="description" content="عدّل خانات حالة الطلب وجاهزية البناء في تقرير قبلة صادر، ونزّل نسخة PDF محدَّثة." />
+    <meta name="description" content="عدّل خانات حالة الطلب وجاهزية البناء وتاريخ الزيارة في تقرير قبلة صادر، ونزّل نسخة PDF محدَّثة." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="أدوات ابتكارات السماء" />
     <meta property="og:locale" content="ar_OM" />
     <meta property="og:title" content="تعديل حالة التقرير — أدوات ابتكارات السماء" />
-    <meta property="og:description" content="عدّل خانات حالة الطلب وجاهزية البناء في تقرير قبلة صادر، ونزّل نسخة PDF محدَّثة." />
+    <meta property="og:description" content="عدّل خانات حالة الطلب وجاهزية البناء وتاريخ الزيارة في تقرير قبلة صادر، ونزّل نسخة PDF محدَّثة." />
     <meta property="og:image" content="assets/icons/icon-512.png" />
     <meta name="twitter:card" content="summary" />
     <title>تعديل حالة التقرير — أدوات ابتكارات السماء</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/style.css" />
     <link rel="stylesheet" href="assets/hub.css" />
-    <link rel="stylesheet" href="assets/pdf-edit.css?v=20260817a" />
+    <link rel="stylesheet" href="assets/pdf-edit.css?v=20260818a" />
   </head>
   <body>
 
@@ -69,7 +69,7 @@
         <div class="page-head">
           <h1>تعديل حالة التقرير</h1>
           <p class="page-sub">
-            حدّث خانات الاختيار في تقرير قبلة صادر سابقاً، ونزّل نسخة PDF محدَّثة.
+            حدّث خانات الاختيار وتاريخ الزيارة في تقرير قبلة صادر سابقاً، ونزّل نسخة PDF محدَّثة.
             الملف يُعالج داخل متصفحك ولا يُرسل إلى أي خادم.
           </p>
         </div>
@@ -143,10 +143,44 @@
           <div class="status" id="workStatus"></div>
         </section>
 
-        <!-- ═══ ٣) المعاينة ═══ -->
-        <section class="panel hidden" id="previewPanel">
+        <!-- ═══ ٣) التاريخ ═══ -->
+        <section class="panel hidden" id="datePanel">
           <div class="panel-head">
             <span class="step-badge">٣</span>
+            <h2>تاريخ الزيارة الميدانية</h2>
+          </div>
+          <p class="sub">
+            للتقارير التي صدرت بلا تاريخ. يُكتب التاريخ في خانته من التقرير
+            بخطّه ولونه وموضعه، والسطران قابلان للتعديل قبل التنزيل.
+          </p>
+
+          <label class="check-row">
+            <input type="checkbox" id="dateOn" />
+            <span>أضف تاريخ الزيارة إلى التقرير</span>
+          </label>
+
+          <div class="field">
+            <label for="dateInput">التاريخ الميلادي</label>
+            <input type="date" id="dateInput" />
+          </div>
+
+          <div class="field">
+            <label for="dateHijri">السطر الأول — هجري</label>
+            <input type="text" id="dateHijri" dir="rtl" placeholder="٢٤ ذي القعدة ١٤٤٧هـ" />
+          </div>
+
+          <div class="field">
+            <label for="dateGreg">السطر الثاني — ميلادي</label>
+            <input type="text" id="dateGreg" dir="rtl" placeholder="١٢ مايو ٢٠٢٦ م" />
+          </div>
+
+          <div class="status" id="dateStatus"></div>
+        </section>
+
+        <!-- ═══ ٤) المعاينة ═══ -->
+        <section class="panel hidden" id="previewPanel">
+          <div class="panel-head">
+            <span class="step-badge">٤</span>
             <h2>المعاينة</h2>
           </div>
           <p class="sub">
@@ -160,7 +194,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="assets/pdf-edit.js?v=20260817a" defer></script>
+    <script src="assets/hijri.js?v=20260818a" defer></script>
+    <script src="assets/pdf-edit.js?v=20260818a" defer></script>
 
     <script>
       // تسجيل عامل الخدمة: يُفعّل التثبيت على الجوال والعمل بلا إنترنت
