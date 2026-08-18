@@ -91,3 +91,44 @@
   border-color: #d946ef;
   background: rgba(217, 70, 239, 0.18);
 }
+
+/* خانة تفعيل التاريخ — سطر واحد يجمع المربع ونصّه */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 var(--sp-4);
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: var(--fs-body);
+}
+
+.check-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--gold);
+  cursor: pointer;
+  flex: none;
+}
+
+.check-row:hover span {
+  color: var(--paper);
+}
+
+.check-row input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* سطرا التاريخ: أرقام بخط الأرقام كبقية القيم المقيسة في الموقع */
+#dateHijri,
+#dateGreg {
+  font-variant-numeric: tabular-nums;
+}
+
+/* منتقي التاريخ يبقى لاتيني الاتجاه كي لا ينقلب ترتيب يوم/شهر/سنة */
+#dateInput {
+  direction: ltr;
+  text-align: left;
+  color-scheme: dark;
+}

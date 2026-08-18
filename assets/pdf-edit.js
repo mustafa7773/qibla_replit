@@ -19,6 +19,34 @@
   const CHECKED = '\uF052';      // مربع معلَّم في خط Wingdings 2
   const BOXY = /[\uE000-\uF8FF\u2610\u2611\u25A1\u25A0\u2612]/;
 
+  // ---------- تاريخ الزيارة الميدانية ----------
+  // القيم مقيسة من تقرير سليم (خلية خضراء فيها التاريخ) ومن تقرير بلا
+  // تاريخ (فيها «طور التنسيق»)، فلا تُغيَّر إلا بقياس جديد.
+  const DATE = {
+    LABEL: /تاريخ\s*ال?زيارة/,   // عنوان الخلية — المرساة الوحيدة المضمونة
+    SIZE_RATIO: 0.875,           // مقاس سطر التاريخ ÷ مقاس العنوان (14÷16)
+    LINE_GAP: 1.16,              // تباعد السطرين ÷ مقاس الخط (15.2÷13.17)
+    PAD: 0.15,                   // هامش يمين القصاصة ÷ مقاس الخط، ضد القص
+    SS: 6,                       // دقة رسم النص، كدقة استنساخ المربعات
+    PROBE: 2.5,                  // نقطة داخل هامش الخلية الأيمن — عمود خالٍ
+    TOL: 26,                     // تفاوت لوني يُعدّ ما زال خلفيةَ الخلية
+    // الخط: Arial أولاً لأنه خط التقرير نفسه، فإن غاب عن الجهاز (هاتف)
+    // يلتقط المتصفح المحارف العربية من Noto Naskh — أقرب شبيه بعربية Arial.
+    FONT: 'Arial, "Noto Naskh Arabic", "Segoe UI", sans-serif',
+  };
+
+  // canvas يرسم بخط بديل صامتاً إن لم يكن الخط جاهزاً، فننتظره أولاً
+  const fontsReady = (document.fonts && document.fonts.load)
+    ? Promise.all([
+        document.fonts.load('16px "Noto Naskh Arabic"'),
+        document.fonts.load('16px Arial'),
+      ]).catch(() => {})
+    : Promise.resolve();
+
+  let dateCell = null;           // مرساة خلية التاريخ، أو null إن لم تُوجد
+  let dateOn = false;
+  let dateLines = ['', ''];      // السطر الهجري ثم الميلادي
+
   let originalBytes = null;      // الملف الأصلي كما رُفع — لا يُعدَّل أبداً
   let boxes = [];                // خانات الاختيار المكتشفة
   let stamps = [];               // علامات أضافها المستخدم بالنقر
@@ -32,7 +60,8 @@
   const drop = $('dropzone'), fileInput = $('fileInput'), err = $('errorBox'),
         stages = $('stages'), status = $('workStatus'),
         loadStatus = $('loadStatus'), preview = $('preview'),
-        choicesPanel = $('choicesPanel'), previewPanel = $('previewPanel');
+        choicesPanel = $('choicesPanel'), previewPanel = $('previewPanel'),
+        datePanel = $('datePanel'), dateStatus = $('dateStatus');
 
   const show = (el, on) => el.classList.toggle('hidden', !on);
   const say = (el, html) => {
@@ -56,9 +85,11 @@
 
   document.getElementById('clearFileBtn').addEventListener('click', () => {
     originalBytes = null; boxes = []; stamps = []; pages = []; textRows = [];
+    dateCell = null; dateOn = false;
     fileInput.value = '';
     stages.innerHTML = '';
     show(preview, false); show(choicesPanel, false); show(previewPanel, false);
+    show(datePanel, false);
     say(status, ''); say(loadStatus, ''); fail('');
   });
 
@@ -78,7 +109,9 @@
       await detect();
       findGroups();
       renderControls();
+      initDateUI();
       show(choicesPanel, true);
+      show(datePanel, true);
       show(previewPanel, true);
       await refresh();
       say(loadStatus, '');
@@ -124,6 +157,8 @@
       rowsY.sort((a, b) => a.y - b.y);
       textRows.push(rowsY);
 
+      if (!dateCell) findDateCell(p - 1, content, vp, cv);
+
       for (const item of content.items) {
         const s = (item.str || '').trim();
         if (s.length === 0 || s.length > 2 || !BOXY.test(s)) continue;
@@ -146,6 +181,181 @@
     say(status, boxes.length
       ? 'عُثر على ' + boxes.length + ' خانة في التقرير.'
       : 'لم يُعثر على خانات — استخدم «إضافة علامة بالنقر».');
+  }
+
+  // --------------------------------------------------------------------
+  // خلية تاريخ الزيارة
+  //
+  // الخلية الخضراء في التقارير غير المؤرَّخة ليست فارغة: فيها العنوان
+  // «تاريخ الزيارة الميدانية:» ونص «طور التنسيق» مكانَ التاريخ. فالمرساة
+  // موجودة دائماً، ولا نخمّن موضعاً:
+  //
+  //   • حدود الخلية  — نمسح عموداً في هامشها الأيمن (يمين العنوان) وهو
+  //     خالٍ من النص دائماً، فنعرف أين تبدأ وأين تنتهي بلون خلفيتها.
+  //   • خط الأساس    — من أول سطر داخل الخلية تحت العنوان، أي من موضع
+  //     «طور التنسيق» نفسه: هو المكان الذي كان Word سيضع فيه التاريخ.
+  //   • المقاس       — مقاس ذلك السطر، أو ٠٫٨٧٥ من مقاس العنوان إن خلت.
+  //   • اللون        — من حبر العنوان نفسه، لا مفترضاً: التقارير البيضاء
+  //     النص والتقارير الزرقاء النص كلتاهما تعملان.
+  //
+  // ثم يُرسم النص على canvas (المتصفح يُشكّل العربية صحيحاً، وpdf-lib لا
+  // تفعل) ويُلصق صورةً شفافة — نفس مبدأ استنساخ المربعات.
+  // --------------------------------------------------------------------
+
+  function pixelAt(cv, xPt, yPt) {
+    const x = Math.max(0, Math.min(cv.width - 1, Math.round(xPt * CLONE)));
+    const y = Math.max(0, Math.min(cv.height - 1, Math.round(yPt * CLONE)));
+    const d = cv.getContext('2d').getImageData(x, y, 1, 1).data;
+    return [d[0], d[1], d[2]];
+  }
+
+  const near = (a, b, tol) =>
+    Math.abs(a[0] - b[0]) <= tol && Math.abs(a[1] - b[1]) <= tol &&
+    Math.abs(a[2] - b[2]) <= tol;
+
+  // امتداد الخلية رأسياً على عمود خالٍ من النص، بلون خلفيتها
+  function cellSpan(cv, xPt, yPt) {
+    const bg = pixelAt(cv, xPt, yPt);
+    const maxPt = cv.height / CLONE;
+    let top = yPt, bottom = yPt;
+    const step = 1 / CLONE;
+    while (top - step > 0 && near(pixelAt(cv, xPt, top - step), bg, DATE.TOL)) top -= step;
+    while (bottom + step < maxPt && near(pixelAt(cv, xPt, bottom + step), bg, DATE.TOL)) bottom += step;
+    return { top, bottom, bg };
+  }
+
+  // متوسط أبعد ١٢٪ من البكسلات عن الخلفية = لون الحبر
+  function inkIn(cv, rect, bg) {
+    const x = Math.max(0, Math.round(rect.x * CLONE));
+    const y = Math.max(0, Math.round(rect.y * CLONE));
+    const w = Math.min(cv.width - x, Math.round(rect.w * CLONE));
+    const h = Math.min(cv.height - y, Math.round(rect.h * CLONE));
+    if (w <= 0 || h <= 0) return [0, 0, 0];
+    const d = cv.getContext('2d').getImageData(x, y, w, h).data;
+    const px = [];
+    for (let k = 0; k < d.length; k += 4) {
+      px.push({ d: Math.hypot(d[k] - bg[0], d[k + 1] - bg[1], d[k + 2] - bg[2]),
+                c: [d[k], d[k + 1], d[k + 2]] });
+    }
+    px.sort((a, b) => b.d - a.d);
+    const take = Math.max(1, Math.round(px.length * 0.12));
+    const sum = [0, 0, 0];
+    for (let i = 0; i < take; i++) for (let c = 0; c < 3; c++) sum[c] += px[i].c[c];
+    return sum.map((v) => Math.round(v / take));
+  }
+
+  function findDateCell(pi, content, vp, cv) {
+    const items = content.items.map((it) => {
+      const t = pdfjsLib.Util.transform(vp.transform, it.transform);
+      const fh = Math.hypot(t[2], t[3]);
+      return {
+        s: it.str || '', fh,
+        x: t[4], base: t[5],
+        w: it.width > 0 ? it.width : fh,
+      };
+    }).filter((o) => o.s.trim() && o.fh >= 4);
+
+    const label = items.find((o) => DATE.LABEL.test(o.s));
+    if (!label) return;
+    const right = label.x + label.w;
+
+    const span = cellSpan(cv, right + DATE.PROBE, label.base);
+    if (span.bottom - span.top < label.fh * 2) return;   // ليست خلية، بل سطر
+
+    // كل نص داخل الخلية تحت العنوان: «طور التنسيق»، أو تاريخ قديم نستبدله
+    const inCell = items.filter((o) =>
+      o !== label &&
+      o.base > label.base + label.fh * 0.4 &&
+      o.base < span.bottom &&
+      o.x + o.w <= right + 4 &&
+      o.x >= right - 280);
+
+    let erase = null, baseline = null, size = label.fh * DATE.SIZE_RATIO, anchorRight = right;
+    if (inCell.length) {
+      const first = inCell.reduce((a, b) => (b.base < a.base ? b : a));
+      baseline = first.base;
+      size = first.fh;
+      anchorRight = Math.max.apply(null, inCell
+        .filter((o) => Math.abs(o.base - first.base) < first.fh * 0.5)
+        .map((o) => o.x + o.w));
+      const x0 = Math.min.apply(null, inCell.map((o) => o.x));
+      const x1 = Math.max.apply(null, inCell.map((o) => o.x + o.w));
+      // ١٫٤ لا ١٫٠: رأس الطاء والتاء يعلو مقاس الخط، والمسح بمقاس الخط
+      // وحده كان يترك شعرة من أعلى الحروف فوق الطلاء.
+      const y0 = Math.min.apply(null, inCell.map((o) => o.base - o.fh * 1.4));
+      const y1 = Math.max.apply(null, inCell.map((o) => o.base + o.fh * 0.45));
+      const m = size * 0.15;
+      erase = { x: x0 - m, y: y0 - m, w: x1 - x0 + m * 2, h: y1 - y0 + m * 2 };
+    } else {
+      // خلية خالية فعلاً: نوسّط كتلة السطرين في المساحة تحت العنوان
+      const blockH = size * (1 + DATE.LINE_GAP);
+      const top = (label.base + label.fh * 0.35 + span.bottom) / 2 - blockH / 2;
+      baseline = top + size * 0.8;
+    }
+
+    dateCell = {
+      page: pi, baseline, size, right: anchorRight, erase,
+      bg: span.bg,
+      ink: inkIn(cv, { x: label.x, y: label.base - label.fh, w: label.w, h: label.fh * 1.2 },
+                 span.bg),
+      had: inCell.map((o) => o.s.trim()).join(' ').trim(),
+    };
+  }
+
+  // رسم السطرين على canvas ثم إعادتها صورةً مع خط أساس السطر الأول
+  function dateImage() {
+    const lines = dateLines.filter((t) => t && t.trim());
+    if (!lines.length || !dateCell) return null;
+    const px = dateCell.size * DATE.SS;
+    const font = px + 'px ' + DATE.FONT;
+
+    const probe = document.createElement('canvas').getContext('2d');
+    probe.font = font;
+    const m = probe.measureText('مـ٠');
+    const asc = m.fontBoundingBoxAscent || px * 0.92;
+    const desc = m.fontBoundingBoxDescent || px * 0.28;
+    const gap = px * DATE.LINE_GAP;
+    const pad = px * DATE.PAD;
+    const width = Math.max.apply(null, lines.map((t) => probe.measureText(t).width));
+
+    const cv = document.createElement('canvas');
+    cv.width = Math.ceil(width + pad * 2);
+    cv.height = Math.ceil(asc + gap * (lines.length - 1) + desc);
+    const ctx = cv.getContext('2d');
+    ctx.font = font;                 // ضبط المقاس يصفّر السياق، فبعده
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    const [r, g, b] = dateCell.ink;
+    ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+    lines.forEach((t, i) => ctx.fillText(t, cv.width - pad, asc + gap * i));
+
+    return { url: cv.toDataURL('image/png'), asc, pad, w: cv.width, h: cv.height };
+  }
+
+  async function stampDate(pdf, page) {
+    await fontsReady;
+    const im = dateImage();
+    if (!im) return;
+    const H = page.getSize().height;
+
+    // امسح ما في الخلية أولاً: «طور التنسيق» أو تاريخ قديم. الخلفية لون
+    // مصمت فالطلاء بمستطيل واحد كافٍ ولا يترك طيفاً.
+    if (dateCell.erase) {
+      const e = dateCell.erase, bg = dateCell.bg;
+      page.drawRectangle({
+        x: e.x, y: H - (e.y + e.h), width: e.w, height: e.h,
+        color: rgb(bg[0] / 255, bg[1] / 255, bg[2] / 255),
+      });
+    }
+
+    const img = await pdf.embedPng(im.url);
+    const wPt = im.w / DATE.SS, hPt = im.h / DATE.SS;
+    const rightPt = dateCell.right + im.pad / DATE.SS;
+    const topPt = dateCell.baseline - im.asc / DATE.SS;
+    page.drawImage(img, {
+      x: rightPt - wPt, y: H - (topPt + hPt), width: wPt, height: hPt,
+    });
   }
 
   // ---------- بناء نسخة معدّلة ----------
@@ -542,6 +752,8 @@
       );
     }
 
+    if (dateOn && dateCell) await stampDate(pdf, list[dateCell.page]);
+
     if (missing) {
       fail('لا يوجد في التقرير مربع بالحالة المطلوبة لاستنساخه، فتُركت بعض الخانات كما هي.');
     }
@@ -712,6 +924,52 @@
       ['غير جاهز للبناء', 'جاهز للشروع بالبناء'],
       'خانة واحدة فقط ظاهرة في هذا الصف — أضف الثانية بزر «إضافة علامة بالنقر».');
   }
+
+  // ---------- واجهة التاريخ ----------
+  const pad2 = (n) => (n < 10 ? '0' + n : String(n));
+  const asInputValue = (d) =>
+    d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+
+  function fillDateLines(d) {
+    $('dateHijri').value = HijriDate.hijri(d);
+    $('dateGreg').value = HijriDate.gregorian(d);
+    dateLines = [$('dateHijri').value, $('dateGreg').value];
+  }
+
+  function initDateUI() {
+    const on = $('dateOn'), picker = $('dateInput');
+    if (!dateCell) {
+      on.checked = false; on.disabled = true; dateOn = false;
+      say(dateStatus, 'لم يُعثر على خلية «تاريخ الزيارة الميدانية» في هذا الملف.');
+      return;
+    }
+    on.disabled = false;
+    if (!picker.value) {
+      picker.value = asInputValue(new Date());
+      fillDateLines(new Date());
+    }
+    say(dateStatus, dateCell.had
+      ? 'الخلية تحوي حالياً: «' + dateCell.had + '» — سيحلّ التاريخ محلها.'
+      : 'الخلية خالية — سيُوضع التاريخ في موضعه المعتاد.');
+  }
+
+  $('dateOn').addEventListener('change', (e) => {
+    dateOn = e.target.checked;
+    refresh();
+  });
+
+  $('dateInput').addEventListener('change', (e) => {
+    if (!e.target.value) return;
+    // نبني التاريخ محلياً: new Date('2026-05-12') يُقرأ UTC فيتقدّم يوماً
+    const [y, m, d] = e.target.value.split('-').map(Number);
+    fillDateLines(new Date(y, m - 1, d));
+    if (dateOn) refresh();
+  });
+
+  ['dateHijri', 'dateGreg'].forEach((id, i) => {
+    $(id).addEventListener('input', (e) => { dateLines[i] = e.target.value; });
+    $(id).addEventListener('change', () => { if (dateOn) refresh(); });
+  });
 
   $('addMarkBtn').addEventListener('click', (e) => {
     addMode = !addMode;
