@@ -27,7 +27,6 @@
     payingId: null,
     archiveId: null,
     deleteId: null,
-    agents: [],
   };
 
   let toastTimer = null;
@@ -657,37 +656,6 @@
     );
   }
 
-  // ---------------------------------------------------------------- الوكلاء
-
-  function agentRowHtml(a, i) {
-    return (
-      '<div class="rq-agent-row" data-index="' +
-      i +
-      '">' +
-      '<input type="text" class="rq-agent-name" placeholder="الاسم" value="' +
-      esc(a.name) +
-      '" aria-label="اسم الوكيل" />' +
-      '<input type="tel" class="rq-agent-phone textarea-mono" inputmode="tel" placeholder="الهاتف" value="' +
-      esc(a.phone) +
-      '" aria-label="هاتف الوكيل" />' +
-      '<button type="button" class="icon-btn" data-act="drop-agent" aria-label="حذف الوكيل">' +
-      '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
-      "</button></div>"
-    );
-  }
-
-  function renderAgents() {
-    const box = $("rqAgents");
-    if (box) box.innerHTML = state.agents.map(agentRowHtml).join("");
-  }
-
-  function collectAgents() {
-    return Array.from(document.querySelectorAll("#rqAgents .rq-agent-row")).map((row) => ({
-      name: row.querySelector(".rq-agent-name").value,
-      phone: row.querySelector(".rq-agent-phone").value,
-    }));
-  }
-
   // ------------------------------------------------------- اختيار من القبلة
 
   function fillQiblaPicker() {
@@ -738,8 +706,6 @@
 
     if (m.name) $("rqName").value = String(m.name).trim();
     if (m.requestNo) $("rqMosqueNo").value = String(m.requestNo).trim();
-    if (m.companyRequestNo) $("rqCompanyNo").value = String(m.companyRequestNo).trim();
-    if (m.village) $("rqVillage").value = String(m.village).trim();
 
     // حقل المحافظة في أداة القبلة يحمل "المحافظة - الولاية" معاً
     const raw = String(m.governorate || "");
@@ -750,10 +716,7 @@
       if (raw.includes("-")) $("rqWilaya").value = raw.split("-").pop().trim();
     }
 
-    if (m.agentPhone) {
-      state.agents = [{ name: "", phone: String(m.agentPhone).trim() }];
-      renderAgents();
-    }
+    if (m.agentPhone) $("rqPhone").value = String(m.agentPhone).trim();
 
     // المسجد محفوظ في أداة القبلة، أي أن زيارته تمّت فعلاً
     $("rqVisited").checked = true;
@@ -771,18 +734,14 @@
 
   function openDrawer(record) {
     state.editingId = record ? record.id : null;
-    state.agents =
-      record && record.agents.length ? record.agents.slice() : [{ name: "", phone: "" }];
 
     $("rqDrawerTitle").textContent = record ? "تعديل الطلب" : "طلب جديد";
     $("rqSave").textContent = record ? "حفظ التعديل" : "حفظ الطلب";
 
     $("rqName").value = record ? record.mosqueName : "";
     $("rqMosqueNo").value = record ? record.mosqueRequestNo : "";
-    $("rqCompanyNo").value = record ? record.companyRequestNo : "";
+    $("rqPhone").value = record && record.agents && record.agents[0] ? record.agents[0].phone || "" : "";
     $("rqWilaya").value = record ? record.wilaya : "";
-    $("rqVillage").value = record ? record.village : "";
-    $("rqAmount").value = record && record.amount ? record.amount : "";
     $("rqNotes").value = record ? record.notes : "";
     $("rqReady").checked = !!(record && record.ready);
     $("rqPaid").checked = !!(record && record.paid);
@@ -800,7 +759,6 @@
       fillQiblaPicker();
     }
 
-    renderAgents();
     $("rqError").textContent = "";
     $("rqError").classList.remove("show");
 
@@ -819,12 +777,9 @@
     return {
       mosqueName: $("rqName").value,
       mosqueRequestNo: $("rqMosqueNo").value,
-      companyRequestNo: $("rqCompanyNo").value,
       governorate: $("rqGov").value,
       wilaya: $("rqWilaya").value,
-      village: $("rqVillage").value,
-      amount: $("rqAmount").value,
-      agents: collectAgents(),
+      agents: [{ name: "", phone: $("rqPhone").value }],
       ready: $("rqReady").checked,
       paid: $("rqPaid").checked,
       visited: $("rqVisited").checked,
@@ -1103,22 +1058,6 @@
       toast("أُعيد إلى مستحق التحصيل", "ok");
     });
 
-
-
-    $("rqAddAgent").addEventListener("click", () => {
-      state.agents = collectAgents();
-      state.agents.push({ name: "", phone: "" });
-      renderAgents();
-    });
-
-    $("rqAgents").addEventListener("click", (e) => {
-      const btn = e.target.closest('[data-act="drop-agent"]');
-      if (!btn) return;
-      const idx = Number(btn.closest(".rq-agent-row").dataset.index);
-      state.agents = collectAgents().filter((_, i) => i !== idx);
-      if (!state.agents.length) state.agents = [{ name: "", phone: "" }];
-      renderAgents();
-    });
 
     // تفويض واحد لكل البطاقات — لا مستمع لكل زر
     document.addEventListener("click", (e) => {
