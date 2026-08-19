@@ -1,0 +1,247 @@
+/* ============================================================================
+   أداة متابعة الطلبات — المصفوفة وبطاقاتها فقط.
+
+   كل ما عداها مُعاد من style.css و completed.css: الشريط العلوي، شريط الأدوات،
+   الدرج، النوافذ، الحالة الفارغة، شريط التنبيهات، و .stat-cell. لا تُعرَّف هنا
+   أي قاعدة لتلك المكوّنات — النسختان ستتباعدان مع أول تعديل.
+   ============================================================================ */
+
+/* ------------------------------------------------------- المصفوفة */
+
+.rq-matrix {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-3);
+  align-items: stretch;
+  margin: var(--sp-5) 0;
+}
+
+.rq-axis {
+  display: flex;
+  align-items: center;
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}
+
+.rq-axis-col {
+  padding-inline-start: var(--sp-2);
+}
+
+.rq-axis-row {
+  writing-mode: vertical-rl;
+  justify-content: center;
+  padding-block: var(--sp-3);
+}
+
+/* ------------------------------------------------------- الخانة */
+
+.rq-bucket {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-4);
+  min-width: 0;
+}
+
+/* الحدّ اللوني يميّز الخانتين اللتين تحملان التزاماً: خدمة عليك، أو مال لك.
+   الذهبي لا يُستخدم هنا — يبقى للقيمة المقيسة والفعل الأساسي والحالة النشطة. */
+.rq-bucket.is-priority {
+  border-color: rgba(96, 165, 250, 0.34);
+}
+
+.rq-bucket.is-due {
+  border-color: rgba(248, 113, 113, 0.34);
+}
+
+.rq-bucket.is-done {
+  border-color: rgba(74, 222, 128, 0.24);
+}
+
+.rq-bucket-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.rq-bucket-head h2 {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--paper);
+}
+
+.rq-bucket-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--gold);
+}
+
+.rq-bucket-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.rq-bucket-body.is-archive {
+  padding-top: var(--sp-3);
+}
+
+.rq-bucket-empty {
+  margin: 0;
+  padding: var(--sp-3) 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ------------------------------------------------------- البطاقة */
+
+.rq-card {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  padding: var(--sp-3);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.rq-card:hover {
+  border-color: var(--line-strong);
+}
+
+.rq-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.rq-card-top h3 {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--paper);
+  overflow-wrap: anywhere;
+}
+
+.rq-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.rq-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+
+.rq-no {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-caption);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  padding: 1px 6px;
+}
+
+.rq-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--line);
+}
+
+/* .link-btn و .link-btn.danger معرَّفان في style.css — هنا حالة ذهبية واحدة
+   للفعل الوحيد الذي ينقل السجل بين الأدوات */
+.rq-card-actions .link-btn.is-gold {
+  color: var(--gold);
+}
+
+.rq-card-actions .link-btn.is-gold:hover {
+  color: var(--gold-light);
+}
+
+/* ------------------------------------------------------- الدرج */
+
+.rq-switches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0;
+  padding: var(--sp-3);
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+}
+
+.rq-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-body);
+  color: var(--paper);
+  cursor: pointer;
+}
+
+.rq-switch input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.rq-agents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.rq-agent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) max-content;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+/* ------------------------------------------------------- الهاتف
+
+   نقطة الانكسار الوحيدة: المصفوفة تنهار إلى أقسام مكدّسة، وتُخفى عناوين
+   المحاور لأن كل خانة تحمل عنوانها. المعنى واحد، ولا منطق مكرر في JS.
+   القيمة 860px هي نفسها المستخدمة في style.css للشريط العلوي. */
+
+@media (max-width: 860px) {
+  .rq-matrix {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rq-axis {
+    display: none;
+  }
+
+  .rq-bucket {
+    padding: var(--sp-3);
+  }
+
+  .rq-agent-row {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
+  .rq-agent-row .rq-agent-phone {
+    grid-column: 1 / -1;
+  }
+}

@@ -19,7 +19,7 @@
 // DataAPI إرسالها تلقائياً عند عودة الشبكة — هذا مبني أصلاً في data-api.js.
 // ============================================================================
 
-const VERSION = "sky-v3";
+const VERSION = "sky-v4";
 const SHELL_CACHE = VERSION + "-shell";
 const ASSET_CACHE = VERSION + "-assets";
 
@@ -30,9 +30,13 @@ const SHELL = [
   "./qibla.html",
   "./worktime.html",
   "./completed.html",
+  "./requests.html",
   "./pdf-edit.html",
   "./assets/pdf-edit.js",
   "./assets/pdf-edit.css",
+  "./assets/requests.js",
+  "./assets/requests.css",
+  "./assets/requests-store.js",
   "./assets/hijri.js",
   "./manifest.webmanifest",
   "./favicon.png",

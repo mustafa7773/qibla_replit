@@ -19,8 +19,18 @@
   "use strict";
 
   const MONTHS = [
-    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+    "يناير",
+    "فبراير",
+    "مارس",
+    "أبريل",
+    "مايو",
+    "يونيو",
+    "يوليو",
+    "أغسطس",
+    "سبتمبر",
+    "أكتوبر",
+    "نوفمبر",
+    "ديسمبر",
   ];
 
   // فهارس الأنماط كما تُعرَّف في styles.xml أدناه
@@ -59,20 +69,41 @@
       return '<c r="' + ref + '" s="' + style + '"/>';
     }
     return (
-      '<c r="' + ref + '" s="' + style + '" t="inlineStr"><is><t xml:space="preserve">' +
+      '<c r="' +
+      ref +
+      '" s="' +
+      style +
+      '" t="inlineStr"><is><t xml:space="preserve">' +
       esc(value) +
       "</t></is></c>"
     );
   }
 
   function cellNumber(ref, value, style) {
-    return '<c r="' + ref + '" s="' + style + '"><v>' + (Number(value) || 0) + "</v></c>";
+    return (
+      '<c r="' +
+      ref +
+      '" s="' +
+      style +
+      '"><v>' +
+      (Number(value) || 0) +
+      "</v></c>"
+    );
   }
 
   // يبني ورقة كاملة من صفوف معرَّفة كـ [{v, style, num}]
   function buildSheet(rows, widths) {
     const cols = widths
-      .map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>')
+      .map(
+        (w, i) =>
+          '<col min="' +
+          (i + 1) +
+          '" max="' +
+          (i + 1) +
+          '" width="' +
+          w +
+          '" customWidth="1"/>',
+      )
       .join("");
 
     const body = rows
@@ -97,8 +128,12 @@
       '<pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/>' +
       "</sheetView></sheetViews>" +
       '<sheetFormatPr defaultRowHeight="18"/>' +
-      "<cols>" + cols + "</cols>" +
-      "<sheetData>" + body + "</sheetData>" +
+      "<cols>" +
+      cols +
+      "</cols>" +
+      "<sheetData>" +
+      body +
+      "</sheetData>" +
       "</worksheet>"
     );
   }
@@ -152,7 +187,10 @@
 
   // أسماء أوراق Excel: 31 حرفاً كحد أقصى وبلا الرموز : \ / ? * [ ]
   function safeSheetName(name, used) {
-    let base = String(name).replace(/[:\\\/\?\*\[\]]/g, "-").slice(0, 31) || "ورقة";
+    let base =
+      String(name)
+        .replace(/[:\\\/\?\*\[\]]/g, "-")
+        .slice(0, 31) || "ورقة";
     let out = base;
     let i = 2;
     while (used.has(out)) {
@@ -248,7 +286,11 @@
       summaryRows.push([
         { v: g, style: S.TEXT },
         { v: list.length, style: S.COUNT, num: true },
-        { v: list.reduce((s, r) => s + (Number(r.price) || 0), 0), style: S.MONEY, num: true },
+        {
+          v: list.reduce((s, r) => s + (Number(r.price) || 0), 0),
+          style: S.MONEY,
+          num: true,
+        },
       ]);
     });
 
@@ -265,9 +307,11 @@
 
     // ---------------------------------------------------- ورقة لكل شهر
     monthKeys.forEach((k) => {
-      const list = byMonth[k].slice().sort((a, b) =>
-        String(a.completionDate) < String(b.completionDate) ? -1 : 1,
-      );
+      const list = byMonth[k]
+        .slice()
+        .sort((a, b) =>
+          String(a.completionDate) < String(b.completionDate) ? -1 : 1,
+        );
 
       const rows = [];
       rows.push([{ v: k === "غير محدد" ? k : monthLabel(k), style: S.TITLE }]);
@@ -316,26 +360,42 @@
     // ملاحظة: لا نُنشئ ورقة مستقلة لكل محافظة — الأوراق للأشهر فقط.
     // توزيع المحافظات يبقى كجدول ضمن ورقة "الملخص" أعلاه.
 
-    // ---------------------------------------------------- تجميع الملف
+    return pack(sheets);
+  }
+
+  function pack(sheets) {
+    // يحوّل قائمة أوراق إلى ملف xlsx — مشتركة بين كل أنواع التصدير
     const zip = new window.PizZip();
 
     const sheetRefs = sheets
-      .map((s, i) => '<sheet name="' + esc(s.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>')
+      .map(
+        (s, i) =>
+          '<sheet name="' +
+          esc(s.name) +
+          '" sheetId="' +
+          (i + 1) +
+          '" r:id="rId' +
+          (i + 1) +
+          '"/>',
+      )
       .join("");
 
     const sheetRels = sheets
       .map(
         (s, i) =>
-          '<Relationship Id="rId' + (i + 1) +
+          '<Relationship Id="rId' +
+          (i + 1) +
           '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' +
-          (i + 1) + '.xml"/>',
+          (i + 1) +
+          '.xml"/>',
       )
       .join("");
 
     const overrides = sheets
       .map(
         (s, i) =>
-          '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+          '<Override PartName="/xl/worksheets/sheet' +
+          (i + 1) +
           '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>',
       )
       .join("");
@@ -365,7 +425,9 @@
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
         'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        "<sheets>" + sheetRefs + "</sheets></workbook>",
+        "<sheets>" +
+        sheetRefs +
+        "</sheets></workbook>",
     );
 
     zip.file(
@@ -373,13 +435,16 @@
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         sheetRels +
-        '<Relationship Id="rId' + (sheets.length + 1) +
+        '<Relationship Id="rId' +
+        (sheets.length + 1) +
         '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
         "</Relationships>",
     );
 
     zip.file("xl/styles.xml", stylesXml());
-    sheets.forEach((s, i) => zip.file("xl/worksheets/sheet" + (i + 1) + ".xml", s.xml));
+    sheets.forEach((s, i) =>
+      zip.file("xl/worksheets/sheet" + (i + 1) + ".xml", s.xml),
+    );
 
     return zip.generate({
       type: "blob",
@@ -389,5 +454,146 @@
     });
   }
 
-  window.XlsxExport = { build };
+
+  // ==========================================================================
+  // تصدير الطلبات
+  //
+  // دالة مستقلة لا توسعة لـ build: بنية الطلب مختلفة جذرياً — لا تاريخ إنجاز
+  // واحد تُجمَّع عليه الأشهر، بل محوران ينتجان أربع حالات. الأوراق هنا للحالات
+  // لا للأشهر، وعنوان كل ورقة يقول ما الذي يجب فعله بها.
+  // ==========================================================================
+
+  const REQ_BUCKETS = [
+    { key: "toVisit", title: "أولوية الجدولة (دفع ولم يُزَر)" },
+    { key: "toCollect", title: "مستحق تحصيل (زير ولم يدفع)" },
+    { key: "fresh", title: "طلبات جديدة" },
+    { key: "done", title: "مكتملة" },
+    { key: "archived", title: "مؤرشفة" },
+  ];
+
+  const REQ_HEADERS = [
+    "اسم المسجد", "رقم الطلب بنظام المساجد", "رقم الطلب بالشركة",
+    "المحافظة", "الولاية", "القرية", "الوكيل", "الهاتف",
+    "المبلغ (ر.ع)", "الدفع", "تاريخ الدفع", "الزيارة", "تاريخ الزيارة",
+    "الجاهزية", "ملاحظات",
+  ];
+
+  const REQ_WIDTHS = [28, 20, 18, 20, 16, 16, 20, 14, 14, 10, 14, 10, 14, 12, 30];
+
+  function dayOnly(iso) {
+    return iso ? String(iso).slice(0, 10) : "";
+  }
+
+  function firstAgent(r, field) {
+    const a = (r.agents && r.agents[0]) || {};
+    return a[field] || "";
+  }
+
+  function requestRow(r) {
+    return [
+      { v: r.mosqueName || "—", style: S.TEXT },
+      // الأرقام والهواتف نصوص: تُحفظ الأصفار البادئة ولا يحوّلها Excel
+      { v: r.mosqueRequestNo || "", style: S.COUNT },
+      { v: r.companyRequestNo || "", style: S.COUNT },
+      { v: r.governorate || "", style: S.TEXT },
+      { v: r.wilaya || "", style: S.TEXT },
+      { v: r.village || "", style: S.TEXT },
+      { v: firstAgent(r, "name"), style: S.TEXT },
+      { v: firstAgent(r, "phone"), style: S.COUNT },
+      { v: Number(r.amount) || 0, style: S.MONEY, num: true },
+      { v: r.paid ? "نعم" : "لا", style: S.COUNT },
+      { v: dayOnly(r.paidAt), style: S.COUNT },
+      { v: r.visited ? "نعم" : "لا", style: S.COUNT },
+      { v: dayOnly(r.visitedAt), style: S.COUNT },
+      { v: r.ready ? "جاهز" : "غير جاهز", style: S.COUNT },
+      { v: r.archiveNote || r.notes || "", style: S.TEXT },
+    ];
+  }
+
+  /**
+   * يبني ملف xlsx للطلبات ويُعيده كـ Blob.
+   * groups: ناتج RequestsStore.group(records)
+   */
+  function buildRequests(groups) {
+    if (typeof window.PizZip === "undefined") {
+      throw new Error("مكتبة الضغط غير محمّلة (PizZip).");
+    }
+
+    const g = groups || {};
+    const used = new Set();
+    const sheets = [];
+
+    // ---------------------------------------------------- ورقة الملخص
+    const sum = (list) => list.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+    const rows = [];
+    rows.push([{ v: "ملخص متابعة الطلبات", style: S.TITLE }]);
+    rows.push([
+      { v: "الحالة", style: S.HEADER },
+      { v: "عدد الطلبات", style: S.HEADER },
+      { v: "المبلغ (ر.ع)", style: S.HEADER },
+    ]);
+
+    let totalCount = 0;
+    let totalMoney = 0;
+
+    REQ_BUCKETS.forEach((b) => {
+      const list = g[b.key] || [];
+      const money = sum(list);
+      // المؤرشفة خارج المجموع — أرقامها لا تعبّر عن عمل قائم
+      if (b.key !== "archived") {
+        totalCount += list.length;
+        totalMoney += money;
+      }
+      rows.push([
+        { v: b.title, style: S.TEXT },
+        { v: list.length, style: S.COUNT, num: true },
+        { v: money, style: S.MONEY, num: true },
+      ]);
+    });
+
+    rows.push([
+      { v: "المجموع (بلا المؤرشفة)", style: S.TOTAL_LABEL },
+      { v: totalCount, style: S.TOTAL_LABEL, num: true },
+      { v: totalMoney, style: S.TOTAL_MONEY, num: true },
+    ]);
+
+    // الرقمان اللذان يستحقان أن يُقرآ أولاً
+    rows.push([]);
+    rows.push([{ v: "الأرقام الحرجة", style: S.TITLE }]);
+    rows.push([
+      { v: "مستحق التحصيل (ر.ع)", style: S.TOTAL_LABEL },
+      { v: (g.toCollect || []).length, style: S.TOTAL_LABEL, num: true },
+      { v: sum(g.toCollect || []), style: S.TOTAL_MONEY, num: true },
+    ]);
+    rows.push([
+      { v: "مدفوع بانتظار الزيارة (ر.ع)", style: S.TOTAL_LABEL },
+      { v: (g.toVisit || []).length, style: S.TOTAL_LABEL, num: true },
+      { v: sum(g.toVisit || []), style: S.TOTAL_MONEY, num: true },
+    ]);
+
+    sheets.push({ name: safeSheetName("الملخص", used), xml: buildSheet(rows, [30, 14, 18]) });
+
+    // ---------------------------------------------------- ورقة لكل حالة
+    REQ_BUCKETS.forEach((b) => {
+      const list = g[b.key] || [];
+      if (!list.length) return; // ورقة فارغة ضجيج لا معلومة
+
+      const body = [];
+      body.push([{ v: b.title, style: S.TITLE }]);
+      body.push(REQ_HEADERS.map((h) => ({ v: h, style: S.HEADER })));
+      list.forEach((r) => body.push(requestRow(r)));
+
+      const totals = REQ_HEADERS.map(() => ({ v: "", style: S.TOTAL_LABEL }));
+      totals[0] = { v: "المجموع (" + list.length + " طلب)", style: S.TOTAL_LABEL };
+      totals[8] = { v: sum(list), style: S.TOTAL_MONEY, num: true };
+      body.push(totals);
+
+      sheets.push({ name: safeSheetName(b.title, used), xml: buildSheet(body, REQ_WIDTHS) });
+    });
+
+    return pack(sheets);
+  }
+
+  window.XlsxExport = { build, buildRequests };
 })();

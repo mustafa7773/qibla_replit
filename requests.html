@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#070b14" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="description" content="تابع طلبات تحديد القبلة: من دفع ولم تُنفَّذ زيارته، ومن زير ولم يدفع، ومن اكتمل." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="أدوات ابتكارات السماء" />
+    <meta property="og:locale" content="ar_OM" />
+    <meta property="og:title" content="متابعة الطلبات — أدوات ابتكارات السماء" />
+    <meta property="og:description" content="تابع طلبات تحديد القبلة: من دفع ولم تُنفَّذ زيارته، ومن زير ولم يدفع، ومن اكتمل." />
+    <meta property="og:image" content="assets/icons/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <title>متابعة الطلبات — أدوات ابتكارات السماء</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/hub.css" />
+    <!-- صدفة صفحات السجلات (شريط الأدوات، الدرج، بطاقات المؤشرات، الحالة
+         الفارغة، شريط التنبيهات) معرَّفة في completed.css. تُعاد هنا بدل نسخها،
+         فالنسختان ستتباعدان مع أول تعديل. -->
+    <link rel="stylesheet" href="assets/completed.css" />
+    <link rel="stylesheet" href="assets/requests.css?v=20260819a" />
+  </head>
+  <body>
+
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a class="brand" href="index.html">
+          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="14" y="14" width="36" height="36" rx="4" transform="rotate(45 32 32)"
+                  fill="none" stroke="var(--gold)" stroke-width="2.5"/>
+            <text x="32" y="39" text-anchor="middle" font-size="20" font-weight="700"
+                  fill="var(--gold-light)" font-family="Amiri, serif">س</text>
+          </svg>
+          <span class="brand-text">
+            <span class="brand-ar">ابتكارات السماء</span>
+            <span class="brand-en">SKY INNOVATIONS</span>
+          </span>
+        </a>
+        <nav class="main-nav">
+          <a href="index.html">الرئيسية</a>
+          <a href="qibla.html">اتجاه القبلة</a>
+          <a href="worktime.html">وقت العمل</a>
+          <a href="requests.html" class="is-active" aria-current="page">الطلبات</a>
+          <a href="completed.html">المساجد المنتهية</a>
+          <a href="pdf-edit.html">تعديل التقرير</a>
+        </nav>
+      </div>
+    </header>
+
+    <noscript>
+      <div class="noscript-note">
+        هذه الأداة تحتاج JavaScript لتعمل. فعّله في إعدادات المتصفح ثم أعد تحميل
+        الصفحة.
+      </div>
+    </noscript>
+
+    <main id="main">
+      <div class="wrap page-records">
+        <div class="page-head">
+          <div class="page-title">
+            <h1>متابعة الطلبات</h1>
+            <span class="conn-badge" id="rqConn" title="حالة الاتصال بالخادم">
+              <span class="conn-dot"></span>
+              <span id="rqConnText">جاري الاتصال…</span>
+            </span>
+          </div>
+          <button type="button" class="primary" id="rqOpenForm">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"/></svg>
+            طلب جديد
+          </button>
+        </div>
+
+        <div class="stat-strip" id="rqKpis"></div>
+
+        <div class="records-toolbar">
+          <div class="search-wrap">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                 viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input type="search" id="rqSearch" placeholder="ابحث بالاسم أو رقم الطلب أو الوكيل" aria-label="بحث في الطلبات" />
+          </div>
+
+          <select id="rqFilterGov" aria-label="تصفية بالمحافظة"></select>
+          <select id="rqFilterReady" aria-label="تصفية بالجاهزية">
+            <option value="">الجاهزية: الكل</option>
+            <option value="yes">جاهز للزيارة</option>
+            <option value="no">غير جاهز</option>
+          </select>
+
+          <button type="button" class="chip-btn hidden" id="rqReset">مسح الفلاتر</button>
+
+          <span class="toolbar-gap"></span>
+
+          <button type="button" class="chip-btn" id="rqExport">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+            تصدير Excel
+          </button>
+        </div>
+
+        <!-- ═══ المصفوفة: محورا الدفع والزيارة ═══
+             على الحاسوب شبكة ٢×٢ بعناوين محاور، وعلى الهاتف أقسام مكدّسة.
+             نقطة انكسار واحدة في requests.css، بلا منطق مكرر في JS. -->
+        <div class="rq-matrix" id="rqMatrix">
+          <div class="rq-axis rq-axis-corner" aria-hidden="true"></div>
+          <div class="rq-axis rq-axis-col">لم يدفع</div>
+          <div class="rq-axis rq-axis-col">دفع</div>
+
+          <div class="rq-axis rq-axis-row">لم تتم الزيارة</div>
+
+          <section class="rq-bucket" data-bucket="fresh" aria-labelledby="rqHeadFresh">
+            <header class="rq-bucket-head">
+              <h2 id="rqHeadFresh">طلب جديد</h2>
+              <span class="rq-bucket-count" id="rqCountFresh">0</span>
+            </header>
+            <div class="rq-bucket-body" id="rqListFresh"></div>
+          </section>
+
+          <section class="rq-bucket is-priority" data-bucket="toVisit" aria-labelledby="rqHeadToVisit">
+            <header class="rq-bucket-head">
+              <h2 id="rqHeadToVisit">أولوية الجدولة</h2>
+              <span class="rq-bucket-count" id="rqCountToVisit">0</span>
+            </header>
+            <div class="rq-bucket-body" id="rqListToVisit"></div>
+          </section>
+
+          <div class="rq-axis rq-axis-row">تمت الزيارة</div>
+
+          <section class="rq-bucket is-due" data-bucket="toCollect" aria-labelledby="rqHeadToCollect">
+            <header class="rq-bucket-head">
+              <h2 id="rqHeadToCollect">مستحق تحصيل</h2>
+              <span class="rq-bucket-count" id="rqCountToCollect">0</span>
+            </header>
+            <div class="rq-bucket-body" id="rqListToCollect"></div>
+          </section>
+
+          <section class="rq-bucket is-done" data-bucket="done" aria-labelledby="rqHeadDone">
+            <header class="rq-bucket-head">
+              <h2 id="rqHeadDone">مكتمل</h2>
+              <span class="rq-bucket-count" id="rqCountDone">0</span>
+            </header>
+            <div class="rq-bucket-body" id="rqListDone"></div>
+          </section>
+        </div>
+
+        <div class="empty-state hidden" id="rqEmpty">
+          <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 5h16M4 12h16M4 19h10"/>
+          </svg>
+          <h3 id="rqEmptyTitle">لا توجد طلبات بعد</h3>
+          <p id="rqEmptyText">سجّل أول طلب لتبدأ متابعة الدفع والزيارة.</p>
+          <button type="button" class="primary" id="rqEmptyAdd">إضافة أول طلب</button>
+        </div>
+
+        <details class="analytics" id="rqArchiveBox">
+          <summary>
+            <svg class="chev" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            <span>الطلبات المؤرشفة</span>
+            <span class="hint" id="rqArchiveHint">لا شيء مؤرشف</span>
+          </summary>
+          <div class="rq-bucket-body is-archive" id="rqListArchived"></div>
+        </details>
+
+        <p class="page-note">
+          حالة كل طلب مشتقّة من مفتاحَي الدفع والزيارة، وليست حقلاً منفصلاً — فلا
+          يمكن أن تتناقض. الأرشفة تُخرج الطلب من المصفوفة دون حذفه، ويبقى في
+          ملف Excel بورقة مستقلة.
+        </p>
+      </div>
+
+      <!-- ═══ درج الطلب: إضافة وتعديل ═══ -->
+      <div class="drawer-scrim hidden" id="rqDrawerScrim"></div>
+      <aside class="drawer hidden" id="rqDrawer" role="dialog" aria-modal="true" aria-labelledby="rqDrawerTitle">
+        <div class="drawer-head">
+          <h2 id="rqDrawerTitle">طلب جديد</h2>
+          <button type="button" class="icon-btn" id="rqDrawerClose" aria-label="إغلاق">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="drawer-body">
+          <div class="from-qibla hidden" id="rqFromQiblaBlock">
+            <label for="rqFromQibla">اختر من مساجد أداة القبلة</label>
+            <select id="rqFromQibla"></select>
+            <p class="hint">يملأ الاسم ورقم الطلب والمحافظة والوكيل تلقائياً.</p>
+          </div>
+
+          <div class="field">
+            <label for="rqName">اسم المسجد</label>
+            <input type="text" id="rqName" placeholder="مثال: جامع النور" />
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="rqMosqueNo">رقم الطلب بنظام المساجد <span class="muted-inline">(اختياري)</span></label>
+              <input type="text" id="rqMosqueNo" class="textarea-mono" placeholder="مثال: 4457" />
+            </div>
+            <div class="field">
+              <label for="rqCompanyNo">رقم الطلب بالشركة <span class="muted-inline">(اختياري)</span></label>
+              <input type="text" id="rqCompanyNo" class="textarea-mono" placeholder="مثال: 118" />
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="rqGov">المحافظة <span class="muted-inline">(اختياري)</span></label>
+              <select id="rqGov"></select>
+            </div>
+            <div class="field">
+              <label for="rqWilaya">الولاية <span class="muted-inline">(اختياري)</span></label>
+              <input type="text" id="rqWilaya" placeholder="مثال: نزوى" />
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="rqVillage">القرية <span class="muted-inline">(اختياري)</span></label>
+              <input type="text" id="rqVillage" placeholder="مثال: العقر" />
+            </div>
+            <div class="field">
+              <label for="rqAmount">المبلغ (ر.ع)</label>
+              <input type="number" id="rqAmount" class="textarea-mono" min="0" step="0.001" placeholder="مثال: 450.000" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>وكلاء المسجد <span class="muted-inline">(اختياري)</span></label>
+            <div id="rqAgents" class="rq-agents"></div>
+            <button type="button" class="chip-btn" id="rqAddAgent">إضافة وكيل</button>
+          </div>
+
+          <div class="rq-switches">
+            <label class="rq-switch">
+              <input type="checkbox" id="rqReady" />
+              <span>الموقع جاهز لتحديد القبلة</span>
+            </label>
+            <label class="rq-switch">
+              <input type="checkbox" id="rqPaid" />
+              <span>دفع المبلغ</span>
+            </label>
+            <label class="rq-switch">
+              <input type="checkbox" id="rqVisited" />
+              <span>تمت الزيارة</span>
+            </label>
+          </div>
+
+          <div class="field">
+            <label for="rqNotes">ملاحظات <span class="muted-inline">(اختياري)</span></label>
+            <input type="text" id="rqNotes" placeholder="أي تفاصيل تريد حفظها مع الطلب" />
+          </div>
+
+          <div class="error-box" id="rqError"></div>
+        </div>
+
+        <div class="drawer-foot">
+          <button type="button" class="ghost" id="rqCancel">إلغاء</button>
+          <button type="button" class="primary" id="rqSave">حفظ الطلب</button>
+        </div>
+      </aside>
+
+      <!-- أرشفة مع سبب -->
+      <div class="ocr-modal-overlay hidden" id="rqArchiveModal" role="dialog" aria-modal="true" aria-labelledby="rqArchiveTitle">
+        <div class="ocr-modal-box">
+          <h3 id="rqArchiveTitle">أرشفة الطلب</h3>
+          <p class="sub" id="rqArchiveText"></p>
+          <div class="field">
+            <label for="rqArchiveNote">سبب الأرشفة <span class="muted-inline">(اختياري)</span></label>
+            <input type="text" id="rqArchiveNote" placeholder="مثال: ألغى الوكيل الطلب" />
+          </div>
+          <div class="toolbar">
+            <button type="button" class="ghost" id="rqArchiveCancel">إلغاء</button>
+            <button type="button" class="primary" id="rqArchiveOk">أرشفة</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- حذف نهائي -->
+      <div class="ocr-modal-overlay hidden" id="rqDeleteModal" role="dialog" aria-modal="true" aria-labelledby="rqDeleteTitle">
+        <div class="ocr-modal-box">
+          <h3 id="rqDeleteTitle">حذف نهائي</h3>
+          <p class="sub" id="rqDeleteText"></p>
+          <div class="toolbar">
+            <button type="button" class="ghost" id="rqDeleteCancel">إلغاء</button>
+            <button type="button" class="primary danger" id="rqDeleteOk">حذف</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toast hidden" id="rqToast"></div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/pizzip@3.2.0/dist/pizzip.js"></script>
+    <script src="assets/xlsx-export.js?v=20260819a"></script>
+    <script src="assets/data-api.js?v=20260813a"></script>
+    <script src="assets/config.js?v=20260813a"></script>
+    <script src="assets/mosque-store.js?v=20260819a" defer></script>
+    <script src="assets/governorates.js?v=20260816a" defer></script>
+    <script src="assets/completed-store.js" defer></script>
+    <script src="assets/requests-store.js?v=20260819a" defer></script>
+    <script src="assets/requests.js?v=20260819a" defer></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("sw.js").catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>

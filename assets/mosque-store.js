@@ -163,6 +163,49 @@
     return "مسجد " + formatShortDate();
   }
 
+
+  // ==========================================================================
+  // الربط مع أداة متابعة الطلبات
+  //
+  // متى نعلّم الزيارة؟ ليس عند كل حفظ: saveCurrentMosque تُستدعى مع كل تعديل
+  // حقل، فلو أنشأنا طلباً هناك لتكاثرت سجلات ناقصة بمجرد الكتابة. لذلك:
+  //
+  //   • عند الحساب  → نُحدّث طلباً موجوداً فقط (allowCreate = false)
+  //   • عند تنزيل تقرير Word → نُنشئ الطلب إن لم يوجد (allowCreate = true)،
+  //     لأن التقرير لحظة اكتمال الزيارة فعلياً، وبياناته مكتملة حينها.
+  //
+  // وفي الحالتين نشترط رقم الطلب بنظام المساجد — بلا رقم لا مطابقة، ولا نريد
+  // سجلات يتيمة يستحيل ربطها لاحقاً.
+  // ==========================================================================
+
+  function syncRequestVisit(entry, allowCreate) {
+    if (!entry || !window.RequestsStore) return;
+
+    const no = String(entry.requestNo || "").trim();
+    if (!no) return;
+
+    const existing = window.RequestsStore.findByRequestNo(no);
+    if (!existing && !allowCreate) return;
+    if (existing && existing.visited) return; // معلَّم أصلاً — لا كتابة بلا داعٍ
+
+    // حقل المحافظة في صفحة القبلة يحمل "المحافظة - الولاية" معاً
+    const raw = String(entry.governorate || "");
+    const gov = window.Governorates ? window.Governorates.governorateOf(raw) || raw : raw;
+    const wilaya = raw.includes("-") ? raw.split("-").pop().trim() : "";
+
+    const out = window.RequestsStore.markVisitedFromQibla({
+      mosqueName: entry.name,
+      mosqueRequestNo: no,
+      companyRequestNo: entry.companyRequestNo,
+      governorate: gov,
+      wilaya,
+      village: entry.village,
+      agents: entry.agentPhone ? [{ name: "", phone: entry.agentPhone }] : [],
+    });
+
+    if (out && out.promise) out.promise.catch(() => {});
+  }
+
   function saveCurrentMosque() {
     const coords = parseSurveyCoords();
     if (!coords) return null;
@@ -215,7 +258,7 @@
 
       if (ready) {
         clearInterval(timer);
-        saveCurrentMosque();
+        syncRequestVisit(saveCurrentMosque(), false);
       } else if (attempts > 40) {
         clearInterval(timer);
       }
@@ -246,6 +289,8 @@
   // نحفظ/نحدّث أيضاً عند تنزيل تقرير Word
   const wordBtn = document.getElementById("downloadWordBtn");
   if (wordBtn) {
-    wordBtn.addEventListener("click", () => setTimeout(saveCurrentMosque, 300));
+    wordBtn.addEventListener("click", () =>
+      setTimeout(() => syncRequestVisit(saveCurrentMosque(), true), 300),
+    );
   }
 })();
