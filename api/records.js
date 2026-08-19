@@ -14,18 +14,19 @@
 // المفاتيح المستخدمة في القاعدة:
 //   sky:completed  → المساجد المنتهية
 //   sky:qibla      → مساجد أداة القبلة
+//   sky:requests   → طلبات تحديد القبلة (الدفع والزيارة والجاهزية)
 //
 // الإعداد مرة واحدة في Vercel:
 //   Storage → Create → Upstash Redis (أو KV) → Connect to project
 //   يضبط Vercel متغيّري البيئة تلقائياً، ثم أعد النشر.
 //
 // العمليات:
-//   GET    /api/records?type=completed|qibla
+//   GET    /api/records?type=completed|qibla|requests
 //   POST   /api/records   { type, records:[...] }
 //   DELETE /api/records   { type, recordId }
 // ============================================================================
 
-const ALLOWED_TYPES = ["completed", "qibla"];
+const ALLOWED_TYPES = ["completed", "qibla", "requests"];
 
 // أسماء متغيّرات البيئة تختلف بين تكامل KV وتكامل Upstash المباشر
 function creds() {
