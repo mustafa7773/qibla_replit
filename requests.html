@@ -11,15 +11,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="أدوات السماء" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="description" content="تابع طلبات تحديد القبلة: من دفع ولم تُنفَّذ زيارته، ومن زير ولم يدفع، ومن اكتمل." />
+    <meta name="description" content="تابع طلبات تحديد القبلة على محورَي الدفع والزيارة، وسجّل المساجد المنتهية بإحصاءاتها في مكان واحد." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="أدوات ابتكارات السماء" />
     <meta property="og:locale" content="ar_OM" />
-    <meta property="og:title" content="متابعة الطلبات — أدوات ابتكارات السماء" />
-    <meta property="og:description" content="تابع طلبات تحديد القبلة: من دفع ولم تُنفَّذ زيارته، ومن زير ولم يدفع، ومن اكتمل." />
+    <meta property="og:title" content="الطلبات والمساجد المنتهية — أدوات ابتكارات السماء" />
+    <meta property="og:description" content="تابع طلبات تحديد القبلة على محورَي الدفع والزيارة، وسجّل المساجد المنتهية بإحصاءاتها في مكان واحد." />
     <meta property="og:image" content="assets/icons/icon-512.png" />
     <meta name="twitter:card" content="summary" />
-    <title>متابعة الطلبات — أدوات ابتكارات السماء</title>
+    <title>الطلبات والمساجد المنتهية — أدوات ابتكارات السماء</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -31,7 +31,7 @@
     <!-- صدفة صفحات السجلات (شريط الأدوات، الدرج، بطاقات المؤشرات، الحالة
          الفارغة، شريط التنبيهات) معرَّفة في completed.css. تُعاد هنا بدل نسخها،
          فالنسختان ستتباعدان مع أول تعديل. -->
-    <link rel="stylesheet" href="assets/completed.css" />
+    <link rel="stylesheet" href="assets/records.css" />
     <link rel="stylesheet" href="assets/requests.css?v=20260819a" />
   </head>
   <body>
@@ -55,7 +55,6 @@
           <a href="qibla.html">اتجاه القبلة</a>
           <a href="worktime.html">وقت العمل</a>
           <a href="requests.html" class="is-active" aria-current="page">الطلبات</a>
-          <a href="completed.html">المساجد المنتهية</a>
           <a href="pdf-edit.html">تعديل التقرير</a>
         </nav>
       </div>
@@ -72,7 +71,7 @@
       <div class="wrap page-records">
         <div class="page-head">
           <div class="page-title">
-            <h1>متابعة الطلبات</h1>
+            <h1>الطلبات</h1>
             <span class="conn-badge" id="rqConn" title="حالة الاتصال بالخادم">
               <span class="conn-dot"></span>
               <span id="rqConnText">جاري الاتصال…</span>
@@ -82,6 +81,19 @@
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"/></svg>
             طلب جديد
+          </button>
+        </div>
+
+
+        <!-- ═══ عرضان على بيانات واحدة ═══
+             المتابعة = العمل القائم · السجل = ما اكتمل. لا مخزنان ولا إدخال
+             مزدوج: الطلب يظهر في السجل تلقائياً حين يجتمع الدفع والزيارة. -->
+        <div class="rq-views" role="tablist" aria-label="طريقة العرض">
+          <button type="button" class="rq-view-btn is-active" id="rqViewBoard"
+                  role="tab" aria-selected="true">المتابعة</button>
+          <button type="button" class="rq-view-btn" id="rqViewLedger"
+                  role="tab" aria-selected="false">المساجد المنتهية
+            <span class="rq-view-count" id="rqLedgerCount"></span>
           </button>
         </div>
 
@@ -100,6 +112,9 @@
             <option value="yes">جاهز للزيارة</option>
             <option value="no">غير جاهز</option>
           </select>
+
+          <select id="rqFilterYear" class="hidden" aria-label="تصفية بالسنة"></select>
+          <select id="rqFilterMonth" class="hidden" aria-label="تصفية بالشهر"></select>
 
           <button type="button" class="chip-btn hidden" id="rqReset">مسح الفلاتر</button>
 
@@ -157,6 +172,70 @@
           </section>
         </div>
 
+
+        <!-- ═══ السجل: جدول المساجد المنتهية ورسومه ═══ -->
+        <div class="rq-ledger hidden" id="rqLedger">
+          <div class="records-card">
+            <div class="table-scroll">
+              <table class="data-table" id="rqTable">
+                <thead>
+                  <tr>
+                    <th data-sort="completedAt" class="is-sortable">تاريخ الإنجاز</th>
+                    <th data-sort="mosqueName" class="is-sortable">اسم المسجد</th>
+                    <th data-sort="mosqueRequestNo" class="is-sortable">رقم الطلب</th>
+                    <th data-sort="governorate" class="is-sortable">المحافظة</th>
+                    <th>هاتف الوكيل</th>
+                    <th data-sort="amount" class="is-sortable">المبلغ (ر.ع)</th>
+                    <th class="col-actions"><span class="sr-only">إجراءات</span></th>
+                  </tr>
+                </thead>
+                <tbody id="rqTableBody"></tbody>
+                <tfoot id="rqTableFoot"></tfoot>
+              </table>
+            </div>
+
+            <p class="rq-bucket-empty hidden" id="rqLedgerEmpty"></p>
+
+            <div class="records-foot">
+              <span class="table-count" id="rqTableCount"></span>
+              <button type="button" class="chip-btn hidden" id="rqMore">عرض ٢٥ إضافية</button>
+            </div>
+          </div>
+
+          <details class="analytics" id="rqAnalytics">
+            <summary>
+              <svg class="chev" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+              <span>التحليلات والرسوم البيانية</span>
+              <span class="hint">تتبع الفلاتر المختارة أعلاه</span>
+            </summary>
+            <div class="chart-grid">
+              <div class="chart-card">
+                <h3>الإيراد الشهري</h3>
+                <div class="chart-body" id="rqChartRevenue" role="img" aria-label="رسم بياني لإجمالي الإيراد في كل شهر"></div>
+              </div>
+              <div class="chart-card">
+                <h3>المساجد المنتهية شهرياً</h3>
+                <div class="chart-body" id="rqChartCount" role="img" aria-label="رسم بياني لعدد المساجد المنتهية في كل شهر"></div>
+              </div>
+              <div class="chart-card">
+                <h3>التوزيع حسب المحافظة</h3>
+                <div class="chart-body" id="rqChartGov" role="img" aria-label="رسم بياني لتوزيع المساجد على المحافظات"></div>
+              </div>
+              <div class="chart-card">
+                <h3>مقارنة السنوات</h3>
+                <div class="chart-body" id="rqChartYear" role="img" aria-label="رسم بياني لمقارنة الإيراد بين السنوات"></div>
+              </div>
+            </div>
+          </details>
+
+          <!-- يظهر مرة واحدة: بعد الاستيراد لا يبقى ما يُستورد -->
+          <div class="rq-import hidden" id="rqImportBox">
+            <p id="rqImportText"></p>
+            <button type="button" class="chip-btn" id="rqImportBtn">استيراد السجلات القديمة</button>
+          </div>
+        </div>
+
         <div class="empty-state hidden" id="rqEmpty">
           <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"
                stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
@@ -180,7 +259,7 @@
         <p class="page-note">
           حالة كل طلب مشتقّة من مفتاحَي الدفع والزيارة، وليست حقلاً منفصلاً — فلا
           يمكن أن تتناقض. الأرشفة تُخرج الطلب من المصفوفة دون حذفه، ويبقى في
-          ملف Excel بورقة مستقلة.
+          ملف Excel بورقة مستقلة. والطلب ينتقل إلى «المساجد المنتهية» تلقائياً حين يجتمع الدفع والزيارة.
         </p>
       </div>
 
@@ -261,6 +340,12 @@
             </label>
           </div>
 
+          <div class="field hidden" id="rqCompletedField">
+            <label for="rqCompletedAt">تاريخ الإنجاز</label>
+            <input type="date" id="rqCompletedAt" class="textarea-mono" />
+            <p class="hint">يُكتب تلقائياً عند اكتمال الدفع والزيارة، وتستطيع تصحيحه.</p>
+          </div>
+
           <div class="field">
             <label for="rqNotes">ملاحظات <span class="muted-inline">(اختياري)</span></label>
             <input type="text" id="rqNotes" placeholder="أي تفاصيل تريد حفظها مع الطلب" />
@@ -312,7 +397,6 @@
     <script src="assets/config.js?v=20260813a"></script>
     <script src="assets/mosque-store.js?v=20260819a" defer></script>
     <script src="assets/governorates.js?v=20260816a" defer></script>
-    <script src="assets/completed-store.js" defer></script>
     <script src="assets/requests-store.js?v=20260819a" defer></script>
     <script src="assets/requests.js?v=20260819a" defer></script>
     <script>

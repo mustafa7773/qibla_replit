@@ -175,6 +175,86 @@
   color: var(--gold-light);
 }
 
+/* ------------------------------------------------------- مبدّل العرض
+
+   عرضان على بيانات واحدة: المتابعة للعمل القائم، والسجل لما اكتمل.
+   الذهبي على القرص النشط — نفس دور الشريط العلوي. */
+
+.rq-views {
+  display: flex;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-5);
+  padding: var(--sp-1);
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.rq-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-5);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-body);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.rq-view-btn:hover {
+  color: var(--paper);
+}
+
+.rq-view-btn.is-active {
+  background: var(--gold);
+  color: #1a1204;
+  font-weight: 600;
+}
+
+.rq-view-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-caption);
+  opacity: 0.75;
+}
+
+/* ------------------------------------------------------- السجل */
+
+.rq-see-all {
+  align-self: center;
+  margin-top: var(--sp-2);
+  color: var(--gold);
+}
+
+.rq-import {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+  padding: var(--sp-4);
+  background: var(--gold-wash);
+  border: 1px solid var(--gold-glow);
+  border-radius: var(--radius-sm);
+}
+
+.rq-import p {
+  flex: 1 1 260px;
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
 /* ------------------------------------------------------- الدفع السريع
 
    صف إدخال يحلّ محل أزرار البطاقة بدل فتح الدرج. البطاقة تحتفظ بمكانها في

@@ -17,7 +17,10 @@
   const RECENT_QIBLA_LIMIT = 40;
 
   const state = {
-    filters: { search: "", governorate: "", ready: null },
+    view: "board", // board = المتابعة · ledger = المساجد المنتهية
+    filters: { search: "", governorate: "", ready: null, year: "", month: "" },
+    sort: { key: "completedAt", dir: "desc" },
+    limit: 25,
     editingId: null,
     payingId: null,
     archiveId: null,
@@ -55,6 +58,30 @@
     if (n === 2) return "منذ يومين";
     if (n <= 10) return "منذ " + n + " أيام";
     return "منذ " + n + " يوماً";
+  }
+
+
+  const MONTHS_AR = [
+    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+  ];
+
+  function monthLabel(key) {
+    const parts = String(key).split("-");
+    return (MONTHS_AR[parseInt(parts[1], 10) - 1] || "") + " " + parts[0];
+  }
+
+  function shortMonth(key) {
+    const parts = String(key).split("-");
+    const name = MONTHS_AR[parseInt(parts[1], 10) - 1] || "";
+    return name.slice(0, 3);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return "—";
+    const parts = String(iso).slice(0, 10).split("-");
+    if (parts.length !== 3) return "—";
+    return "\u200e" + parts[2] + "-" + parts[1] + "-" + parts[0];
   }
 
   // completed.css يعرّف is-error و is-ok فقط
@@ -237,9 +264,6 @@
         '<button type="button" class="link-btn" data-act="visited">' +
         (r.visited ? "إلغاء الزيارة" : "تعليم الزيارة") +
         "</button>" +
-        (bucket === "done"
-          ? '<button type="button" class="link-btn is-gold" data-act="complete">نقل للمنتهية</button>'
-          : "") +
         '<button type="button" class="link-btn" data-act="edit">تعديل</button>' +
         '<button type="button" class="link-btn" data-act="archive">أرشفة</button>';
     }
@@ -295,17 +319,70 @@
     return { all, visible, groups };
   }
 
+  function setView(view) {
+    state.view = view;
+    state.limit = 25;
+
+    $("rqViewBoard").classList.toggle("is-active", view === "board");
+    $("rqViewLedger").classList.toggle("is-active", view === "ledger");
+    $("rqViewBoard").setAttribute("aria-selected", String(view === "board"));
+    $("rqViewLedger").setAttribute("aria-selected", String(view === "ledger"));
+
+    // فلاتر كل عرض تخصّه: الجاهزية بلا معنى في السجل، والسنة بلا معنى في المتابعة
+    $("rqFilterReady").classList.toggle("hidden", view !== "board");
+    $("rqFilterYear").classList.toggle("hidden", view !== "ledger");
+    $("rqFilterMonth").classList.toggle("hidden", view !== "ledger");
+    $("rqArchiveBox").classList.toggle("hidden", view !== "board");
+
+    $("rqSearch").placeholder =
+      view === "board" ? "ابحث بالاسم أو رقم الطلب أو الوكيل" : "ابحث في المساجد المنتهية";
+
+    renderAll();
+  }
+
   function renderAll() {
     const { all, visible, groups } = visibleGroups();
 
     fillGovernorateSelects(all);
+
+    const completeCount = RequestsStore.ledger(all).length;
+    $("rqLedgerCount").textContent = completeCount ? String(completeCount) : "";
+
+    const ledgerView = state.view === "ledger";
+    $("rqMatrix").classList.toggle("hidden", ledgerView || !all.length);
+    $("rqLedger").classList.toggle("hidden", !ledgerView);
+
+    if (ledgerView) {
+      $("rqEmpty").classList.add("hidden");
+      renderLedger();
+      const filtering =
+        state.filters.search || state.filters.governorate || state.filters.year || state.filters.month;
+      $("rqReset").classList.toggle("hidden", !filtering);
+      return;
+    }
+
     renderKpis(RequestsStore.stats(visible));
 
     BUCKETS.forEach((b) => {
       const cap = b.charAt(0).toUpperCase() + b.slice(1);
-      renderBucket("rqList" + cap, groups[b], b);
+      const list = groups[b];
+
+      // المكتمل يتراكم بلا حد، فتطول الخانة حتى تكسر شكل المصفوفة. نعرض
+      // أحدث عشرة ونحيل الباقي إلى السجل حيث الجدول والبحث والفلاتر.
+      if (b === "done" && list.length > 10) {
+        renderBucket("rqListDone", list.slice(0, 10), b);
+        $("rqListDone").insertAdjacentHTML(
+          "beforeend",
+          '<button type="button" class="link-btn rq-see-all" id="rqSeeAll">و' +
+            (list.length - 10) +
+            " أخرى في السجل ←</button>",
+        );
+      } else {
+        renderBucket("rqList" + cap, list, b);
+      }
+
       const counter = $("rqCount" + cap);
-      if (counter) counter.textContent = String(groups[b].length);
+      if (counter) counter.textContent = String(list.length);
     });
 
     renderBucket("rqListArchived", groups.archived, "archived");
@@ -321,6 +398,276 @@
     const filtering =
       state.filters.search || state.filters.governorate || state.filters.ready !== null;
     $("rqReset").classList.toggle("hidden", !filtering);
+  }
+
+
+  // ================================================================ السجل
+  //
+  // الجدول والرسوم منقولة من أداة المساجد المنتهية المحذوفة، بلا تغيير في
+  // شكلها البصري — تغيّر مصدر البيانات فقط: الطلبات المكتملة بدل مخزن ثانٍ.
+
+  const ICON_EDIT =
+    '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>';
+
+  const ICON_BACK =
+    '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg>';
+
+  function ledgerRows() {
+    const all = RequestsStore.loadAll();
+    const rows = RequestsStore.ledgerFilters(RequestsStore.ledger(all), state.filters);
+    const key = state.sort.key;
+    const mul = state.sort.dir === "asc" ? 1 : -1;
+
+    return rows.slice().sort((a, b) => {
+      let x = a[key];
+      let y = b[key];
+      if (key === "amount") {
+        x = Number(x) || 0;
+        y = Number(y) || 0;
+      } else {
+        x = String(x || "");
+        y = String(y || "");
+      }
+      if (x < y) return -1 * mul;
+      if (x > y) return 1 * mul;
+      return 0;
+    });
+  }
+
+  function ledgerRowHtml(r) {
+    const phone = ((r.agents && r.agents[0]) || {}).phone || "—";
+    return (
+      '<tr data-id="' + esc(r.id) + '">' +
+      '<td class="mono" data-label="تاريخ الإنجاز">' + formatDate(r.completedAt) + "</td>" +
+      '<td class="name" data-label="اسم المسجد">' + esc(r.mosqueName || "—") + "</td>" +
+      '<td class="mono" data-label="رقم الطلب">' + esc(r.mosqueRequestNo || "—") + "</td>" +
+      '<td data-label="المحافظة">' + esc(r.governorate || "—") + "</td>" +
+      '<td class="mono" data-label="هاتف الوكيل">' + esc(phone) + "</td>" +
+      '<td class="price" data-label="المبلغ (ر.ع)">' + money(r.amount) + "</td>" +
+      '<td class="row-actions col-actions">' +
+      '<button type="button" class="icon-btn" data-ledger="edit" data-id="' + esc(r.id) +
+      '" aria-label="تعديل السجل" title="تعديل">' + ICON_EDIT + "</button>" +
+      '<button type="button" class="icon-btn" data-ledger="reopen" data-id="' + esc(r.id) +
+      '" aria-label="إعادة إلى المتابعة" title="إعادة إلى المتابعة">' + ICON_BACK + "</button>" +
+      "</td></tr>"
+    );
+  }
+
+  function fillPeriodFilters(rows) {
+    const years = Array.from(new Set(rows.map((r) => (r.completedAt || "").slice(0, 4)).filter(Boolean))).sort().reverse();
+    const y = $("rqFilterYear");
+    const keepY = y.value;
+    y.innerHTML =
+      '<option value="">السنة: الكل</option>' +
+      years.map((v) => '<option value="' + esc(v) + '">' + esc(v) + "</option>").join("");
+    if (years.indexOf(keepY) !== -1) y.value = keepY;
+
+    const m = $("rqFilterMonth");
+    if (!m.options.length) {
+      m.innerHTML =
+        '<option value="">الشهر: الكل</option>' +
+        MONTHS_AR.map((n, i) => '<option value="' + String(i + 1).padStart(2, "0") + '">' + n + "</option>").join("");
+    }
+  }
+
+  function renderLedgerKpis(rows, stats) {
+    const box = $("rqKpis");
+    const cards = [
+      { label: "مساجد هذا الشهر", value: String(stats.thisMonth.count), note: money(stats.thisMonth.revenue) + " ر.ع" },
+      { label: "إيراد هذا الشهر (ر.ع)", value: money(stats.thisMonth.revenue), note: stats.thisMonth.count + " مسجداً", tone: stats.thisMonth.count ? "is-up" : "" },
+      { label: "إيراد هذه السنة (ر.ع)", value: money(stats.thisYear.revenue), note: stats.thisYear.count + " مسجداً" },
+      { label: "متوسط المبلغ (ر.ع)", value: money(stats.average), note: "من " + rows.length + " سجلاً معروضاً" },
+    ];
+    box.innerHTML = cards
+      .map(
+        (c) =>
+          '<div class="stat-cell"><span class="stat-cell-label">' + esc(c.label) + "</span>" +
+          '<span class="stat-cell-value">' + esc(c.value) + "</span>" +
+          '<span class="stat-cell-delta ' + (c.tone || "") + '">' + esc(c.note) + "</span></div>",
+      )
+      .join("");
+  }
+
+  // --------------------------------------------------------- الرسوم البيانية
+
+  function barChart(container, data, valueKey, formatter) {
+    if (!data.length) {
+      container.innerHTML = '<p class="chart-empty">لا توجد بيانات لعرضها.</p>';
+      return;
+    }
+    const rows = data.slice(-12);
+    const max = Math.max.apply(null, rows.map((d) => d[valueKey])) || 1;
+    const W = 100;
+    const H = 46;
+    const gap = 1.6;
+    const barW = Math.max(2, (W - gap * (rows.length - 1)) / rows.length);
+
+    const bars = rows
+      .map((d, i) => {
+        const h = Math.max(0.6, (d[valueKey] / max) * (H - 10));
+        const x = i * (barW + gap);
+        const y = H - 8 - h;
+        return (
+          "<g><title>" + esc(monthLabel(d.key) + " — " + formatter(d[valueKey])) + "</title>" +
+          '<rect x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '" width="' + barW.toFixed(2) +
+          '" height="' + h.toFixed(2) + '" rx="0.8" class="bar" />' +
+          '<text x="' + (x + barW / 2).toFixed(2) + '" y="' + (H - 2) + '" class="bar-label">' +
+          esc(shortMonth(d.key)) + "</text></g>"
+        );
+      })
+      .join("");
+
+    const gradId = "barGrad_" + Math.random().toString(36).slice(2, 8);
+    const defs =
+      '<defs><linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="#e8c473"/><stop offset="100%" stop-color="#5fbfa8"/>' +
+      "</linearGradient></defs>";
+
+    container.innerHTML =
+      '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" class="chart-svg" role="img" style="--bar-fill:url(#' + gradId + ')">' +
+      defs + bars + "</svg>" +
+      '<div class="chart-scale"><span>' + formatter(max) + "</span><span>0</span></div>";
+  }
+
+  function hbarChart(container, data, formatter, emptyText) {
+    if (!data.length) {
+      container.innerHTML = '<p class="chart-empty">' + emptyText + "</p>";
+      return;
+    }
+    const max = Math.max.apply(null, data.map((d) => d.revenue)) || 1;
+    container.innerHTML =
+      '<ul class="hbar-list">' +
+      data
+        .slice(0, 8)
+        .map((d) => {
+          const pct = Math.max(2, (d.revenue / max) * 100);
+          return (
+            '<li class="hbar"><span class="hbar-name">' + esc(d.key) + "</span>" +
+            '<span class="hbar-track"><span class="hbar-fill" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+            '<span class="hbar-val">' + formatter(d.revenue) + "</span></li>"
+          );
+        })
+        .join("") +
+      "</ul>";
+  }
+
+  function renderCharts(stats) {
+    // لا نرسم ما هو مطويّ — عمل ضائع حتى يُفتح القسم
+    if (!$("rqAnalytics").open) return;
+    const rial = (v) => money(v) + " ر.ع";
+    barChart($("rqChartRevenue"), stats.byMonth, "revenue", rial);
+    barChart($("rqChartCount"), stats.byMonth, "count", (v) => v + " مسجد");
+    hbarChart($("rqChartGov"), stats.byGovernorate, rial, "لا توجد بيانات لعرضها.");
+    hbarChart(
+      $("rqChartYear"),
+      stats.byYear.length > 1 ? stats.byYear : [],
+      rial,
+      "تظهر المقارنة عند وجود سجلات في أكثر من سنة.",
+    );
+  }
+
+  function renderLedger() {
+    const all = RequestsStore.loadAll();
+    const complete = RequestsStore.ledger(all);
+    fillPeriodFilters(complete);
+
+    const rows = ledgerRows();
+    const slice = rows.slice(0, state.limit);
+    const stats = RequestsStore.ledgerStats(rows);
+
+    renderLedgerKpis(rows, stats);
+    $("rqTableBody").innerHTML = slice.map(ledgerRowHtml).join("");
+
+    // صف المجموع يعكس ما بعد الفلترة، فيصير جواباً على سؤال حقيقي
+    const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    $("rqTableFoot").innerHTML = rows.length
+      ? '<tr><td colspan="5" data-label="الإجمالي">مجموع ' + rows.length + " سجلاً" +
+        (rows.length !== complete.length ? " (من " + complete.length + ")" : "") + "</td>" +
+        '<td class="price" data-label="الإجمالي (ر.ع)">' + money(total) + "</td><td></td></tr>"
+      : "";
+
+    $("rqTable").classList.toggle("hidden", !rows.length);
+
+    // الرسالة تفرّق بين "لا سجلات أصلاً" و"الفلتر أخفى كل شيء" — الحل مختلف
+    const empty = $("rqLedgerEmpty");
+    empty.classList.toggle("hidden", rows.length > 0);
+    if (!rows.length) {
+      empty.textContent = complete.length
+        ? "لا نتائج لهذه الفلاتر. جرّب توسيع النطاق أو مسحها."
+        : "لا مساجد منتهية بعد. الطلب يظهر هنا تلقائياً حين يجتمع الدفع والزيارة.";
+    }
+    $("rqTableCount").textContent = rows.length ? "عرض " + slice.length + " من " + rows.length + " سجل" : "";
+    $("rqMore").classList.toggle("hidden", slice.length >= rows.length);
+
+    document.querySelectorAll("#rqTable th[data-sort]").forEach((th) => {
+      const active = th.getAttribute("data-sort") === state.sort.key;
+      th.classList.toggle("is-active", active);
+      th.setAttribute("data-dir", active ? state.sort.dir : "");
+    });
+
+    renderCharts(stats);
+    renderImportBox();
+  }
+
+  // ------------------------------------------------------- استيراد القديم
+
+  let legacyRows = null;
+
+  async function checkLegacy() {
+    if (!window.DataAPI) return;
+    try {
+      legacyRows = await window.DataAPI.list("completed");
+    } catch (e) {
+      legacyRows = null; // الخادم لا يجيب — نحاول لاحقاً
+    }
+    renderImportBox();
+  }
+
+  function renderImportBox() {
+    const box = $("rqImportBox");
+    if (!box) return;
+
+    if (!legacyRows || !legacyRows.length) {
+      box.classList.add("hidden");
+      return;
+    }
+
+    const known = new Set(RequestsStore.loadAll().map((r) => String(r.legacyId || "")).filter(Boolean));
+    const pending = legacyRows.filter((r) => !known.has(String(r.recordId || "")));
+
+    if (!pending.length) {
+      box.classList.add("hidden");
+      return;
+    }
+
+    box.classList.remove("hidden");
+    $("rqImportText").textContent =
+      "في قاعدة البيانات " + pending.length +
+      " سجلاً من أداة المساجد المنتهية القديمة لم تُنقل بعد. الاستيراد لا يحذف الأصل.";
+  }
+
+  function runImport() {
+    if (!legacyRows || !legacyRows.length) return;
+
+    const out = RequestsStore.importCompleted(legacyRows);
+    if (out.promises.length) {
+      Promise.all(out.promises.map((p) => p.catch(() => null))).then(() => {
+        renderAll();
+        renderImportBox();
+      });
+    }
+
+    renderAll();
+    renderImportBox();
+    toast(
+      "استُورد " + out.added + " سجلاً" +
+        (out.merged ? " ودُمج " + out.merged + " مع طلبات قائمة" : ""),
+      "ok",
+    );
   }
 
   // ---------------------------------------------------------------- الوكلاء
@@ -428,6 +775,13 @@
 
   // ---------------------------------------------------------------- الدرج
 
+
+  // تاريخ الإنجاز يظهر فقط حين يكون له معنى — أي عند اجتماع المحورين
+  function syncCompletedField() {
+    const done = $("rqPaid").checked && $("rqVisited").checked;
+    $("rqCompletedField").classList.toggle("hidden", !done);
+  }
+
   function openDrawer(record) {
     state.editingId = record ? record.id : null;
     state.agents =
@@ -446,6 +800,8 @@
     $("rqReady").checked = !!(record && record.ready);
     $("rqPaid").checked = !!(record && record.paid);
     $("rqVisited").checked = !!(record && record.visited);
+    $("rqCompletedAt").value = record ? record.completedAt || "" : "";
+    syncCompletedField();
 
     fillGovernorateSelects(RequestsStore.loadAll());
     $("rqGov").value = record ? record.governorate : "";
@@ -485,6 +841,7 @@
       ready: $("rqReady").checked,
       paid: $("rqPaid").checked,
       visited: $("rqVisited").checked,
+      completedAt: $("rqCompletedAt").value,
       notes: $("rqNotes").value,
     };
   }
@@ -582,7 +939,6 @@
       return;
     }
 
-    if (act === "complete") return sendToCompleted(record);
   }
 
 
@@ -624,32 +980,55 @@
     toast("سُجّل الدفع", "ok");
   }
 
-  // نقل المكتمل إلى أداة المساجد المنتهية ثم أرشفته هنا — إدخال واحد لا اثنان
-  function sendToCompleted(record) {
-    if (!window.CompletedStore) return toast("أداة المساجد المنتهية غير محمّلة", "error");
-
-    const input = RequestsStore.toCompletedInput(record);
-    const errors = window.CompletedStore.validate(input);
-    if (errors.length) {
-      toast(errors[0], "error");
-      return openDrawer(record);
-    }
-
-    const added = window.CompletedStore.add(input);
-    if (!added.ok) return toast(added.errors[0] || "تعذّر النقل", "error");
-    if (added.promise) added.promise.catch(() => {});
-
-    trackSync(RequestsStore.archive(record.id, "نُقل إلى المساجد المنتهية"));
-    renderAll();
-    toast("نُقل إلى المساجد المنتهية", "ok");
-  }
-
   // ---------------------------------------------------------------- التصدير
 
-  function exportXlsx() {
-    if (!window.XlsxExport || typeof window.XlsxExport.buildRequests !== "function") {
-      return toast("مولّد Excel غير محمّل.", "error");
+  function download(blob, name) {
+    const now = new Date();
+    const stamp =
+      now.getFullYear() +
+      "-" +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(now.getDate()).padStart(2, "0");
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name + " " + stamp + ".xlsx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("نُزّل الملف.", "ok");
+  }
+
+  // السجل يُصدَّر بمولّد المساجد المنتهية نفسه (ورقة لكل شهر)، والمتابعة
+  // بمولّد الحالات. نفس الملفين اللذين كان ينتجهما الموقع قبل الدمج.
+  function exportLedger() {
+    const rows = ledgerRows();
+    if (!rows.length) return toast("لا توجد سجلات لتصديرها.", "error");
+
+    try {
+      const blob = window.XlsxExport.build(
+        rows.map((r) => ({
+          mosqueName: r.mosqueName,
+          requestNo: r.mosqueRequestNo,
+          completionDate: r.completedAt,
+          governorate: r.governorate,
+          agentPhone: ((r.agents && r.agents[0]) || {}).phone || "",
+          price: r.amount,
+          notes: r.notes,
+        })),
+      );
+      download(blob, "المساجد المنتهية");
+    } catch (err) {
+      toast("تعذّر إنشاء الملف: " + (err && err.message ? err.message : "خطأ غير متوقع"), "error");
     }
+  }
+
+  function exportXlsx() {
+    if (!window.XlsxExport) return toast("مولّد Excel غير محمّل.", "error");
+    if (state.view === "ledger") return exportLedger();
 
     const { visible, groups } = visibleGroups();
     if (!visible.length && !groups.archived.length) {
@@ -658,23 +1037,7 @@
 
     try {
       const blob = window.XlsxExport.buildRequests(groups);
-      const now = new Date();
-      const stamp =
-        now.getFullYear() +
-        "-" +
-        String(now.getMonth() + 1).padStart(2, "0") +
-        "-" +
-        String(now.getDate()).padStart(2, "0");
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "متابعة الطلبات " + stamp + ".xlsx";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast("نُزّل الملف.", "ok");
+      download(blob, "متابعة الطلبات");
     } catch (err) {
       toast("تعذّر إنشاء الملف: " + (err && err.message ? err.message : "خطأ غير متوقع"), "error");
     }
@@ -692,6 +1055,58 @@
     $("rqExport").addEventListener("click", exportXlsx);
 
     $("rqFromQibla").addEventListener("change", (e) => applyQiblaSelection(e.target.value));
+
+    $("rqViewBoard").addEventListener("click", () => setView("board"));
+    $("rqViewLedger").addEventListener("click", () => setView("ledger"));
+    $("rqPaid").addEventListener("change", syncCompletedField);
+    $("rqVisited").addEventListener("change", syncCompletedField);
+    $("rqImportBtn").addEventListener("click", runImport);
+    $("rqAnalytics").addEventListener("toggle", () => {
+      if ($("rqAnalytics").open) renderLedger();
+    });
+
+    $("rqMore").addEventListener("click", () => {
+      state.limit += 25;
+      renderLedger();
+    });
+
+    $("rqFilterYear").addEventListener("change", (e) => {
+      state.filters.year = e.target.value;
+      renderAll();
+    });
+
+    $("rqFilterMonth").addEventListener("change", (e) => {
+      state.filters.month = e.target.value;
+      renderAll();
+    });
+
+    // ترتيب الجدول: نفس العمود يعكس الاتجاه، وعمود جديد يبدأ تنازلياً
+    $("rqTable").addEventListener("click", (e) => {
+      const th = e.target.closest("th[data-sort]");
+      if (!th) return;
+      const key = th.getAttribute("data-sort");
+      if (state.sort.key === key) state.sort.dir = state.sort.dir === "asc" ? "desc" : "asc";
+      else state.sort = { key, dir: "desc" };
+      renderLedger();
+    });
+
+    $("rqTableBody").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-ledger]");
+      if (!btn) return;
+      const record = RequestsStore.getById(btn.dataset.id);
+      if (!record) return;
+
+      if (btn.dataset.ledger === "edit") return openDrawer(record);
+
+      // الإعادة للمتابعة تنقض الدفع فقط: الزيارة وقعت فعلاً ولا يصح نقضها
+      trackSync(RequestsStore.setPaid(record.id, false));
+      renderAll();
+      toast("أُعيد إلى مستحق التحصيل", "ok");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (e.target.closest("#rqSeeAll")) setView("ledger");
+    });
 
     $("rqAddAgent").addEventListener("click", () => {
       state.agents = collectAgents();
@@ -737,10 +1152,12 @@
     });
 
     $("rqReset").addEventListener("click", () => {
-      state.filters = { search: "", governorate: "", ready: null };
+      state.filters = { search: "", governorate: "", ready: null, year: "", month: "" };
       $("rqSearch").value = "";
       $("rqFilterGov").value = "";
       $("rqFilterReady").value = "";
+      $("rqFilterYear").value = "";
+      $("rqFilterMonth").value = "";
       renderAll();
     });
 
@@ -806,8 +1223,9 @@
     if (!window.RequestsStore) return;
     wire();
 
-    // الذاكرة المؤقتة تُعرض فوراً — لا شاشة فارغة بانتظار الخادم
-    renderAll();
+    // #ledger في الرابط يفتح السجل مباشرة — يخدم الروابط القديمة لصفحة
+    // المساجد المنتهية بعد إعادة توجيهها
+    setView(location.hash === "#ledger" ? "ledger" : "board");
 
     setConn("", "جاري الاتصال…");
     const out = await RequestsStore.refresh();
@@ -818,6 +1236,7 @@
       setConn("off", "غير متصل — البيانات محلية");
     }
     renderAll();
+    checkLegacy();
   }
 
   if (document.readyState === "loading") {

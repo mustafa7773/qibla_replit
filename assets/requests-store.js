@@ -13,6 +13,13 @@
 // ضربهما (bucketOf). أي حقل مركّب واحد سيتعارض لاحقاً مع ترتيب واقعي لم نتوقعه
 // — كأن يدفع الوكيل بعد الزيارة ثم يطلب تعديلاً قبل الإغلاق.
 //
+// السجل بديل أداة المساجد المنتهية
+// --------------------------------
+// الطلب الذي اجتمع فيه الدفع والزيارة هو "مسجد منتهٍ" — لا حاجة لسجل ثانٍ في
+// أداة أخرى. لذلك يحمل كل طلب حقل completedAt يُكتب تلقائياً عند اكتمال
+// المحورين، وهو محور الإحصاء الزمني (كان completionDate في الأداة المحذوفة).
+// السجلات القديمة تُستورد بـ importCompleted مع الاحتفاظ بتاريخها الأصلي.
+//
 // الأرشفة بلا حذف
 // ---------------
 // archived يُخرج السجل من المصفوفة والمؤشرات فقط. يبقى في فلتر "المؤرشفة"
@@ -124,6 +131,7 @@
       amount: amountRaw === "" ? 0 : Math.round(Number(amountRaw) * 1000) / 1000,
       paid: !!input.paid,
       visited: !!input.visited,
+      completedAt: str(input.completedAt),
       ready: !!input.ready,
       notes: str(input.notes),
     };
@@ -134,6 +142,7 @@
   function fromWire(r) {
     return {
       id: r.recordId || r.id,
+      legacyId: r.legacyId || "",
       mosqueName: r.mosqueName || "",
       mosqueRequestNo: r.mosqueRequestNo || "",
       companyRequestNo: r.companyRequestNo || "",
@@ -146,6 +155,7 @@
       paidAt: r.paidAt || "",
       visited: !!r.visited,
       visitedAt: r.visitedAt || "",
+      completedAt: r.completedAt || "",
       ready: !!r.ready,
       archived: !!r.archived,
       archivedAt: r.archivedAt || "",
@@ -160,6 +170,7 @@
   function toWire(r) {
     return {
       recordId: r.id,
+      legacyId: r.legacyId,
       mosqueName: r.mosqueName,
       mosqueRequestNo: r.mosqueRequestNo,
       companyRequestNo: r.companyRequestNo,
@@ -172,6 +183,7 @@
       paidAt: r.paidAt,
       visited: r.visited,
       visitedAt: r.visitedAt,
+      completedAt: r.completedAt,
       ready: r.ready,
       archived: r.archived,
       archivedAt: r.archivedAt,
@@ -211,6 +223,21 @@
     return { ok: true, record, errors: [] };
   }
 
+
+  // تاريخ الإنجاز يُكتب لحظة اكتمال المحورين ولا يُعاد كتابته بعدها، ويُمحى
+  // إن نُقض أحدهما — فلا يبقى مسجد في السجل وهو غير منتهٍ فعلاً.
+  function stampCompletion(record) {
+    const done = record.paid && record.visited;
+    if (done && !record.completedAt) {
+      const a = record.paidAt || "";
+      const b = record.visitedAt || "";
+      record.completedAt = ((a > b ? a : b) || nowIso()).slice(0, 10);
+    } else if (!done) {
+      record.completedAt = "";
+    }
+    return record;
+  }
+
   function add(input) {
     const errors = validate(input);
     if (errors.length) return { ok: false, errors };
@@ -229,7 +256,7 @@
       syncState: "pending",
     });
 
-    return commit(record, loadAll(), -1);
+    return commit(stampCompletion(record), loadAll(), -1);
   }
 
   function update(id, input) {
@@ -253,7 +280,9 @@
       syncState: "pending",
     });
 
-    return commit(record, list, idx);
+    // تاريخ كتبه المستخدم في النموذج يُحترم، وإلا يُحسب تلقائياً
+    if (!clean.completedAt) record.completedAt = prev.completedAt || "";
+    return commit(stampCompletion(record), list, idx);
   }
 
   // تعديل جزئي — يستخدمه تبديل المفاتيح على البطاقة دون المرور بالنموذج كاملاً
@@ -277,7 +306,7 @@
       next.visitedAt = next.visited ? prev.visitedAt || next.updatedAt : "";
     }
 
-    return commit(next, list, idx);
+    return commit(stampCompletion(next), list, idx);
   }
 
   function setPaid(id, value) {
@@ -406,6 +435,170 @@
       agentPhone: agent.phone || "",
       notes: r.notes,
     };
+  }
+
+
+  // ================================================================ السجل
+  //
+  // "المساجد المنتهية" لم تعد أداة مستقلة، بل عرضاً على الطلبات المكتملة.
+  // محور الإحصاء هنا completedAt لا createdAt: السؤال دائماً "كم أنجزنا في
+  // فبراير"، لا "كم طلباً وصلنا في فبراير".
+
+  function ledger(records) {
+    return (records || loadAll()).filter((r) => r.paid && r.visited && !r.archived);
+  }
+
+  function ledgerFilters(records, filters) {
+    const f = filters || {};
+    return records.filter((r) => {
+      const d = r.completedAt || "";
+      if (f.year && d.slice(0, 4) !== String(f.year)) return false;
+      if (f.month && d.slice(5, 7) !== String(f.month).padStart(2, "0")) return false;
+      if (f.governorate && r.governorate !== f.governorate) return false;
+      if (f.search) {
+        const q = String(f.search).toLowerCase();
+        const agents = (r.agents || []).map((a) => a.name + " " + a.phone).join(" ");
+        const hay = [
+          r.mosqueName, r.mosqueRequestNo, r.companyRequestNo, r.governorate,
+          r.wilaya, r.village, agents, r.notes, d, String(r.amount),
+        ].join(" ").toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  // إحصاءات السجل — نفس أشكال الأداة المحذوفة ليعمل الرسم البياني بلا تعديل
+  function ledgerStats(records) {
+    const byMonth = {};
+    const byYear = {};
+    const byGovernorate = {};
+    let total = 0;
+
+    records.forEach((r) => {
+      const amount = Number(r.amount) || 0;
+      total += amount;
+      const d = r.completedAt || "";
+      const mk = d.slice(0, 7);
+      const yk = d.slice(0, 4);
+
+      if (mk) {
+        if (!byMonth[mk]) byMonth[mk] = { key: mk, count: 0, revenue: 0 };
+        byMonth[mk].count++;
+        byMonth[mk].revenue += amount;
+      }
+      if (yk) {
+        if (!byYear[yk]) byYear[yk] = { key: yk, count: 0, revenue: 0 };
+        byYear[yk].count++;
+        byYear[yk].revenue += amount;
+      }
+      const g = r.governorate || "غير محدد";
+      if (!byGovernorate[g]) byGovernorate[g] = { key: g, count: 0, revenue: 0 };
+      byGovernorate[g].count++;
+      byGovernorate[g].revenue += amount;
+    });
+
+    const sorted = (o) => Object.values(o).sort((a, b) => (a.key < b.key ? -1 : 1));
+    const now = new Date();
+    const curMonth = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+    const curYear = String(now.getFullYear());
+
+    return {
+      count: records.length,
+      revenue: total,
+      average: records.length ? total / records.length : 0,
+      thisMonth: byMonth[curMonth] || { count: 0, revenue: 0 },
+      thisYear: byYear[curYear] || { count: 0, revenue: 0 },
+      byMonth: sorted(byMonth),
+      byYear: sorted(byYear),
+      byGovernorate: Object.values(byGovernorate).sort((a, b) => b.revenue - a.revenue),
+    };
+  }
+
+  // ================================================ استيراد السجلات القديمة
+  //
+  // تُقرأ من نوع "completed" في الخادم وتُكتب كطلبات مكتملة. المعرّف الأصلي
+  // يُحفظ في legacyId لا في recordId: تكرار الاستيراد لا يُنشئ نسخة ثانية،
+  // والمطابقة برقم الطلب تدمج مع طلب قائم بدل إنشاء توأم له.
+  //
+  // لا يُحذف شيء من sky:completed — يبقى نسخة احتياطية بعد الدمج.
+
+  function importCompleted(rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    const current = loadAll();
+
+    const byLegacy = new Map();
+    const byNo = new Map();
+    current.forEach((r) => {
+      if (r.legacyId) byLegacy.set(String(r.legacyId), r);
+      const no = normalizeRequestNo(r.mosqueRequestNo);
+      if (no) byNo.set(no, r);
+    });
+
+    const result = { added: 0, merged: 0, skipped: 0, promises: [] };
+
+    list.forEach((row) => {
+      const legacyId = String(row.recordId || row.id || "");
+      if (legacyId && byLegacy.has(legacyId)) {
+        result.skipped++;
+        return;
+      }
+
+      const no = normalizeRequestNo(row.requestNo);
+      const match = no ? byNo.get(no) : null;
+
+      const date = String(row.completionDate || "").slice(0, 10);
+      const amount = Number(row.price) || 0;
+
+      if (match) {
+        // طلب قائم لنفس الرقم: نكمل نواقصه ولا نطمس ما فيه
+        const out = patch(match.id, {
+          paid: true,
+          visited: true,
+          completedAt: match.completedAt || date,
+          amount: match.amount || amount,
+          legacyId,
+        });
+        if (out && out.promise) result.promises.push(out.promise);
+        result.merged++;
+        return;
+      }
+
+      const ts = nowIso();
+      const record = {
+        id: newId(),
+        legacyId,
+        mosqueName: str(row.mosqueName) || "مسجد بلا اسم",
+        mosqueRequestNo: str(row.requestNo),
+        companyRequestNo: "",
+        governorate: str(row.governorate),
+        wilaya: "",
+        village: "",
+        agents: row.agentPhone ? [{ name: "", phone: str(row.agentPhone) }] : [],
+        amount: Math.round(amount * 1000) / 1000,
+        paid: true,
+        paidAt: date ? date + "T00:00:00.000Z" : ts,
+        visited: true,
+        visitedAt: date ? date + "T00:00:00.000Z" : ts,
+        completedAt: date,
+        ready: true,
+        archived: false,
+        archivedAt: "",
+        archiveNote: "",
+        notes: str(row.notes),
+        createdAt: row.createdAt || ts,
+        updatedAt: ts,
+        syncState: "pending",
+      };
+
+      const out = commit(record, current, -1);
+      if (out && out.promise) result.promises.push(out.promise);
+      if (no) byNo.set(no, record);
+      if (legacyId) byLegacy.set(legacyId, record);
+      result.added++;
+    });
+
+    return result;
   }
 
   // ---------------------------------------------------------------- filtering
@@ -551,6 +744,10 @@
     applyFilters,
     sortForBucket,
     stats,
+    ledger,
+    ledgerFilters,
+    ledgerStats,
+    importCompleted,
     findByRequestNo,
     markVisitedFromQibla,
     toCompletedInput,
