@@ -717,10 +717,6 @@
     }
 
     if (m.agentPhone) $("rqPhone").value = String(m.agentPhone).trim();
-
-    // المسجد محفوظ في أداة القبلة، أي أن زيارته تمّت فعلاً
-    $("rqVisited").checked = true;
-    $("rqReady").checked = true;
   }
 
   // ---------------------------------------------------------------- الدرج
