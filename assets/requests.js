@@ -177,7 +177,7 @@
           : "لا شيء معلّق",
       },
       {
-        label: "مستحق التحصيل (ر.ع)",
+        label: "بانتظار الدفع (ر.ع)",
         value: money(stats.receivable),
         note: stats.counts.toCollect
           ? stats.counts.toCollect + " طلب · أقدمه " + daysText(stats.oldestReceivableDays)
@@ -1051,7 +1051,7 @@
       // الإعادة للمتابعة تنقض الدفع فقط: الزيارة وقعت فعلاً ولا يصح نقضها
       trackSync(RequestsStore.setPaid(record.id, false));
       renderAll();
-      toast("أُعيد إلى مستحق التحصيل", "ok");
+      toast("أُعيد إلى بانتظار الدفع", "ok");
     });
 
 

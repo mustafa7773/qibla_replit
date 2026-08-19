@@ -465,7 +465,7 @@
 
   const REQ_BUCKETS = [
     { key: "toVisit", title: "أولوية الجدولة (دفع ولم يُزَر)" },
-    { key: "toCollect", title: "مستحق تحصيل (زير ولم يدفع)" },
+    { key: "toCollect", title: "بانتظار الدفع (زار ولم يدفع)" },
     { key: "fresh", title: "طلبات جديدة" },
     { key: "done", title: "مكتملة" },
     { key: "archived", title: "مؤرشفة" },
@@ -547,7 +547,7 @@
     rows.push([]);
     rows.push([{ v: "الأرقام الحرجة", style: S.TITLE }]);
     rows.push([
-      { v: "مستحق التحصيل (ر.ع)", style: S.TOTAL_LABEL },
+      { v: "بانتظار الدفع (ر.ع)", style: S.TOTAL_LABEL },
       { v: (g.toCollect || []).length, style: S.TOTAL_LABEL, num: true },
       { v: sum(g.toCollect || []), style: S.TOTAL_MONEY, num: true },
     ]);

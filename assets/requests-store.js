@@ -364,7 +364,7 @@
     archived: "مؤرشف",
     fresh: "طلب جديد",
     toVisit: "دفع ولم يُزَر",
-    toCollect: "مستحق تحصيل",
+    toCollect: "بانتظار الدفع",
     done: "مكتمل",
   };
 
