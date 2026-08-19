@@ -285,28 +285,65 @@
 .rq-switches {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
   margin: var(--sp-4) 0;
-  padding: var(--sp-3);
   background: var(--surface-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
+  overflow: hidden;
 }
 
 .rq-switch {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
   font-size: var(--fs-body);
   color: var(--paper);
   cursor: pointer;
 }
 
+.rq-switch:not(:last-child) {
+  border-bottom: 1px solid var(--line);
+}
+
 .rq-switch input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--gold);
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  position: relative;
   cursor: pointer;
+  transition: background 0.18s var(--ease);
+}
+
+.rq-switch input::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--paper);
+  transition: transform 0.18s var(--ease);
+}
+
+.rq-switch input:checked {
+  background: var(--gold);
+}
+
+.rq-switch input:checked::before {
+  transform: translateX(-16px);
+  background: var(--night);
+}
+
+.rq-switch input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 .rq-agents {
