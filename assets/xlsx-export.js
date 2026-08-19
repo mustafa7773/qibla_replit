@@ -472,17 +472,11 @@
   ];
 
   const REQ_HEADERS = [
-    "اسم المسجد", "رقم الطلب بنظام المساجد", "رقم الطلب بالشركة",
-    "المحافظة", "الولاية", "القرية", "الوكيل", "الهاتف",
-    "المبلغ (ر.ع)", "الدفع", "تاريخ الدفع", "الزيارة", "تاريخ الزيارة",
-    "الجاهزية", "ملاحظات",
+    "اسم المسجد", "رقم الطلب بنظام المساجد", "المحافظة", "الولاية",
+    "رقم الوكيل", "المبلغ (ر.ع)",
   ];
 
-  const REQ_WIDTHS = [28, 20, 18, 20, 16, 16, 20, 14, 14, 10, 14, 10, 14, 12, 30];
-
-  function dayOnly(iso) {
-    return iso ? String(iso).slice(0, 10) : "";
-  }
+  const REQ_WIDTHS = [30, 20, 20, 16, 16, 16];
 
   function firstAgent(r, field) {
     const a = (r.agents && r.agents[0]) || {};
@@ -494,19 +488,10 @@
       { v: r.mosqueName || "—", style: S.TEXT },
       // الأرقام والهواتف نصوص: تُحفظ الأصفار البادئة ولا يحوّلها Excel
       { v: r.mosqueRequestNo || "", style: S.COUNT },
-      { v: r.companyRequestNo || "", style: S.COUNT },
       { v: r.governorate || "", style: S.TEXT },
       { v: r.wilaya || "", style: S.TEXT },
-      { v: r.village || "", style: S.TEXT },
-      { v: firstAgent(r, "name"), style: S.TEXT },
       { v: firstAgent(r, "phone"), style: S.COUNT },
       { v: Number(r.amount) || 0, style: S.MONEY, num: true },
-      { v: r.paid ? "نعم" : "لا", style: S.COUNT },
-      { v: dayOnly(r.paidAt), style: S.COUNT },
-      { v: r.visited ? "نعم" : "لا", style: S.COUNT },
-      { v: dayOnly(r.visitedAt), style: S.COUNT },
-      { v: r.ready ? "جاهز" : "غير جاهز", style: S.COUNT },
-      { v: r.archiveNote || r.notes || "", style: S.TEXT },
     ];
   }
 
@@ -586,7 +571,7 @@
 
       const totals = REQ_HEADERS.map(() => ({ v: "", style: S.TOTAL_LABEL }));
       totals[0] = { v: "المجموع (" + list.length + " طلب)", style: S.TOTAL_LABEL };
-      totals[8] = { v: sum(list), style: S.TOTAL_MONEY, num: true };
+      totals[5] = { v: sum(list), style: S.TOTAL_MONEY, num: true };
       body.push(totals);
 
       sheets.push({ name: safeSheetName(b.title, used), xml: buildSheet(body, REQ_WIDTHS) });
