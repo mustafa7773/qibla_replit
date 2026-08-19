@@ -6,31 +6,18 @@
    أي قاعدة لتلك المكوّنات — النسختان ستتباعدان مع أول تعديل.
    ============================================================================ */
 
-/* ------------------------------------------------------- المصفوفة */
+/* ------------------------------------------------------- اللوحة
 
-.rq-matrix {
+   ثلاث خانات متساوية بترتيب المسار: طلب جديد ← ينتظر الزيارة ← ينتظر الدفع.
+   حُذفت عناوين المحاور الرأسية مع الخانة الرابعة: نصّ عمودي بجانب بطاقة
+   عربية يصعب قراءته، وعنوان كل خانة يقول ما فيها. */
+
+.rq-board {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-3);
-  align-items: stretch;
+  align-items: start;
   margin: var(--sp-5) 0;
-}
-
-.rq-axis {
-  display: flex;
-  align-items: center;
-  font-size: var(--fs-caption);
-  color: var(--muted);
-}
-
-.rq-axis-col {
-  padding-inline-start: var(--sp-2);
-}
-
-.rq-axis-row {
-  writing-mode: vertical-rl;
-  justify-content: center;
-  padding-block: var(--sp-3);
 }
 
 /* ------------------------------------------------------- الخانة */
@@ -78,6 +65,12 @@
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
   color: var(--gold);
+}
+
+.rq-bucket-hint {
+  margin: calc(var(--sp-2) * -1) 0 var(--sp-3);
+  font-size: var(--fs-caption);
+  color: var(--muted);
 }
 
 .rq-bucket-body {
@@ -230,12 +223,6 @@
 
 /* ------------------------------------------------------- السجل */
 
-.rq-see-all {
-  align-self: center;
-  margin-top: var(--sp-2);
-  color: var(--gold);
-}
-
 .rq-import {
   display: flex;
   flex-wrap: wrap;
@@ -338,19 +325,17 @@
 
 /* ------------------------------------------------------- الهاتف
 
-   نقطة الانكسار الوحيدة: المصفوفة تنهار إلى أقسام مكدّسة، وتُخفى عناوين
-   المحاور لأن كل خانة تحمل عنوانها. المعنى واحد، ولا منطق مكرر في JS.
-   القيمة 860px هي نفسها المستخدمة في style.css للشريط العلوي. */
+   1000px: ثلاثة أعمدة تحتاج نحو 3×300 لتبقى البطاقة مقروءة، فتحتها تُكدَّس.
+   860px: نفس نقطة الشريط العلوي في style.css — تفاصيل داخل البطاقة والدرج.
+   الأقسام مكدّسة بنفس ترتيبها، ولا منطق مكرر في JS. */
 
-@media (max-width: 860px) {
-  .rq-matrix {
+@media (max-width: 1000px) {
+  .rq-board {
     grid-template-columns: minmax(0, 1fr);
   }
+}
 
-  .rq-axis {
-    display: none;
-  }
-
+@media (max-width: 860px) {
   .rq-bucket {
     padding: var(--sp-3);
   }

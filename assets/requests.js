@@ -13,7 +13,9 @@
 (function () {
   "use strict";
 
-  const BUCKETS = ["fresh", "toVisit", "toCollect", "done"];
+  // "done" ليست خانة في اللوحة: اجتماع الدفع والزيارة هو تعريف المسجد
+  // المنتهي، ومكانه تبويب السجل. يبقى محسوباً في group() للعدّاد والإحصاء.
+  const BUCKETS = ["fresh", "toVisit", "toCollect"];
   const RECENT_QIBLA_LIMIT = 40;
 
   const state = {
@@ -365,24 +367,9 @@
 
     BUCKETS.forEach((b) => {
       const cap = b.charAt(0).toUpperCase() + b.slice(1);
-      const list = groups[b];
-
-      // المكتمل يتراكم بلا حد، فتطول الخانة حتى تكسر شكل المصفوفة. نعرض
-      // أحدث عشرة ونحيل الباقي إلى السجل حيث الجدول والبحث والفلاتر.
-      if (b === "done" && list.length > 10) {
-        renderBucket("rqListDone", list.slice(0, 10), b);
-        $("rqListDone").insertAdjacentHTML(
-          "beforeend",
-          '<button type="button" class="link-btn rq-see-all" id="rqSeeAll">و' +
-            (list.length - 10) +
-            " أخرى في السجل ←</button>",
-        );
-      } else {
-        renderBucket("rqList" + cap, list, b);
-      }
-
+      renderBucket("rqList" + cap, groups[b], b);
       const counter = $("rqCount" + cap);
-      if (counter) counter.textContent = String(list.length);
+      if (counter) counter.textContent = String(groups[b].length);
     });
 
     renderBucket("rqListArchived", groups.archived, "archived");
@@ -881,6 +868,15 @@
 
   // ---------------------------------------------------------------- الإجراءات
 
+
+  // البطاقة تختفي من اللوحة عند الاكتمال، فلا بد أن يعرف المستخدم أين ذهبت
+  function completionToast(id, fallback) {
+    const after = RequestsStore.getById(id);
+    return after && RequestsStore.bucketOf(after) === "done"
+      ? "اكتمل — نُقل إلى المساجد المنتهية"
+      : fallback;
+  }
+
   function onCardAction(id, act) {
     const record = RequestsStore.getById(id);
     if (!record) return;
@@ -897,7 +893,7 @@
       }
       trackSync(RequestsStore.setPaid(id, !record.paid));
       renderAll();
-      return toast(record.paid ? "أُزيلت علامة الدفع" : "سُجّل الدفع", "ok");
+      return toast(completionToast(id, record.paid ? "أُزيلت علامة الدفع" : "سُجّل الدفع"), "ok");
     }
 
     if (act === "pay-cancel") {
@@ -910,7 +906,10 @@
     if (act === "visited") {
       trackSync(RequestsStore.setVisited(id, !record.visited));
       renderAll();
-      return toast(record.visited ? "أُزيلت علامة الزيارة" : "سُجّلت الزيارة", "ok");
+      return toast(
+        completionToast(id, record.visited ? "أُزيلت علامة الزيارة" : "سُجّلت الزيارة"),
+        "ok",
+      );
     }
 
     if (act === "archive") {
@@ -977,7 +976,7 @@
     );
     state.payingId = null;
     renderAll();
-    toast("سُجّل الدفع", "ok");
+    toast(completionToast(id, "سُجّل الدفع"), "ok");
   }
 
   // ---------------------------------------------------------------- التصدير
@@ -1104,9 +1103,7 @@
       toast("أُعيد إلى مستحق التحصيل", "ok");
     });
 
-    document.addEventListener("click", (e) => {
-      if (e.target.closest("#rqSeeAll")) setView("ledger");
-    });
+
 
     $("rqAddAgent").addEventListener("click", () => {
       state.agents = collectAgents();

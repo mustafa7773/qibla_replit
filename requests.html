@@ -127,21 +127,17 @@
           </button>
         </div>
 
-        <!-- ═══ المصفوفة: محورا الدفع والزيارة ═══
-             على الحاسوب شبكة ٢×٢ بعناوين محاور، وعلى الهاتف أقسام مكدّسة.
-             نقطة انكسار واحدة في requests.css، بلا منطق مكرر في JS. -->
-        <div class="rq-matrix" id="rqMatrix">
-          <div class="rq-axis rq-axis-corner" aria-hidden="true"></div>
-          <div class="rq-axis rq-axis-col">لم يدفع</div>
-          <div class="rq-axis rq-axis-col">دفع</div>
-
-          <div class="rq-axis rq-axis-row">لم تتم الزيارة</div>
-
+        <!-- ═══ العمل القائم ═══
+             ثلاث خانات لا مصفوفة ٢×٢: الخانة الرابعة (دفع + زير) هي تعريف
+             المسجد المنتهي، ومكانها تبويب السجل. إبقاؤها هنا كان يكرّر نفس
+             السجلات في موضعين ويُطيل الخانة بلا حد. -->
+        <div class="rq-board" id="rqMatrix">
           <section class="rq-bucket" data-bucket="fresh" aria-labelledby="rqHeadFresh">
             <header class="rq-bucket-head">
               <h2 id="rqHeadFresh">طلب جديد</h2>
               <span class="rq-bucket-count" id="rqCountFresh">0</span>
             </header>
+            <p class="rq-bucket-hint">لم يدفع ولم تتم الزيارة</p>
             <div class="rq-bucket-body" id="rqListFresh"></div>
           </section>
 
@@ -150,28 +146,19 @@
               <h2 id="rqHeadToVisit">أولوية الجدولة</h2>
               <span class="rq-bucket-count" id="rqCountToVisit">0</span>
             </header>
+            <p class="rq-bucket-hint">دفع وينتظر الزيارة</p>
             <div class="rq-bucket-body" id="rqListToVisit"></div>
           </section>
-
-          <div class="rq-axis rq-axis-row">تمت الزيارة</div>
 
           <section class="rq-bucket is-due" data-bucket="toCollect" aria-labelledby="rqHeadToCollect">
             <header class="rq-bucket-head">
               <h2 id="rqHeadToCollect">مستحق تحصيل</h2>
               <span class="rq-bucket-count" id="rqCountToCollect">0</span>
             </header>
+            <p class="rq-bucket-hint">زير ولم يدفع بعد</p>
             <div class="rq-bucket-body" id="rqListToCollect"></div>
           </section>
-
-          <section class="rq-bucket is-done" data-bucket="done" aria-labelledby="rqHeadDone">
-            <header class="rq-bucket-head">
-              <h2 id="rqHeadDone">مكتمل</h2>
-              <span class="rq-bucket-count" id="rqCountDone">0</span>
-            </header>
-            <div class="rq-bucket-body" id="rqListDone"></div>
-          </section>
         </div>
-
 
         <!-- ═══ السجل: جدول المساجد المنتهية ورسومه ═══ -->
         <div class="rq-ledger hidden" id="rqLedger">
