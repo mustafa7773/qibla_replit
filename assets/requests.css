@@ -175,6 +175,44 @@
   color: var(--gold-light);
 }
 
+/* ------------------------------------------------------- الدفع السريع
+
+   صف إدخال يحلّ محل أزرار البطاقة بدل فتح الدرج. البطاقة تحتفظ بمكانها في
+   المصفوفة، فلا يفقد المستخدم موضعه من أجل رقم واحد. */
+
+.rq-card.is-paying {
+  border-color: var(--gold-glow);
+}
+
+.rq-pay {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.rq-pay-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xs);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.rq-pay-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.rq-pay .chip-btn {
+  flex: 0 0 auto;
+}
+
 /* ------------------------------------------------------- الدرج */
 
 .rq-switches {

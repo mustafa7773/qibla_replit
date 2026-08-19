@@ -19,6 +19,7 @@
   const state = {
     filters: { search: "", governorate: "", ready: null },
     editingId: null,
+    payingId: null,
     archiveId: null,
     deleteId: null,
     agents: [],
@@ -200,6 +201,28 @@
   function cardHtml(r, bucket) {
     const amount = r.amount ? '<span class="rq-amount">' + money(r.amount) + "</span>" : "";
     const no = r.mosqueRequestNo ? '<span class="rq-no">' + esc(r.mosqueRequestNo) + "</span>" : "";
+
+    // إدخال المبلغ يحدث في البطاقة نفسها: الدرج كله من أجل رقم واحد مبالغة،
+    // ويُفقد المستخدم موضعه في المصفوفة
+    if (state.payingId === r.id) {
+      return (
+        '<article class="rq-card is-paying" data-id="' +
+        esc(r.id) +
+        '">' +
+        '<div class="rq-card-top"><h3>' +
+        esc(r.mosqueName || "بلا اسم") +
+        "</h3></div>" +
+        '<div class="rq-pay">' +
+        '<input type="number" class="rq-pay-input textarea-mono" min="0" step="0.001" ' +
+        'inputmode="decimal" placeholder="المبلغ (ر.ع)" aria-label="المبلغ المدفوع" ' +
+        'value="' +
+        (r.amount ? esc(r.amount) : "") +
+        '" />' +
+        '<button type="button" class="chip-btn" data-act="pay-ok">تأكيد</button>' +
+        '<button type="button" class="link-btn" data-act="pay-cancel">إلغاء</button>' +
+        "</div></article>"
+      );
+    }
 
     let actions;
     if (bucket === "archived") {
@@ -508,14 +531,24 @@
     if (act === "edit") return openDrawer(record);
 
     if (act === "paid") {
+      // بلا مبلغ يفقد مؤشر التحصيل معناه، فنسأل عنه في البطاقة قبل التعليم
       if (!record.paid && !record.amount) {
-        toast("أدخل المبلغ أولاً", "error");
-        return openDrawer(record);
+        state.payingId = id;
+        renderAll();
+        focusPayInput();
+        return;
       }
       trackSync(RequestsStore.setPaid(id, !record.paid));
       renderAll();
       return toast(record.paid ? "أُزيلت علامة الدفع" : "سُجّل الدفع", "ok");
     }
+
+    if (act === "pay-cancel") {
+      state.payingId = null;
+      return renderAll();
+    }
+
+    if (act === "pay-ok") return confirmPayment(id);
 
     if (act === "visited") {
       trackSync(RequestsStore.setVisited(id, !record.visited));
@@ -550,6 +583,45 @@
     }
 
     if (act === "complete") return sendToCompleted(record);
+  }
+
+
+  // ------------------------------------------------------- الدفع السريع
+
+  function focusPayInput() {
+    const input = document.querySelector(".rq-card.is-paying .rq-pay-input");
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  function confirmPayment(id) {
+    const card = document.querySelector('.rq-card.is-paying[data-id="' + id + '"]');
+    const input = card && card.querySelector(".rq-pay-input");
+    if (!input) return;
+
+    const raw = String(input.value || "").trim();
+    const amount = Number(raw);
+
+    if (raw === "" || !isFinite(amount) || amount <= 0) {
+      toast("أدخل مبلغاً صحيحاً أكبر من صفر.", "error");
+      input.focus();
+      return;
+    }
+    if (amount > 100000000) {
+      toast("المبلغ أكبر من المسموح.", "error");
+      input.focus();
+      return;
+    }
+
+    // المبلغ والدفع في كتابة واحدة — لا حالة وسيطة تُرسل للخادم مرتين
+    trackSync(
+      RequestsStore.patch(id, { amount: Math.round(amount * 1000) / 1000, paid: true }),
+    );
+    state.payingId = null;
+    renderAll();
+    toast("سُجّل الدفع", "ok");
   }
 
   // نقل المكتمل إلى أداة المساجد المنتهية ثم أرشفته هنا — إدخال واحد لا اثنان
@@ -703,8 +775,21 @@
       renderAll();
     });
 
+    // Enter داخل حقل المبلغ يؤكد — لا حاجة لملاحقة زر صغير على الهاتف
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const input = e.target.closest && e.target.closest(".rq-pay-input");
+      if (!input) return;
+      e.preventDefault();
+      confirmPayment(input.closest(".rq-card").dataset.id);
+    });
+
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
+      if (state.payingId) {
+        state.payingId = null;
+        return renderAll();
+      }
       if (!$("rqDeleteModal").classList.contains("hidden")) return $("rqDeleteCancel").click();
       if (!$("rqArchiveModal").classList.contains("hidden")) return $("rqArchiveCancel").click();
       if (!$("rqDrawer").classList.contains("hidden")) closeDrawer();
