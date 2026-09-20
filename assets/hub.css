@@ -5,9 +5,10 @@
 
 .tool-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--sp-4);
-  margin: 0 0 var(--sp-14);
+  max-width: 860px;
+  margin: 0 auto var(--sp-14);
 }
 
 /* A tool card is a panel you can enter — same surface, same rules */
@@ -151,20 +152,5 @@
   .tool-card {
     padding: var(--sp-6);
     border-radius: var(--radius-sm);
-  }
-}
-
-/* ---------------------------------------------------------------------------
-   بطاقة يتيمة في الصف الأخير
-   نُقلت هنا من وسم <style> داخل index.html، ليكون مصدر تنسيق الشبكة واحداً.
-
-   نقطة الانكسار محسوبة لا مخمَّنة: العمود الأدنى 290px والفجوة 16px، فثلاثة
-   أعمدة تحتاج 3×290 + 2×16 = 902px داخل .wrap، وحشوة .wrap 24px من كل جانب،
-   أي 950px من عرض النافذة. القيمة القديمة (900px) كانت تُطبَّق والشبكة ما
-   زالت عمودين، فتقفز البطاقة إلى العمود الثاني وتترك الأول فارغاً.
-   --------------------------------------------------------------------------- */
-@media (min-width: 950px) {
-  .tool-grid > .tool-card:last-child:nth-child(3n + 1) {
-    grid-column: 2;
   }
 }
