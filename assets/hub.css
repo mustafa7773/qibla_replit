@@ -154,3 +154,40 @@
     border-radius: var(--radius-sm);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   شاشات الحاسوب: بطاقات مضغوطة كي تظهر الأربع كاملة دون تمرير
+   --------------------------------------------------------------------------- */
+@media (min-width: 641px) {
+  .tool-grid {
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-8);
+  }
+
+  .tool-card {
+    gap: var(--sp-2);
+    padding: var(--sp-5) var(--sp-6);
+  }
+
+  .tool-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tool-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tool-card h2 {
+    margin-top: var(--sp-1);
+  }
+
+  .tool-card p {
+    line-height: 1.7;
+  }
+
+  .tool-go {
+    padding-top: var(--sp-2);
+  }
+}
