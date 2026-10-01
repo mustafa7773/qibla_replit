@@ -214,21 +214,28 @@
     txt(ctx, 'Please include the quote number on your money transfer.', 44.5 + rw, 470.4 + shift, { size: 12, color: GRAY });
     txt(ctx, 'All prices in OMR', 567.2, 470.4 + shift, { size: 14, align: 'right' });
 
-    var FL = { size: 14, weight: 'bold', color: GRAY };
     var labels = ['Bank Name/Branch and Account No:', 'MoF Beneficiary Number =', 'Cheque payment should be payable to'];
-    font(ctx, 14, { weight: 'bold' });
-    var vx = Math.max(287.4, 44.5 + Math.max.apply(null, labels.map(function (l) { return ctx.measureText(l).width; })) + 8);
+    var vals = ['Bank Nizwa/AlKhoud - 004-50003068-001', '0012146801', 'Sky Innovations or '];
+    var fs = 14, vx;
+    for (; fs >= 9; fs -= 0.25) {
+      font(ctx, fs, { weight: 'bold' });
+      var lw2 = Math.max.apply(null, labels.map(function (l) { return ctx.measureText(l).width; }));
+      vx = 44.5 + lw2 + 8;
+      var need = Math.max(ctx.measureText(vals[0]).width, ctx.measureText(vals[2]).width + 90 * fs / 14);
+      if (vx + need <= 567.2) break;
+    }
+    var FL = { size: fs, weight: 'bold', color: GRAY };
     var by = [545, 564.9, 584.6];
     labels.forEach(function (l, i) { txt(ctx, l, 44.5, by[i] + s2, FL); });
-    var BV = { size: 14, weight: 'bold' };
-    txt(ctx, 'Bank Nizwa/AlKhoud - 004-50003068-001', vx, by[0] + s2, BV);
-    txt(ctx, '0012146801', vx, by[1] + s2, BV);
-    txt(ctx, 'Sky Innovations or', vx, by[2] + s2, BV);
-    font(ctx, 14, { weight: 'bold' });
-    var ow = ctx.measureText('Sky Innovations or ').width;
-    txt(ctx, 'ابتكارات السماء', vx + ow, by[2] + s2, { size: 14, weight: 'bold', family: TAHOMA, dir: 'rtl' });
+    var BV = { size: fs, weight: 'bold' };
+    txt(ctx, vals[0], vx, by[0] + s2, BV);
+    txt(ctx, vals[1], vx, by[1] + s2, BV);
+    txt(ctx, vals[2].trim(), vx, by[2] + s2, BV);
+    font(ctx, fs, { weight: 'bold' });
+    var ow = ctx.measureText(vals[2]).width;
+    txt(ctx, 'ابتكارات السماء', vx + ow, by[2] + s2, { size: fs, weight: 'bold', family: TAHOMA, dir: 'rtl' });
 
-    txt(ctx, 'Approved by:', 44.5, 624.3 + s2, FL);
+    txt(ctx, 'Approved by:', 44.5, 624.3 + s2, { size: 14, weight: 'bold', color: GRAY });
     if (imgs.stamp) ctx.drawImage(imgs.stamp, 243.3, 604.4 + s2, 169.2, 156.4);
     if (imgs.sign) ctx.drawImage(imgs.sign, 68.5, 653.4 + s2, 104.2, 38.1);
     txt(ctx, 'Received by:', 408.6, 664.5 + s2, { size: 14 });
