@@ -11,6 +11,13 @@
   margin: 0 auto var(--sp-14);
 }
 
+/* بطاقة أخيرة منفردة: تتوسط الصف بعرض عمود واحد */
+.tool-grid > .tool-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(50% - var(--sp-2));
+}
+
 /* A tool card is a panel you can enter — same surface, same rules */
 .tool-card {
   position: relative;
@@ -152,6 +159,10 @@
   .tool-card {
     padding: var(--sp-6);
     border-radius: var(--radius-sm);
+  }
+
+  .tool-grid > .tool-card:last-child:nth-child(odd) {
+    width: 100%;
   }
 }
 
