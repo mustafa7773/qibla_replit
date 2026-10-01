@@ -27,7 +27,7 @@
       '<label>Quantity<input class="num f-qty" inputmode="decimal"></label>' +
       '<label>Unit Price<input class="num f-unit" inputmode="decimal"></label>' +
       '<label>Price after discount<input class="num f-price" inputmode="decimal"></label>' +
-      '<span></span><button type="button" class="rm">حذف</button>';
+      '<button type="button" class="rm">حذف</button>';
     d.querySelector('.f-desc').value = it.desc || '';
     d.querySelector('.f-qty').value = it.qty == null ? 1 : it.qty;
     d.querySelector('.f-unit').value = it.unit || '';

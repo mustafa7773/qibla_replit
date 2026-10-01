@@ -20,7 +20,12 @@
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
     'August', 'September', 'October', 'November', 'December'];
 
-  function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(/,/g, '')); return isFinite(n) ? n : 0; }
+  function latin(s) {
+    return String(s == null ? '' : s).replace(/[\u0660-\u0669]/g, function (d) { return d.charCodeAt(0) - 0x660; })
+      .replace(/[\u06F0-\u06F9]/g, function (d) { return d.charCodeAt(0) - 0x6F0; })
+      .replace(/[\u066B\u066C]/g, function (d) { return d === '\u066B' ? '.' : ','; });
+  }
+  function num(v) { var n = parseFloat(latin(v).replace(/,/g, '')); return isFinite(n) ? n : 0; }
   function baisa(v) { return Math.round(num(v) * 1000); }
   function fmt(b) { return (b / 1000).toFixed(3); }
 
@@ -109,13 +114,13 @@
     var LBL = { size: 12, weight: 'bold', color: GRAY, align: 'right' };
     var VAL = { size: 12, weight: 'bold' };
     txt(ctx, 'Quote #:', 87, 217.1, LBL);
-    txt(ctx, data.quoteNo || '', 91, 217.1, VAL);
+    txt(ctx, latin(data.quoteNo), 91, 217.1, VAL);
     txt(ctx, 'Date:', 87, 276.5, LBL);
     txt(ctx, fmtDate(data.date), 91, 276.5, VAL);
     txt(ctx, 'Customer ID:', 87, 294.4, LBL);
     txt(ctx, data.customerId || '', 91, 294.4, { size: 12, weight: 'bold', family: TAHOMA });
     txt(ctx, 'LOP Ref:', 87, 312.2, LBL);
-    txt(ctx, data.lop || '', 91, 312.2, VAL);
+    txt(ctx, latin(data.lop), 91, 312.2, VAL);
 
     txt(ctx, 'Bill To:', 405, 256, LBL);
     var bl = billLines(data.billTo);
@@ -127,8 +132,8 @@
       txt(ctx, s, 501.1, 233 + i * 15.1, { size: sz, weight: 'bold', family: ARIAL, align: 'right', dir: 'rtl' });
     });
     txt(ctx, 'TIN  No =', 405, 294.4, LBL);
-    txt(ctx, data.tin || '', 408, 294.4, VAL);
-    txt(ctx, '| M:  ' + (data.contact || ''), 411.7, 312.2, VAL);
+    txt(ctx, latin(data.tin), 408, 294.4, VAL);
+    txt(ctx, '| M:  ' + latin(data.contact), 411.7, 312.2, VAL);
 
     /* ---- الجدول ---- */
     var itemFont = { size: 10, family: MONO, color: '#333' };
@@ -182,7 +187,7 @@
       x.lines.forEach(function (ln, k) {
         txt(ctx, ln, COLS[1] + 8, top + k * 14.7, itemFont);
       });
-      txt(ctx, String(r.qty), c(2, 3), cy, N);
+      txt(ctx, latin(r.qty), c(2, 3), cy, N);
       txt(ctx, 'OMR ' + fmt(r.unit), c(3, 4), cy, N);
       txt(ctx, fmt(r.price), c(4, 5), cy, N);
       txt(ctx, fmt(r.total), c(5, 6), cy, N);
