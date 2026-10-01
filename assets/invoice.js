@@ -124,12 +124,13 @@
 
     txt(ctx, 'Bill To:', 405, 256, LBL);
     var bl = billLines(data.billTo);
-    bl.slice(0, 4).forEach(function (s, i) {
+    var bs = bl.slice(0, 4);
+    bs.forEach(function (s, i) {
       var sz = 10;
       font(ctx, sz, { weight: 'bold', family: ARIAL });
       var w = ctx.measureText(s).width;
       if (w > 92) sz = Math.max(7, 10 * 92 / w);
-      txt(ctx, s, 501.1, 233 + i * 15.1, { size: sz, weight: 'bold', family: ARIAL, align: 'right', dir: 'rtl' });
+      txt(ctx, s, 455.5, 256 - (bs.length - 1) * 7.55 + i * 15.1, { size: sz, weight: 'bold', family: ARIAL, align: 'center', dir: 'rtl' });
     });
     txt(ctx, 'TIN  No =', 405, 294.4, LBL);
     txt(ctx, latin(data.tin), 408, 294.4, VAL);
