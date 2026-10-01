@@ -1,0 +1,17 @@
+.inv-wrap{max-width:1120px;margin:0 auto;padding:24px 16px 48px}
+.inv-back{color:var(--gold,#dfb668);text-decoration:none}
+.inv-title{font-family:Amiri,serif;margin:8px 0 20px}
+.inv-grid{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:24px;align-items:start}
+.inv-form{display:flex;flex-direction:column;gap:12px}
+.inv-form label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;opacity:.9}
+.inv-form input,.inv-form textarea{padding:9px 10px;border-radius:var(--radius-xs,8px);border:1px solid var(--line,rgba(148,163,184,.14));background:var(--surface-1,#0c121f);color:inherit;font:inherit}
+.inv-form .num{font-family:"IBM Plex Mono",monospace;direction:ltr;text-align:left}
+.inv-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.inv-form h2{font-size:1rem;margin:8px 0 0}
+.inv-item{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:10px;border:1px solid var(--line,rgba(148,163,184,.14));border-radius:var(--radius-sm,12px)}
+.inv-item .d{grid-column:1/-1}
+.inv-item .rm{grid-column:1/-1;justify-self:end;background:none;border:0;color:#f87171;cursor:pointer}
+.inv-add{background:none;border:1px dashed var(--line,#334);color:inherit;padding:9px;border-radius:var(--radius-xs,8px);cursor:pointer}
+.inv-warn{color:#f59e0b;margin:0;font-size:.85rem}
+.inv-preview canvas{width:100%;max-width:595px;height:auto;background:#fff;border-radius:6px;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+@media(max-width:860px){.inv-grid{grid-template-columns:1fr}.inv-preview{order:-1}}
