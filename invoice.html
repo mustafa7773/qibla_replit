@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الفاتورة — أدوات ابتكارات السماء</title>
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="assets/style.css?v=inv1">
+<link rel="stylesheet" href="assets/invoice.css?v=inv1">
+</head>
+<body>
+<div class="inv-wrap">
+  <a class="inv-back" href="index.html">← الأدوات</a>
+  <h1 class="inv-title">فاتورة ضريبية</h1>
+  <div class="inv-grid">
+    <section class="inv-form">
+      <div class="inv-row2">
+        <label>رقم الفاتورة (Quote #)<input id="quoteNo" class="num" placeholder="2026/18"></label>
+        <label>التاريخ<input id="date" type="date"></label>
+      </div>
+      <label>العميل (Bill To) — كل سطر في سطر، حتى 4 أسطر
+        <textarea id="billTo" rows="4"></textarea></label>
+      <div class="inv-row2">
+        <label>TIN No<input id="tin" class="num"></label>
+        <label>الهاتف (M)<input id="contact" class="num"></label>
+      </div>
+      <div class="inv-row2">
+        <label>Customer ID<input id="customerId"></label>
+        <label>LOP Ref<input id="lop" class="num"></label>
+      </div>
+      <h2>البنود</h2>
+      <div id="items"></div>
+      <button type="button" id="addItem" class="inv-add">+ إضافة بند</button>
+      <label class="inv-vat">ضريبة القيمة المضافة %<input id="vatRate" class="num" value="5"></label>
+      <p id="warn" class="inv-warn" hidden></p>
+      <button type="button" id="dl" class="primary">تنزيل PDF</button>
+    </section>
+    <section class="inv-preview"><canvas id="cv"></canvas></section>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="assets/invoice.js?v=inv1"></script>
+<script src="assets/invoice-ui.js?v=inv1"></script>
+</body>
+</html>
