@@ -110,31 +110,41 @@
     if (imgs.logo) ctx.drawImage(imgs.logo, 283.4, 62.1, 101.1, 92.5);
     txt(ctx, 'Tax Invoice', 304.05, 190.4, { size: 18, weight: 'bold', style: 'italic', color: NAVY, align: 'center' });
 
-    /* ---- بيانات الطلب ---- */
-    var LBL = { size: 12, weight: 'bold', color: GRAY, align: 'right' };
+    /* ---- بيانات الطلب: عمودان بخطّين فاصلين ---- */
+    rect(ctx, COLS[0], 206.6, COLS[6], 207.2, C_EDGE);
+    rect(ctx, COLS[0], 308.6, COLS[6], 309.2, C_EDGE);
+    var LBL = { size: 12, weight: 'bold', color: GRAY };
     var VAL = { size: 12, weight: 'bold' };
-    txt(ctx, 'Quote #:', 87, 217.1, LBL);
-    txt(ctx, latin(data.quoteNo), 91, 217.1, VAL);
-    txt(ctx, 'Date:', 87, 276.5, LBL);
-    txt(ctx, fmtDate(data.date), 91, 276.5, VAL);
-    txt(ctx, 'Customer ID:', 87, 294.4, LBL);
-    txt(ctx, data.customerId || '', 91, 294.4, { size: 12, weight: 'bold', family: TAHOMA });
-    txt(ctx, 'LOP Ref:', 87, 312.2, LBL);
-    txt(ctx, latin(data.lop), 91, 312.2, VAL);
+    font(ctx, 12, { weight: 'bold' });
+    var lw1 = Math.max.apply(null, ['Quote #:', 'Date:', 'Customer ID:', 'LOP Ref:'].map(function (l) { return ctx.measureText(l).width; }));
+    var vx1 = COLS[0] + 8 + lw1 + 8;
+    var L1 = COLS[0] + 8, ry = [226, 248, 270, 292];
+    txt(ctx, 'Quote #:', L1, ry[0], LBL);
+    txt(ctx, latin(data.quoteNo), vx1, ry[0], VAL);
+    txt(ctx, 'Date:', L1, ry[1], LBL);
+    txt(ctx, fmtDate(data.date), vx1, ry[1], VAL);
+    txt(ctx, 'Customer ID:', L1, ry[2], LBL);
+    txt(ctx, data.customerId || '', vx1, ry[2], { size: 12, weight: 'bold', family: TAHOMA });
+    txt(ctx, 'LOP Ref:', L1, ry[3], LBL);
+    txt(ctx, latin(data.lop), vx1, ry[3], VAL);
 
-    txt(ctx, 'Bill To:', 405, 256, LBL);
-    var bl = billLines(data.billTo);
-    var bs = bl.slice(0, 4);
+    var L2 = 322;
+    font(ctx, 12, { weight: 'bold' });
+    var lw2b = Math.max.apply(null, ['Bill To:', 'TIN No =', 'M:'].map(function (l) { return ctx.measureText(l).width; }));
+    var vx2 = L2 + lw2b + 10, bx0 = vx2, bx1 = COLS[6] - 8;
+    txt(ctx, 'Bill To:', L2, 237, LBL);
+    var bs = billLines(data.billTo).slice(0, 4);
     bs.forEach(function (s, i) {
-      var sz = 10;
+      var sz = 10, maxW = bx1 - bx0;
       font(ctx, sz, { weight: 'bold', family: ARIAL });
       var w = ctx.measureText(s).width;
-      if (w > 92) sz = Math.max(7, 10 * 92 / w);
-      txt(ctx, s, 455.5, 256 - (bs.length - 1) * 7.55 + i * 15.1, { size: sz, weight: 'bold', family: ARIAL, align: 'center', dir: 'rtl' });
+      if (w > maxW) sz = Math.max(7, 10 * maxW / w);
+      txt(ctx, s, (bx0 + bx1) / 2, 237 - (bs.length - 1) * 6.25 + i * 12.5, { size: sz, weight: 'bold', family: ARIAL, align: 'center', dir: 'rtl' });
     });
-    txt(ctx, 'TIN  No =', 405, 294.4, LBL);
-    txt(ctx, latin(data.tin), 408, 294.4, VAL);
-    txt(ctx, '| M:  ' + latin(data.contact), 411.7, 312.2, VAL);
+    txt(ctx, 'TIN No =', L2, ry[2], LBL);
+    txt(ctx, latin(data.tin), vx2, ry[2], VAL);
+    txt(ctx, 'M:', L2, ry[3], LBL);
+    txt(ctx, latin(data.contact), vx2, ry[3], VAL);
 
     /* ---- الجدول ---- */
     var itemFont = { size: 10, family: MONO, color: '#333' };
