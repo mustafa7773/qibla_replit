@@ -100,6 +100,7 @@
         preview.classList.remove("show");
         fileInput.value = "";
         ocrResultBox.classList.add("hidden");
+        if (window.SketchChat) window.SketchChat.reset();
       });
 
       const ocrChoiceModal = document.getElementById("ocrChoiceModal"),
@@ -436,10 +437,8 @@
         });
       }
 
-      async function extractWithClaudeVision(dataUrl, mediaType) {
-        const base64Data = dataUrl.split(",")[1];
-
-        const prompt =
+      function claudeVisionPrompt() {
+        return (
           "اقرأ جدول إحداثيات قطعة الأرض من هذه الصورة (كروكي مساحي عُماني). " +
           "أعد الإجابة بصيغة JSON فقط بدون أي نص إضافي أو علامات markdown، بالشكل التالي بالضبط:\n" +
           '{"points": [[easting, northing], ...], "area": <رقم المساحة الإجمالية بالمتر المربع كما هي مكتوبة بالوثيقة أو null>, "zone": <رقم نطاق UTM إن وجد أو null>, "datum": "psd93" أو "wgs84utm" أو null, "rawText": "<انسخ هنا حرفياً السطر الذي يذكر نظام الإسناد كما هو مكتوب في الوثيقة، مثل Clark1880 40N، أو اتركه فارغاً>", "wilaya": "<انسخ هنا حرفياً اسم الولاية المكتوب في الوثيقة أمام خانة \\"الولاية\\" أو Wilayat، عربياً أو إنجليزياً كما هو، أو null>"}\n' +
@@ -447,30 +446,104 @@
           "- حقل wilaya: انسخ ما هو مكتوب أمام \"الولاية\" فقط. لا تنسخ اسم القرية أو المدينة أو الحي، ولا تستنتج الولاية من اسم القرية.\n" +
           "- بعض الجداول تكتب عمود Northing قبل عمود Easting — تأكد من إخراج كل نقطة بترتيب [Easting, Northing] دائماً بغض النظر عن ترتيب الأعمدة كما تظهر في الصورة.\n" +
           "- انسخ الأرقام كما هي بالضبط دون أي تقريب أو تعديل.\n" +
-          "- إذا لم تجد قيمة لأي حقل ضعه null.";
+          "- إذا لم تجد قيمة لأي حقل ضعه null."
+        );
+      }
 
+      // نداء واحد لخدمة القراءة. messages: [{role, text}] تبدأ برسالة المستخدم
+      // الأولى (تُرفق بها الصورة في الخادم). يعيد نص رد النموذج الخام.
+      async function callClaudeVision(dataUrl, mediaType, messages) {
+        const base64Data = dataUrl.split(",")[1];
         const response = await fetch("/api/vision", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64Data, mediaType, prompt }),
+          body: JSON.stringify({ image: base64Data, mediaType, messages }),
         });
-
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload || !payload.ok) {
           throw new Error(
             (payload && payload.error) ||
-              "تعذّر الاتصال بخدمة القراءة (" + response.status + ")."
+              "تعذّر الاتصال بخدمة القراءة (" + response.status + ").",
           );
         }
+        return payload.text || "";
+      }
 
-        const textOut = payload.text || "";
-
-        const cleaned = textOut.replace(/```json|```/g, "").trim();
+      function parseClaudeVisionText(textOut) {
+        const cleaned = String(textOut || "").replace(/```json|```/g, "").trim();
         try {
           return JSON.parse(cleaned);
         } catch (e) {
           throw new Error("تعذّر تفسير استجابة الذكاء الاصطناعي.");
         }
+      }
+
+      async function extractWithClaudeVision(dataUrl, mediaType) {
+        const prompt = claudeVisionPrompt();
+        const text = await callClaudeVision(dataUrl, mediaType, [{ role: "user", text: prompt }]);
+        return { parsed: parseClaudeVisionText(text), prompt, text };
+      }
+
+      // يطبّق نتيجة قراءة Claude على الحقول ويعيد ملخصاً نصياً. يُستعمل في
+      // القراءة الأولى وفي كل تصحيح من محادثة الكروكي (sketch-chat.js).
+      function applyClaudeParsed(parsed) {
+        const points = Array.isArray(parsed.points) ? parsed.points : [];
+        const pointsLines = points
+          .filter((p) => Array.isArray(p) && p.length >= 2 && isFinite(p[0]) && isFinite(p[1]))
+          .map((p) => p[0] + ", " + p[1]);
+        if (pointsLines.length > 0) {
+          document.getElementById("pointsInput").value = pointsLines.join("\n");
+        }
+        if (parsed.zone && parsed.zone >= 1 && parsed.zone <= 60) {
+          document.getElementById("zone").value = parsed.zone;
+        }
+        // لا نأخذ نظام الإسناد من النموذج مباشرة: إن كان الكروكي يذكر
+        // Clark1880 أو PSD93 فهو الحاكم، مهما قال النموذج. هذا يمنع
+        // التحوّل الخاطئ إلى "قياسي دولي" في بعض الكروكيات.
+        const datumFromDoc = detectDatum(
+          (parsed.rawText || "") + " " + (parsed.datum || ""),
+        );
+        const docSaysPSD93 = detectDatum(parsed.rawText || "") === "psd93" &&
+          /c1ark|1880|psd93/.test(
+            String(parsed.rawText || "").toLowerCase().replace(/[il|]/g, "1").replace(/[^a-z0-9]/g, ""),
+          );
+
+        if (docSaysPSD93) {
+          document.getElementById("datum").value = "psd93";
+        } else if (parsed.datum === "psd93" || parsed.datum === "wgs84utm") {
+          document.getElementById("datum").value = parsed.datum;
+        }
+
+        // اكتشاف الولاية من نص الكروكي، بأولوية على نتيجة الموقع
+        // الجغرافي التقريبية (Nominatim) التي قد تعطي ولاية مجاورة.
+        let wilayaMatch = null;
+        if (window.Governorates && typeof window.Governorates.detectFromText === "function") {
+          wilayaMatch =
+            window.Governorates.detectFromText(parsed.wilaya || "") ||
+            window.Governorates.detectFromText(parsed.rawText || "");
+        }
+        if (wilayaMatch) {
+          document.getElementById("governorateInput").value =
+            wilayaMatch.governorate + " - " + wilayaMatch.wilaya;
+          governorateAutoFillEnabled = false;
+          if (typeof refreshCompanyRequestNo === "function") refreshCompanyRequestNo();
+        }
+
+        const summaryLines = [
+          "✓ تمت القراءة بواسطة Claude AI",
+          "عدد النقاط المستخرجة: " + pointsLines.length,
+        ];
+        if (wilayaMatch) {
+          summaryLines.push("الولاية من الكروكي: " + wilayaMatch.wilaya);
+        } else if (parsed.wilaya) {
+          summaryLines.push("الولاية بالكروكي: " + parsed.wilaya + " (لم تُطابَق — راجع الحقل)");
+        }
+        if (parsed.area) summaryLines.push("المساحة المذكورة بالكروكي: " + parsed.area + " م²");
+
+        return (
+          summaryLines.join("\n") +
+          (parsed.area ? "\nAREA = " + parsed.area + " SQ M" : "")
+        );
       }
 
       async function handleFile(file) {
@@ -480,6 +553,7 @@
           document.getElementById("fileName").textContent = file.name;
           preview.classList.add("show");
           ocrResultBox.classList.add("hidden");
+          if (window.SketchChat) window.SketchChat.reset();
 
           const choice = await askOcrMethod();
           if (!choice) return;
@@ -490,63 +564,25 @@
             document.getElementById("ocrStatusText").textContent = "جاري القراءة بدقة عالية بواسطة Claude AI…";
             try {
               const mediaType = file.type === "image/png" ? "image/png" : "image/jpeg";
-              const parsed = await extractWithClaudeVision(reader.result, mediaType);
-
-              const points = Array.isArray(parsed.points) ? parsed.points : [];
-              const pointsLines = points
-                .filter((p) => Array.isArray(p) && p.length >= 2 && isFinite(p[0]) && isFinite(p[1]))
-                .map((p) => p[0] + ", " + p[1]);
-              if (pointsLines.length > 0) {
-                document.getElementById("pointsInput").value = pointsLines.join("\n");
-              }
-              if (parsed.zone && parsed.zone >= 1 && parsed.zone <= 60) {
-                document.getElementById("zone").value = parsed.zone;
-              }
-              // لا نأخذ نظام الإسناد من النموذج مباشرة: إن كان الكروكي يذكر
-              // Clark1880 أو PSD93 فهو الحاكم، مهما قال النموذج. هذا يمنع
-              // التحوّل الخاطئ إلى "قياسي دولي" في بعض الكروكيات.
-              const datumFromDoc = detectDatum(
-                (parsed.rawText || "") + " " + (parsed.datum || ""),
-              );
-              const docSaysPSD93 = detectDatum(parsed.rawText || "") === "psd93" &&
-                /c1ark|1880|psd93/.test(
-                  String(parsed.rawText || "").toLowerCase().replace(/[il|]/g, "1").replace(/[^a-z0-9]/g, ""),
-                );
-
-              if (docSaysPSD93) {
-                document.getElementById("datum").value = "psd93";
-              } else if (parsed.datum === "psd93" || parsed.datum === "wgs84utm") {
-                document.getElementById("datum").value = parsed.datum;
-              }
-
-              // اكتشاف الولاية من نص الكروكي، بأولوية على نتيجة الموقع
-              // الجغرافي التقريبية (Nominatim) التي قد تعطي ولاية مجاورة.
-              let wilayaMatch = null;
-              if (window.Governorates && typeof window.Governorates.detectFromText === "function") {
-                wilayaMatch =
-                  window.Governorates.detectFromText(parsed.wilaya || "") ||
-                  window.Governorates.detectFromText(parsed.rawText || "");
-              }
-              if (wilayaMatch) {
-                document.getElementById("governorateInput").value =
-                  wilayaMatch.governorate + " - " + wilayaMatch.wilaya;
-                governorateAutoFillEnabled = false;
-                if (typeof refreshCompanyRequestNo === "function") refreshCompanyRequestNo();
-              }
-
-              const summaryLines = [
-                "✓ تمت القراءة بواسطة Claude AI",
-                "عدد النقاط المستخرجة: " + pointsLines.length,
-              ];
-              if (wilayaMatch) {
-                summaryLines.push("الولاية من الكروكي: " + wilayaMatch.wilaya);
-              } else if (parsed.wilaya) {
-                summaryLines.push("الولاية بالكروكي: " + parsed.wilaya + " (لم تُطابَق — راجع الحقل)");
-              }
-              if (parsed.area) summaryLines.push("المساحة المذكورة بالكروكي: " + parsed.area + " م²");
-              document.getElementById("ocrText").value =
-                summaryLines.join("\n") + (parsed.area ? "\nAREA = " + parsed.area + " SQ M" : "");
+              const first = await extractWithClaudeVision(reader.result, mediaType);
+              const parsed = first.parsed;
+              document.getElementById("ocrText").value = applyClaudeParsed(parsed);
               ocrResultBox.classList.remove("hidden");
+              if (window.SketchChat) {
+                window.SketchChat.start({
+                  after: ocrResultBox,
+                  history: [
+                    { role: "user", text: first.prompt },
+                    { role: "assistant", text: first.text },
+                  ],
+                  send: (messages) => callClaudeVision(reader.result, mediaType, messages),
+                  parse: parseClaudeVisionText,
+                  apply: applyClaudeParsed,
+                  onSummary: (t) => {
+                    document.getElementById("ocrText").value = t;
+                  },
+                });
+              }
             } catch (err) {
               document.getElementById("ocrText").value =
                 "تعذّرت القراءة بالذكاء الاصطناعي: " +
