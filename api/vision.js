@@ -16,6 +16,8 @@
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;   // حد Anthropic للصورة الواحدة
+const MAX_MESSAGES = 13;                   // رسالة أولى + 6 جولات تصحيح
+const MAX_MESSAGE_CHARS = 6000;
 
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -42,7 +44,25 @@ module.exports = async (req, res) => {
       typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
     const { image, mediaType, prompt } = body;
 
-    if (!image || !prompt) {
+    // وضع المحادثة: مصفوفة رسائل متناوبة (مستخدم ثم مساعد ...) تبدأ برسالة
+    // المستخدم الأولى التي تُرفق بها الصورة. بدونها يعمل الطلب كالسابق.
+    let messages = null;
+    if (Array.isArray(body.messages)) {
+      messages = body.messages.map((m) => ({
+        role: m && m.role === "assistant" ? "assistant" : "user",
+        text: String((m && m.text) || "").slice(0, MAX_MESSAGE_CHARS),
+      }));
+      const okShape =
+        messages.length >= 1 &&
+        messages.length <= MAX_MESSAGES &&
+        messages.length % 2 === 1 &&
+        messages.every((m, i) => m.text && m.role === (i % 2 ? "assistant" : "user"));
+      if (!okShape) {
+        return res.status(400).json({ ok: false, error: "المحادثة غير صالحة أو طالت أكثر من اللازم." });
+      }
+    }
+
+    if (!image || (!prompt && !messages)) {
       return res.status(400).json({ ok: false, error: "الطلب ناقص." });
     }
     // طول base64 ≈ ٤/٣ حجم البايتات
@@ -51,6 +71,24 @@ module.exports = async (req, res) => {
         ok: false,
         error: "الصورة كبيرة جداً. صغّرها ثم أعد المحاولة.",
       });
+    }
+
+    const imageBlock = {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: mediaType === "image/png" ? "image/png" : "image/jpeg",
+        data: image,
+      },
+    };
+    function buildMessages() {
+      if (!messages) {
+        return [{ role: "user", content: [imageBlock, { type: "text", text: prompt }] }];
+      }
+      return messages.map((m, i) => ({
+        role: m.role,
+        content: i === 0 ? [imageBlock, { type: "text", text: m.text }] : m.text,
+      }));
     }
 
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
@@ -63,23 +101,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 1000,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type:
-                    mediaType === "image/png" ? "image/png" : "image/jpeg",
-                  data: image,
-                },
-              },
-              { type: "text", text: prompt },
-            ],
-          },
-        ],
+        messages: buildMessages(),
       }),
     });
 
