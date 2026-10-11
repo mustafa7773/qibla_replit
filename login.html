@@ -8,13 +8,26 @@
 <link rel="icon" href="favicon.png">
 <link rel="stylesheet" href="assets/style.css">
 <link rel="stylesheet" href="assets/auth.css?v=1">
+<style>
+.brand{display:flex;align-items:center;justify-content:center;gap:12px}
+.brand-txt{display:grid;line-height:1.15}
+.brand-txt b{font:700 1.45rem Amiri,serif;color:#f4d896}
+.brand-txt span{font:500 .68rem 'IBM Plex Mono',monospace;letter-spacing:.28em;color:#94a3b8;direction:ltr;text-align:start}
+.auth-card h1{font-size:1.1rem;color:#cbd5e1}
+</style>
 </head>
 <body>
 <main class="auth-wrap">
   <form class="auth-card" id="f" autocomplete="on">
-    <img class="auth-logo" src="assets/logo.png" alt="ابتكارات السماء">
-    <h1>أدوات ابتكارات السماء</h1>
-    <p class="auth-sub">سجّل دخولك للمتابعة</p>
+    <div class="brand">
+      <svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true">
+        <path d="M24 3 45 24 24 45 3 24Z" fill="none" stroke="#dfb668" stroke-width="2.4" stroke-linejoin="round"/>
+        <path d="M24 13 35 24 24 35 13 24Z" fill="#dfb668"/>
+      </svg>
+      <div class="brand-txt"><b>ابتكارات السماء</b><span>SKY INNOVATIONS</span></div>
+    </div>
+    <h1>تسجيل الدخول</h1>
+    <p class="auth-sub">أدوات ابتكارات السماء الهندسية</p>
     <label class="auth-field">اسم المستخدم
       <input id="u" dir="ltr" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
     </label>
