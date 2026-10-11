@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#070b14">
+<title>تسجيل الدخول — أدوات ابتكارات السماء</title>
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/auth.css?v=1">
+</head>
+<body>
+<main class="auth-wrap">
+  <form class="auth-card" id="f" autocomplete="on">
+    <img class="auth-logo" src="assets/logo.png" alt="ابتكارات السماء">
+    <h1>أدوات ابتكارات السماء</h1>
+    <p class="auth-sub">سجّل دخولك للمتابعة</p>
+    <label class="auth-field">اسم المستخدم
+      <input id="u" dir="ltr" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+    </label>
+    <label class="auth-field">كلمة المرور
+      <span class="row">
+        <input id="p" type="password" dir="ltr" autocomplete="current-password" required>
+        <button type="button" class="auth-eye" id="eye">إظهار</button>
+      </span>
+    </label>
+    <p class="auth-err" id="err" role="alert"></p>
+    <button class="auth-btn" id="go">دخول</button>
+    <p class="auth-foot">الدخول للموظفين المصرّح لهم فقط · تُسجَّل محاولات الدخول</p>
+  </form>
+</main>
+<script>
+var u=document.getElementById('u'),p=document.getElementById('p'),err=document.getElementById('err'),go=document.getElementById('go');
+document.getElementById('eye').onclick=function(){var s=p.type==='password';p.type=s?'text':'password';this.textContent=s?'إخفاء':'إظهار'};
+document.getElementById('f').onsubmit=async function(e){
+  e.preventDefault();err.textContent='';go.disabled=true;go.textContent='جارٍ التحقق…';
+  try{
+    var r=await fetch('/api/login',{method:'POST',credentials:'same-origin',body:JSON.stringify({username:u.value,password:p.value})});
+    var d=await r.json().catch(function(){return{}});
+    if(r.ok){var n=new URLSearchParams(location.search).get('next');
+      location.replace(n&&n.charAt(0)==='/'&&n.charAt(1)!=='/'?n:'/index.html');return}
+    err.textContent=d.error||'تعذّر الدخول';p.value='';p.focus();
+  }catch(x){err.textContent='تعذّر الاتصال بالخادم'}
+  go.disabled=false;go.textContent='دخول';
+};
+</script>
+</body></html>

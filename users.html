@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>إدارة المستخدمين — أدوات ابتكارات السماء</title>
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/auth.css?v=1">
+<script src="assets/auth-guard.js?v=1"></script>
+</head>
+<body>
+<main class="users-page">
+  <section class="panel">
+    <h2>إضافة حساب أو إعادة تعيين كلمة مرور</h2>
+    <div class="auth-inline">
+      <label class="auth-field">اسم المستخدم<input id="nu" dir="ltr" autocapitalize="none" placeholder="ahmed"></label>
+      <label class="auth-field">كلمة المرور (10+ أحرف)<input id="np" dir="ltr" type="text" autocomplete="off"></label>
+      <label class="auth-field">الصلاحية<select id="nr"><option value="user">موظف</option><option value="admin">مدير</option></select></label>
+      <button class="auth-btn" id="save">حفظ</button>
+    </div>
+    <p class="auth-err" id="msg"></p>
+    <button class="auth-btn ghost" id="gen" type="button">توليد كلمة مرور قوية</button>
+  </section>
+  <section class="panel">
+    <h2>الحسابات</h2>
+    <div class="scroll-x"><table class="utable"><thead><tr><th>المستخدم</th><th>الصلاحية</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
+  </section>
+  <section class="panel">
+    <h2>سجل الدخول (آخر 100)</h2>
+    <div class="scroll-x"><table class="utable"><thead><tr><th>الوقت</th><th>المستخدم</th><th>الحدث</th><th>العنوان</th><th></th></tr></thead><tbody id="lt"></tbody></table></div>
+  </section>
+  <section class="panel">
+    <h2>تغيير كلمة مرور حسابي</h2>
+    <div class="auth-inline">
+      <label class="auth-field">الحالية<input id="op" type="password" dir="ltr" autocomplete="current-password"></label>
+      <label class="auth-field">الجديدة<input id="np2" type="password" dir="ltr" autocomplete="new-password"></label>
+      <span></span><button class="auth-btn" id="chg">تغيير</button>
+    </div>
+    <p class="auth-err" id="msg2"></p>
+  </section>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+function td(t,c){var e=document.createElement('td');e.textContent=t;if(c)e.className=c;return e}
+function api(m,b){return fetch('/api/users',{method:m,credentials:'same-origin',body:b?JSON.stringify(b):undefined}).then(function(r){return r.json()})}
+async function load(){
+  var d=await api('GET');if(!d.ok){document.body.innerHTML='<p style="padding:40px;text-align:center">هذه الصفحة للمدير فقط</p>';return}
+  var t=$('ut');t.innerHTML='';
+  d.users.forEach(function(u){var tr=document.createElement('tr');tr.appendChild(td(u.username,'mono'));
+    var c=document.createElement('td'),s=document.createElement('span');s.className='tag '+(u.role==='admin'?'admin':'');s.textContent=u.role==='admin'?'مدير':'موظف';c.appendChild(s);tr.appendChild(c);
+    var a=document.createElement('td'),b=document.createElement('button');b.className='auth-btn danger';b.textContent='حذف';
+    b.onclick=async function(){if(!confirm('حذف الحساب '+u.username+'؟ سيُلغى دخوله فوراً.'))return;var r=await api('DELETE',{username:u.username});if(!r.ok)alert(r.error);load()};
+    a.appendChild(b);tr.appendChild(a);t.appendChild(tr)});
+  if(!d.users.length){var tr=document.createElement('tr'),c=td('لا حسابات بعد (حساب المدير الرئيسي من Vercel)');c.colSpan=3;tr.appendChild(c);t.appendChild(tr)}
+  var l=await fetch('/api/users?log=1',{credentials:'same-origin'}).then(function(r){return r.json()});
+  var lt=$('lt');lt.innerHTML='';
+  (l.log||[]).forEach(function(x){var tr=document.createElement('tr');
+    tr.appendChild(td(new Date(x.t).toLocaleString('ar-OM'),'mono'));tr.appendChild(td(x.u,'mono'));tr.appendChild(td(x.n));tr.appendChild(td(x.ip,'mono'));
+    var c=document.createElement('td'),s=document.createElement('span');s.className='tag '+(x.ok?'good':'bad');s.textContent=x.ok?'نجح':'فشل';c.appendChild(s);tr.appendChild(c);lt.appendChild(tr)});
+}
+$('save').onclick=async function(){var m=$('msg');m.className='auth-err';m.textContent='';
+  var r=await api('POST',{username:$('nu').value,password:$('np').value,role:$('nr').value});
+  if(r.ok){m.className='auth-err auth-ok';m.textContent='تم الحفظ. سلّم كلمة المرور للموظف بطريقة آمنة.';$('np').value='';load()}else m.textContent=r.error||'تعذّر الحفظ'};
+$('gen').onclick=function(){var a=new Uint32Array(14),cs='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';crypto.getRandomValues(a);a.forEach(function(n){s+=cs[n%cs.length]});$('np').value=s};
+$('chg').onclick=async function(){var m=$('msg2');m.className='auth-err';
+  var r=await fetch('/api/login',{method:'POST',credentials:'same-origin',body:JSON.stringify({action:'change',old:$('op').value,password:$('np2').value})}).then(function(r){return r.json()});
+  if(r.ok){m.className='auth-err auth-ok';m.textContent='تم تغيير كلمة المرور';$('op').value=$('np2').value=''}else m.textContent=r.error||'تعذّر التغيير'};
+load();
+</script>
+</body></html>
