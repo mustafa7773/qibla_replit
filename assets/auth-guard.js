@@ -21,6 +21,8 @@
       .then(function () { location.href = '/login.html'; });
   };
   if (onLogin) return;
+  // لا مؤشر دخول: حوّل فوراً قبل رسم الصفحة (الخادم يبقى المرجع الحقيقي للتحقق)
+  if (document.cookie.indexOf('sky_in=1') === -1) { go(); return; }
 
   var chipFor = function (d) {
     var add = function () {
