@@ -42,7 +42,7 @@
   if (cached && Date.now() - cached.t < 300000) { chipFor(cached); return; }
 
   f('/api/login', { credentials: 'same-origin' }).then(function (r) {
-    if (r.status === 401) { go(); return null; }
+    if (!r.ok) { go(); return null; } // 401 أو خطأ إعداد: لا تُعرض الصفحة بلا مصادقة
     return r.json();
   }).then(function (d) {
     if (!d || !d.ok) return;
