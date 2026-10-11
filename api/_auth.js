@@ -30,7 +30,11 @@ function readSession(req) {
   try { const d = JSON.parse(Buffer.from(p, 'base64url').toString()); return d.e > Date.now() ? d : null; } catch { return null; }
 }
 function setCookie(res, token, age = TTL) {
-  res.setHeader('Set-Cookie', `sky_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${age}`);
+  // sky_in مؤشر بلا أي بيانات سرية، يتيح للصفحة التحويل فوراً بلا انتظار الخادم
+  res.setHeader('Set-Cookie', [
+    `sky_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${age}`,
+    `sky_in=${age ? 1 : ''}; Secure; SameSite=Strict; Path=/; Max-Age=${age}`,
+  ]);
 }
 async function log(req, user, ok, note) {
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
