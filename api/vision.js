@@ -14,13 +14,14 @@
 // بناء الدالة صامتاً فتظهر 404.
 // ============================================================================
 
+const { requireAuth } = require("./_auth");
+
 const MODEL = "claude-sonnet-4-6";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;   // حد Anthropic للصورة الواحدة
 const MAX_MESSAGES = 13;                   // رسالة أولى + 6 جولات تصحيح
 const MAX_MESSAGE_CHARS = 6000;
 
 module.exports = async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -28,6 +29,9 @@ module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "الطريقة غير مدعومة." });
   }
+
+  // تسجيل الدخول إلزامي: يحمي رصيد Anthropic من الاستهلاك الخارجي
+  if (!(await requireAuth(req, res))) return;
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {

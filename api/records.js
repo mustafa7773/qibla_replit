@@ -26,6 +26,8 @@
 //   DELETE /api/records   { type, recordId }
 // ============================================================================
 
+const { requireAuth } = require("./_auth");
+
 const ALLOWED_TYPES = ["completed", "qibla", "requests"];
 
 // أسماء متغيّرات البيئة تختلف بين تكامل KV وتكامل Upstash المباشر
@@ -151,6 +153,9 @@ module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
 
   if (req.method === "OPTIONS") return res.status(204).end();
+
+  // تسجيل الدخول إلزامي لكل العمليات
+  if (!(await requireAuth(req, res))) return;
 
   // المفتاح المشترك يعمل فقط إن ضُبط SKY_API_KEY في متغيرات بيئة Vercel،
   // فلا ينكسر الموقع إن لم تضبطه بعد
