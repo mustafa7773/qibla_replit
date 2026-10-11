@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 const URL_ = process.env.KV_REST_API_URL, TOKEN = process.env.KV_REST_API_TOKEN;
 const SECRET = process.env.AUTH_SECRET || '';
+const seen = new Map();
 const TTL = 12 * 3600; // مدة الجلسة بالثواني
 
 async function redis(...cmd) {
@@ -41,7 +42,15 @@ async function requireAuth(req, res, adminOnly = false) {
   res.setHeader('Cache-Control', 'no-store');
   const s = readSession(req);
   let okSession = !!s;
-  if (s && !s.v) okSession = !!(await redis('HEXISTS', 'sky:users', s.u));
+  if (s && !s.v) {
+    // ذاكرة قصيرة (30 ثانية) تتجنّب رحلة Redis في كل طلب
+    const hit = seen.get(s.u);
+    if (hit && Date.now() - hit < 30000) okSession = true;
+    else {
+      okSession = !!(await redis('HEXISTS', 'sky:users', s.u));
+      if (okSession) seen.set(s.u, Date.now()); else seen.delete(s.u);
+    }
+  }
   if (!okSession || (adminOnly && s.r !== 'admin')) {
     res.status(401).json({ ok: false, error: 'غير مصرّح' });
     return null;
